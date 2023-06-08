@@ -124,8 +124,8 @@ export const Login: React.FC<React.PropsWithChildren<ILoginProps>> = (props) => 
       username: username!,
       credential: password!,
       data,
-      type: ConfigConstant.LoginTypes.PASSWORD,
-      mode: ConfigConstant.LoginMode.PASSWORD,
+      type: ConfigConstant.LoginTypes.SSO_AUTH,
+      mode: ConfigConstant.LoginMode.OTHER,
     };
     const result = await loginReq(loginData);
     if (!result) {

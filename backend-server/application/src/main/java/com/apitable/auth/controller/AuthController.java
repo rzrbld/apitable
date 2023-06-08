@@ -44,6 +44,8 @@ import com.apitable.shared.util.information.ClientOriginInfo;
 import com.apitable.shared.util.information.InformationUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
@@ -176,10 +178,15 @@ public class AuthController {
         });
         // SSO login (private user use)
         loginActionFunc.put(LoginType.SSO_AUTH, loginRo -> {
-            UserAuth userAuth = authServiceFacade.ssoLogin(
-                new AuthParam(data.getUsername(), data.getCredential()));
+            UserAuth userAuth = null;
+            try {
+                userAuth = authServiceFacade.ssoLogin(
+                    new AuthParam(data.getUsername(), data.getCredential()));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
             Long userId = userAuth != null ? userAuth.getUserId() : null;
-            return LoginResultVO.builder().userId(userId).build();
+            return LoginResultVO.builder().userId(userId).isNewUser(true).build();
         });
         // Handling login logic
         LoginResultVO resultVO = loginActionFunc.get(data.getType()).apply(data);
