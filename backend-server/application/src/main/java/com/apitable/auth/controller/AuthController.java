@@ -37,16 +37,25 @@ import com.apitable.interfaces.security.facade.BlackListServiceFacade;
 import com.apitable.interfaces.security.facade.HumanVerificationServiceFacade;
 import com.apitable.interfaces.security.model.NonRobotMetadata;
 import com.apitable.shared.component.scanner.annotation.ApiResource;
+import com.apitable.shared.component.scanner.annotation.GetResource;
 import com.apitable.shared.component.scanner.annotation.PostResource;
 import com.apitable.shared.config.properties.CookieProperties;
 import com.apitable.shared.context.SessionContext;
 import com.apitable.shared.util.information.ClientOriginInfo;
 import com.apitable.shared.util.information.InformationUtil;
+import com.apitable.shared.util.page.PageObjectParam;
+import com.apitable.widget.vo.WidgetReleaseListVo;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.Parameters;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import javax.annotation.Resource;
@@ -55,9 +64,16 @@ import javax.servlet.http.HttpServletResponse;
 import javax.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
+
+import com.apitable.interfaces.auth.model.OIDCParam;
+
+import static com.apitable.shared.constants.PageConstants.PAGE_PARAM;
+import static com.apitable.shared.constants.PageConstants.PAGE_SIMPLE_EXAMPLE;
 
 /**
  * Authorization interface.
@@ -109,6 +125,39 @@ public class AuthController {
         SessionContext.setUserId(userId);
         return ResponseData.success();
     }
+
+    /**
+     * callback router.
+     *
+     * @param request request info
+     * @return {@link ResponseData}
+     */
+
+    @GetResource(path = "/callback", requiredPermission = false)
+    @Operation(summary = "Get widget release history")
+    @Parameters({
+            @Parameter(name = "code", in = ParameterIn.QUERY, description = "code",
+                    schema = @Schema(type = "string"), example = "EXAMPLE_CODE")
+    })
+    public ResponseData<Void> callback(@PathVariable(name = "code") String oidcCode) {
+        System.out.println("Callback called");
+        System.out.println("Callback called #2 :: " + oidcCode);
+        // Create an AuthParam object with the authorization code
+        OIDCParam authParam = new OIDCParam(oidcCode);
+
+        // Call the authentication service facade to perform the login
+//        UserAuth userAuth = authServiceFacade.ssoLogin(authParam);
+//
+//        if (userAuth != null) {
+//            // Authentication succeeded, redirect to the desired page or perform further actions
+//            response.sendRedirect("/workbench");
+//        } else {
+//            // Authentication failed, handle accordingly
+//            response.sendRedirect("/login?error=authentication_failed");
+//        }
+        return ResponseData.success();
+    }
+
 
     /**
      * login router.
