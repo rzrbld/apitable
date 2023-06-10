@@ -40,7 +40,7 @@ const oidcRedirectUrl = env.OIDC_IMPLICIT_REDIRECT_URL;
 const oidcClientId = env.OIDC_IMPLICIT_CLIENT_ID
 const oidcResponseType = env.OIDC_IMPLICIT_RESPONSE_TYPE
 const oidcScope = env.OIDC_IMPLICIT_SCOPE
-const oidcFinalUrl = oidcUrl+"?client_id="+oidcClientId+"&response_type="+oidcResponseType+"&scope="+oidcScope+"&redirect_uri="+oidcRedirectUrl
+const oidcFinalUrl = oidcUrl+"?client_id="+oidcClientId+"&response_type="+oidcResponseType+"&scope="+oidcScope+"&response_mode=form_post&redirect_uri="+oidcRedirectUrl
 
 interface ILoginErrorMsg {
   username?: string;
@@ -170,7 +170,7 @@ export const Login: React.FC<React.PropsWithChildren<ILoginProps>> = (props) => 
   }
 
   const handleOIDCClick = () => {
-    window.location.href = oidcFinalUrl; 
+    window.location.href = oidcFinalUrl;
   };
 
   if(oidcIsEnabled){
