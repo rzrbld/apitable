@@ -148,12 +148,12 @@ public class AuthController {
 
     @GetResource(path = "/oidccallback", requiredPermission = false, method =
             RequestMethod.GET, requiredLogin = false)
-    @Operation(summary = "Get widget release history")
+    @Operation(summary = "oidc implicit auth")
     @Parameters({
-            @Parameter(name = "code", in = ParameterIn.QUERY, description = "code",
-                    schema = @Schema(type = "string"), example = "EXAMPLE_CODE")
+            @Parameter(name = "access_token", in = ParameterIn.QUERY, description = "token",
+                    schema = @Schema(type = "string"), example = "EXAMPLE_TOKEN")
     })
-    public ModelAndView callback(@RequestParam(name = "code", required = false) String oidcCode, final HttpServletRequest request) {
+    public ModelAndView callback(@RequestParam(name = "access_token", required = false) String oidcCode, final HttpServletRequest request) {
         ClientOriginInfo origin = InformationUtil.getClientOriginInfo(request,
                 false, true);
 
