@@ -31,11 +31,11 @@ Support only `response_mode=form_post`, `fragment` and `query` is not supported.
 ### Tips
 - how to get all of this endpoints: `curl http://keycloak.local:8080/realms/<myrealm>/.well-known/openid-configuration | jq .`
 - how to build only backend: `make _build-java` and `make _build-docker-backend-server`
-- how to build only web room/ws: `_build-web`
+- how to build only web room/ws: `make _build-web`
 
 ### Docker images
-`rzrbld/web-server:test`
-`rzrbld/backend-server:test`
+- `rzrbld/web-server:test`
+- `rzrbld/backend-server:test`
 
 ## Getting Started
 
