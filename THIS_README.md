@@ -2,6 +2,8 @@
 
 **Note: This service is not production-ready and should be treated as an experiment.**
 
+This fork based on `branch v0.21.0-rc.1` of [APITable](https://github.com/apitable/apitable) and tested with [Keycloak v21.1.1](https://github.com/keycloak/keycloak/releases/tag/21.1.1)
+
 KE (short for Keycloak Experiment) is a custom fork of APITable Community Edition, designed to add external authentication capabilities. This experiment aims to integrate external authentication using the OIDC (OpenID Connect) protocol with APITable, leveraging the Keycloak authentication provider.
 
 ## License
@@ -23,6 +25,17 @@ The following environment variables are used by KE for configuring the external 
 | OIDC_IMPLICIT_CLIENT_ID        | login-app                                            | The client ID obtained from the authentication provider.                                |
 | OIDC_IMPLICIT_RESPONSE_TYPE    | token                                                | The response type for the authentication flow.                                                 |
 | OIDC_IMPLICIT_SCOPE            | email                                                | The scope of the authentication request.                                                       |
+
+Support only `response_mode=form_post`, `fragment` and `query` is not supported.
+
+### Tips
+- how to get all of this endpoints: `curl http://keycloak.local:8080/realms/<myrealm>/.well-known/openid-configuration | jq .`
+- how to build only backend: `make _build-java` and `make _build-docker-backend-server`
+- how to build only web room/ws: `_build-web`
+
+### Docker images
+`rzrbld/web-server:test`
+`rzrbld/backend-server:test`
 
 ## Getting Started
 
