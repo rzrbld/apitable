@@ -38,7 +38,6 @@ import com.apitable.interfaces.security.facade.BlackListServiceFacade;
 import com.apitable.interfaces.security.facade.HumanVerificationServiceFacade;
 import com.apitable.interfaces.security.model.NonRobotMetadata;
 import com.apitable.shared.component.scanner.annotation.ApiResource;
-import com.apitable.shared.component.scanner.annotation.GetResource;
 import com.apitable.shared.component.scanner.annotation.PostResource;
 import com.apitable.shared.config.properties.CookieProperties;
 import com.apitable.shared.context.SessionContext;
@@ -50,17 +49,12 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.Parameters;
-import io.swagger.v3.oas.annotations.enums.ParameterIn;
-import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.View;
@@ -132,6 +126,9 @@ public class AuthController {
     @PostResource(path = "/register", requiredLogin = false)
     @Operation(summary = "register", description = "serving for community edition")
     public ResponseData<Void> register(@RequestBody @Valid final RegisterRO data) {
+        if (oidcImplicitIsEnabled){
+            return null;
+        }
         if (BooleanUtil.isFalse(skipRegisterValidate)) {
             return ResponseData.error("Validate failure");
         }
@@ -146,14 +143,12 @@ public class AuthController {
      * @return {@link ResponseData}
      */
 
-    @GetResource(path = "/oidccallback", requiredPermission = false, method =
-            RequestMethod.GET, requiredLogin = false)
+    @PostResource(path = "/oidccallback", requiredPermission = false, method =
+            RequestMethod.POST, requiredLogin = false)
     @Operation(summary = "oidc implicit auth")
-    @Parameters({
-            @Parameter(name = "access_token", in = ParameterIn.QUERY, description = "token",
-                    schema = @Schema(type = "string"), example = "EXAMPLE_TOKEN")
-    })
-    public ModelAndView callback(@RequestParam(name = "access_token", required = false) String oidcCode, final HttpServletRequest request) {
+
+    public ModelAndView callback(final HttpServletRequest request) {
+        String oidcCode = request.getParameter("access_token");
         ClientOriginInfo origin = InformationUtil.getClientOriginInfo(request,
                 false, true);
 
