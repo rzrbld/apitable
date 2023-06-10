@@ -24,6 +24,7 @@ import com.apitable.auth.enums.LoginType;
 import com.apitable.auth.ro.LoginRo;
 import com.apitable.auth.ro.RegisterRO;
 import com.apitable.auth.service.IAuthService;
+import com.apitable.auth.service.impl.AuthServiceImpl;
 import com.apitable.auth.vo.LoginResultVO;
 import com.apitable.auth.vo.LogoutVO;
 import com.apitable.core.support.ResponseData;
@@ -43,37 +44,38 @@ import com.apitable.shared.config.properties.CookieProperties;
 import com.apitable.shared.context.SessionContext;
 import com.apitable.shared.util.information.ClientOriginInfo;
 import com.apitable.shared.util.information.InformationUtil;
-import com.apitable.shared.util.page.PageObjectParam;
-import com.apitable.widget.vo.WidgetReleaseListVo;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.apitable.user.service.IUserService;
+import com.auth0.jwk.JwkException;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.Parameters;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.ModelAndView;
+import org.springframework.web.servlet.View;
 
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.function.Function;
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.validation.Valid;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpHeaders;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RestController;
-
-import com.apitable.interfaces.auth.model.OIDCParam;
-
-import static com.apitable.shared.constants.PageConstants.PAGE_PARAM;
-import static com.apitable.shared.constants.PageConstants.PAGE_SIMPLE_EXAMPLE;
+import java.io.IOException;
+import java.net.MalformedURLException;
+import java.util.Base64;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
+import java.util.function.Function;
 
 /**
  * Authorization interface.
@@ -108,6 +110,18 @@ public class AuthController {
     @Value("${SKIP_REGISTER_VALIDATE:false}")
     private Boolean skipRegisterValidate;
 
+    @Value("${OIDC_IMPLICIT_SUCCESS_REDIRECT:../../workbench}")
+    private String oidcImplicitSuccessRedirect;
+
+    @Value("${OIDC_IMPLICIT_JWKS_URI:NONE}")
+    private String oidcImplicitJwksUri;
+
+    @Value("${OIDC_IMPLICIT_IS_ENABLED:false}")
+    private Boolean oidcImplicitIsEnabled;
+
+    @Resource
+    private IUserService iUserService;
+
     /**
      * Register.
      *
@@ -129,35 +143,75 @@ public class AuthController {
     /**
      * callback router.
      *
-     * @param request request info
      * @return {@link ResponseData}
      */
 
-    @GetResource(path = "/callback", requiredPermission = false)
+    @GetResource(path = "/oidccallback", requiredPermission = false, method =
+            RequestMethod.GET, requiredLogin = false)
     @Operation(summary = "Get widget release history")
     @Parameters({
             @Parameter(name = "code", in = ParameterIn.QUERY, description = "code",
                     schema = @Schema(type = "string"), example = "EXAMPLE_CODE")
     })
-    public ResponseData<Void> callback(@PathVariable(name = "code") String oidcCode) {
-        System.out.println("Callback called");
-        System.out.println("Callback called #2 :: " + oidcCode);
-        // Create an AuthParam object with the authorization code
-        OIDCParam authParam = new OIDCParam(oidcCode);
+    public ModelAndView callback(@RequestParam(name = "code", required = false) String oidcCode, final HttpServletRequest request) {
+        ClientOriginInfo origin = InformationUtil.getClientOriginInfo(request,
+                false, true);
 
-        // Call the authentication service facade to perform the login
-//        UserAuth userAuth = authServiceFacade.ssoLogin(authParam);
-//
-//        if (userAuth != null) {
-//            // Authentication succeeded, redirect to the desired page or perform further actions
-//            response.sendRedirect("/workbench");
-//        } else {
-//            // Authentication failed, handle accordingly
-//            response.sendRedirect("/login?error=authentication_failed");
-//        }
-        return ResponseData.success();
+        String[] chunks = oidcCode.split("\\.");
+        Base64.Decoder decoder = Base64.getUrlDecoder();
+//        String header = new String(decoder.decode(chunks[0]));
+        String payload = new String(decoder.decode(chunks[1]));
+
+        String userEmail;
+        Long tokenExp;
+        boolean IsUserAuthSuccess = false;
+        Long finalUserId;
+        long unixTime = System.currentTimeMillis() / 1000L;
+
+
+        try {
+            System.out.println("Validation URL ::"+oidcImplicitJwksUri);
+            if(!Objects.equals(oidcImplicitJwksUri, "NONE")) {
+                System.out.println("Validation called");
+                AuthServiceImpl.ValidateJWTSignature(oidcCode, oidcImplicitJwksUri);
+            }
+
+            ObjectMapper objectMapper = new ObjectMapper();
+            JsonNode jwtJsonNode = objectMapper.readTree(payload);
+
+            userEmail = jwtJsonNode.get("email").asText();
+            tokenExp = jwtJsonNode.get("exp").asLong();
+
+            if(!Objects.equals(userEmail, "") && tokenExp > unixTime){
+                IsUserAuthSuccess = true;
+            }
+
+        } catch (JsonProcessingException | JwkException | MalformedURLException e) {
+            throw new RuntimeException(e);
+        }
+
+        Long existedUserId = iUserService.getUserIdByEmail(userEmail);
+
+        if (IsUserAuthSuccess) {
+            if (existedUserId != null) {
+                finalUserId = existedUserId;
+            } else {
+                String pwd = AuthServiceImpl.gimmieSomeRandomStringForPassword();
+                finalUserId = iAuthService.register(userEmail, pwd);
+            }
+        } else {
+            return null;
+        }
+
+        eventBusFacade.onEvent(new UserLoginEvent(finalUserId, LoginType.SSO_TOKEN, false, origin));
+        // Banned account verification
+        blackListServiceFacade.checkUser(finalUserId);
+        // save session
+        SessionContext.setUserId(finalUserId);
+        request.setAttribute(
+                View.RESPONSE_STATUS_ATTRIBUTE, HttpStatus.TEMPORARY_REDIRECT);
+        return new ModelAndView("redirect:" + oidcImplicitSuccessRedirect);
     }
-
 
     /**
      * login router.
@@ -178,6 +232,9 @@ public class AuthController {
             new HashMap<>();
         // password login
         loginActionFunc.put(LoginType.PASSWORD, loginRo -> {
+            if (oidcImplicitIsEnabled){
+                return null;
+            }
             // Password login requires human-machine authentication
             humanVerificationServiceFacade.verifyNonRobot(
                 new NonRobotMetadata(loginRo.getData()));
@@ -191,6 +248,9 @@ public class AuthController {
         });
         // SMS verification code login
         loginActionFunc.put(LoginType.SMS_CODE, loginRo -> {
+            if (oidcImplicitIsEnabled){
+                return null;
+            }
             UserLoginDTO result = iAuthService.loginUsingSmsCode(loginRo);
             // sensors point - Login or Register
             if (Boolean.TRUE.equals(result.getIsSignUp())) {
@@ -209,6 +269,9 @@ public class AuthController {
         });
         // Email verification code login
         loginActionFunc.put(LoginType.EMAIL_CODE, loginRo -> {
+            if (oidcImplicitIsEnabled){
+                return null;
+            }
             UserLoginDTO result = iAuthService.loginUsingEmailCode(loginRo);
             // sensors point - Login or Register
             if (Boolean.TRUE.equals(result.getIsSignUp())) {
@@ -227,7 +290,10 @@ public class AuthController {
         });
         // SSO login (private user use)
         loginActionFunc.put(LoginType.SSO_AUTH, loginRo -> {
-            UserAuth userAuth = null;
+            if (oidcImplicitIsEnabled){
+                return null;
+            }
+            UserAuth userAuth;
             try {
                 userAuth = authServiceFacade.ssoLogin(
                     new AuthParam(data.getUsername(), data.getCredential()));
@@ -235,7 +301,8 @@ public class AuthController {
                 throw new RuntimeException(e);
             }
             Long userId = userAuth != null ? userAuth.getUserId() : null;
-            return LoginResultVO.builder().userId(userId).isNewUser(true).build();
+            eventBusFacade.onEvent(new UserLoginEvent(userId, LoginType.SSO_AUTH, false, origin));
+            return LoginResultVO.builder().userId(userId).build();
         });
         // Handling login logic
         LoginResultVO resultVO = loginActionFunc.get(data.getType()).apply(data);

@@ -51,7 +51,12 @@ public enum LoginType {
     /**
      * sso auth
      */
-    SSO_AUTH("sso_auth");
+    SSO_AUTH("sso_auth"),
+
+    /**
+     * sso token
+     */
+    SSO_TOKEN("sso_token");
 
     @JsonValue
     private final String value;
