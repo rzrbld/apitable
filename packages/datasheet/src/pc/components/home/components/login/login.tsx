@@ -29,6 +29,18 @@ import { useEffect, useState } from 'react';
 import { ActionType } from '../../pc_home';
 import styles from './style.module.less';
 import { useSelector } from 'react-redux';
+import { getEnvVariables } from 'pc/utils/env';
+
+
+const env = getEnvVariables();
+
+const oidcIsEnabled = env.OIDC_IMPLICIT_IS_ENABLED;
+const oidcUrl = env.OIDC_IMPLICIT_URL
+const oidcRedirectUrl = env.OIDC_IMPLICIT_REDIRECT_URL;
+const oidcClientId = env.OIDC_IMPLICIT_CLIENT_ID
+const oidcResponseType = env.OIDC_IMPLICIT_RESPONSE_TYPE
+const oidcScope = env.OIDC_IMPLICIT_SCOPE
+const oidcFinalUrl = oidcUrl+"?client_id="+oidcClientId+"&response_type="+oidcResponseType+"&scope="+oidcScope+"&redirect_uri="+oidcRedirectUrl
 
 interface ILoginErrorMsg {
   username?: string;
@@ -156,6 +168,24 @@ export const Login: React.FC<React.PropsWithChildren<ILoginProps>> = (props) => 
       event.preventDefault();
     }
   }
+
+  const handleOIDCClick = () => {
+    window.location.href = oidcFinalUrl; 
+  };
+
+  if(oidcIsEnabled){
+    return (
+      <div className={styles.loginWrap}>
+        <Button className={styles.loginBtn} color="primary" size="large" block loading={loading} onClick={handleOIDCClick}>
+        {t(Strings.apitable_sign_in)}
+        </Button>
+      </div>
+    )
+
+  }else{
+
+  
+
   return (
     <div className={styles.loginWrap}>
       <Form onFinish={handleSubmit}>
@@ -225,4 +255,5 @@ export const Login: React.FC<React.PropsWithChildren<ILoginProps>> = (props) => 
       
     </div>
   );
+              }
 };
