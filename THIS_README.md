@@ -2,13 +2,17 @@
 
 **Note: This service is not production-ready and should be treated as an experiment.**
 
-This fork based on `branch v0.21.0-rc.1` of [APITable](https://github.com/apitable/apitable) and tested with [Keycloak v21.1.1](https://github.com/keycloak/keycloak/releases/tag/21.1.1)
+This fork based on `branch v1.0.0-beta` of [APITable](https://github.com/apitable/apitable) and tested with [Keycloak v21.1.1](https://github.com/keycloak/keycloak/releases/tag/21.1.1)
 
 KE (short for Keycloak Experiment) is a custom fork of APITable Community Edition, designed to add external authentication capabilities. This experiment aims to integrate external authentication using the OIDC (OpenID Connect) protocol with APITable, leveraging the Keycloak authentication provider.
 
 ## License
 
 KE is distributed under the AGPLv3 (GNU Affero General Public License version 3) license.
+
+## Patch 
+
+If you brave enought - you  can use a "vanilla" apitable and apply KE-path on your own - look at instructions on [KE_PATCH]('https://github.com/rzrbld/apitable/tree/1.0.0-beta%2Bke/KE_PATCH/')
 
 ## Environment Variables
 
@@ -25,6 +29,8 @@ The following environment variables are used by KE for configuring the external 
 | OIDC_IMPLICIT_CLIENT_ID        | login-app                                            | The client ID obtained from the authentication provider.                                |
 | OIDC_IMPLICIT_RESPONSE_TYPE    | token                                                | The response type for the authentication flow.                                                 |
 | OIDC_IMPLICIT_SCOPE            | email                                                | The scope of the authentication request.                                                       |
+
+also don't forget to set default variable `FORM_LOGIN_URL`, or there wil be a problem with redirects to `undefined`.
 
 Support only `response_mode=form_post`, `fragment` and `query` is not supported.
 
