@@ -12,7 +12,7 @@ KE is distributed under the AGPLv3 (GNU Affero General Public License version 3)
 
 ## Patch 
 
-If you brave enought - you  can use a "vanilla" apitable and apply KE-path on your own - look at instructions on [KE_PATCH]('https://github.com/rzrbld/apitable/tree/1.0.0-beta%2Bke/KE_PATCH/')
+If you brave enought - you  can use a "vanilla" apitable and apply KE-path on your own - look at instructions on [KE_PATCH](https://github.com/rzrbld/apitable/tree/1.0.0-beta%2Bke/KE_PATCH/)
 
 ## Environment Variables
 
