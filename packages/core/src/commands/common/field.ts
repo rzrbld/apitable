@@ -35,7 +35,7 @@ import { KanbanStyleKey } from '../../modules/shared/store/constants';
 import { getDatasheet, getSnapshot } from '../../exports/store/selectors';
 import { FieldType, IField, ILinkField, ISelectField, readonlyFields } from 'types';
 import { getNewId, getUniqName, IDPrefix, isSelectField } from 'utils';
-import { KanbanView } from '../../model/views/kanban_view';
+import { ViewAction } from 'commands_actions/view';
 
 // The store cannot be called here! !
 
@@ -126,7 +126,7 @@ function switchFieldRecordData(
   oldField: IField,
   newField: IField,
 ) {
-  const { model: state, ldcMaintainer } = context;
+  const { state: state, ldcMaintainer } = context;
   const actions: IJOTAction[] = [];
   // Converted into an associated field to synchronize the associated data of the associated table
   // Only related fields with sibling fields need data consistency maintenance
@@ -283,7 +283,7 @@ function clearViewAttribute(snapshot: ISnapshot, oldField: IField, newField: IFi
         newField.type !== oldField.type || newField.property.isMulti
       )
     ) {
-      const action = KanbanView.setViewStyle2Action(snapshot, {
+      const action = ViewAction.setViewStyle2Action(snapshot, {
         viewId: view.id,
         styleKey: KanbanStyleKey.KanbanFieldId,
         styleValue: null,
@@ -334,7 +334,7 @@ export function createConvertActions(
 export function setField(
   context: ICollaCommandExecuteContext, snapshot: ISnapshot, oldField: IField, newField: IField, datasheetId?: string,
 ) {
-  const state = context.model;
+  const state = context.state;
   const actions: IJOTAction[] = [];
   // When different types are converted to each other, the property needs to be updated
   if (newField.type !== oldField.type) {
@@ -454,10 +454,10 @@ export function createNewBrotherField(state: IReduxState, newField: ILinkField, 
 export function clearOldBrotherField(
   context: ICollaCommandExecuteContext, oldField: ILinkField, deleteField?: boolean,
 ): ILinkedActions | null {
-  const { model: state } = context;
+  const { state: state } = context;
 
   // If the old field is not associated with a sibling field, no additional operations are required
-  if (!oldField.property.brotherFieldId) {
+  if (!oldField.property?.brotherFieldId) {
     return {
       datasheetId: '',
       actions: [],
@@ -472,7 +472,7 @@ export function clearOldBrotherField(
   const foreignFieldMap = foreignSnapshot.meta.fieldMap;
   const foreignOldField = foreignFieldMap[oldField.property.brotherFieldId] as ILinkField;
 
-  if (!foreignOldField || foreignOldField.property.brotherFieldId !== oldField.id) {
+  if (!foreignOldField || foreignOldField.property?.brotherFieldId !== oldField.id) {
     return null;
   }
 

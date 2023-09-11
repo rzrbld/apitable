@@ -36,11 +36,12 @@ import { EditorType, getFieldByBasicType, getFieldEditorType } from './helper';
 import styles from './style.module.less';
 
 export const FilterValue: React.FC<React.PropsWithChildren<IFilterValueProps>> = props => {
-  const { changeFilter, condition, conditionIndex, style = {}, hiddenClientOption } = props;
-  console.log('condition', condition);
+  const { changeFilter, condition, conditionIndex, style = {}, hiddenClientOption, primaryField, disabled } = props;
   const [value, setValue] = useState(condition.value ? condition.value[0] : '');
   let field = props.field;
   const editorType = getFieldEditorType(field);
+  const linkedFieldId = field.type === FieldType.LookUp ? field.property.relatedLinkFieldId :
+    primaryField?.type === FieldType.LookUp ? primaryField.property.relatedLinkFieldId : '';
   const { isViewLock } = useContext(ViewFilterContext);
 
   const { run: debounceInput } = useDebounceFn((inputValue: any) => {
@@ -114,6 +115,7 @@ export const FilterValue: React.FC<React.PropsWithChildren<IFilterValueProps>> =
           <FilterOptions
             field={field}
             condition={condition}
+            disabled={isViewLock || disabled}
             onChange={submitFilterValue}
           />
         );
@@ -121,7 +123,9 @@ export const FilterValue: React.FC<React.PropsWithChildren<IFilterValueProps>> =
         if (field.type === FieldType.Cascader) {
           return (
             <FilterCascader
+              disabled={isViewLock || disabled}
               field={field}
+              linkedFieldId={linkedFieldId}
               onChange={(value) => {
                 setValue(value ? value.join('/') : '' );
                 submitFilterValue(value ? [value.join('/')] : null);
@@ -138,7 +142,7 @@ export const FilterValue: React.FC<React.PropsWithChildren<IFilterValueProps>> =
                 className={styles.input}
                 onChange={inputChange}
                 suffix={''}
-                disabled={isViewLock}
+                disabled={isViewLock || disabled}
               />
             </div>
           )
@@ -147,6 +151,7 @@ export const FilterValue: React.FC<React.PropsWithChildren<IFilterValueProps>> =
         return (
           <FilterDate
             field={field}
+            disabled={disabled}
             condition={condition}
             changeFilter={changeFilter}
             onChange={submitFilterValue}
@@ -156,6 +161,7 @@ export const FilterValue: React.FC<React.PropsWithChildren<IFilterValueProps>> =
       case EditorType.Boolean:
         return (
           <FilterCheckbox
+            disabled={disabled}
             field={field}
             condition={condition}
             onChange={submitFilterValue}
@@ -165,6 +171,7 @@ export const FilterValue: React.FC<React.PropsWithChildren<IFilterValueProps>> =
         return (
           <FilterRating
             field={field}
+            disabled={disabled}
             condition={condition}
             onChange={submitFilterValue}
           />
@@ -172,6 +179,7 @@ export const FilterValue: React.FC<React.PropsWithChildren<IFilterValueProps>> =
       case EditorType.Member:
         return (
           <FilterMember
+            disabled={disabled}
             hiddenClientOption={hiddenClientOption}
             field={field}
             condition={condition}
@@ -184,6 +192,7 @@ export const FilterValue: React.FC<React.PropsWithChildren<IFilterValueProps>> =
         return (
           (
             <FilterNumber
+              disabled={disabled}
               field={field}
               condition={condition}
               onChange={submitFilterValue}

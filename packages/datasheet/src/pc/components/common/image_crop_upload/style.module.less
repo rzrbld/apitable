@@ -110,7 +110,7 @@
     }
 
     .ant-modal-body {
-      padding: 0 24px;
+      padding: 0 24px 24px;
     }
   }
 
@@ -272,7 +272,6 @@
   }
 
   .uploadWrapper {
-    height: 336px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -326,6 +325,9 @@
 }
 
 @media only screen and (min-width: @w-sm) {
+  .uploadWrapper {
+    height: 336px;
+  }
   .imageCropUpload {
     .imgSelector {
       min-height: 380px;

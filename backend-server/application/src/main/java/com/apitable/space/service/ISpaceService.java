@@ -18,12 +18,16 @@
 
 package com.apitable.space.service;
 
+import com.apitable.interfaces.ai.model.ChartTimeDimension;
 import com.apitable.internal.vo.InternalSpaceCapacityVo;
 import com.apitable.internal.vo.InternalSpaceUsageVo;
 import com.apitable.space.dto.GetSpaceListFilterCondition;
 import com.apitable.space.dto.SpaceCapacityUsedInfo;
 import com.apitable.space.entity.SpaceEntity;
+import com.apitable.space.model.CreditUsages;
+import com.apitable.space.model.Space;
 import com.apitable.space.ro.SpaceUpdateOpRo;
+import com.apitable.space.vo.SeatUsage;
 import com.apitable.space.vo.SpaceGlobalFeature;
 import com.apitable.space.vo.SpaceInfoVO;
 import com.apitable.space.vo.SpaceSubscribeVo;
@@ -38,6 +42,14 @@ import java.util.function.Consumer;
  * space service interface.
  */
 public interface ISpaceService extends IService<SpaceEntity> {
+
+    /**
+     * get space entity by space id.
+     *
+     * @param spaceId space id
+     * @return SpaceEntity
+     */
+    SpaceEntity getEntityBySpaceId(String spaceId);
 
     /**
      * get by space id.
@@ -75,9 +87,9 @@ public interface ISpaceService extends IService<SpaceEntity> {
      *
      * @param user      user
      * @param spaceName spaceName
-     * @return space id
+     * @return space object
      */
-    String createSpace(UserEntity user, String spaceName);
+    Space createSpace(UserEntity user, String spaceName);
 
     /**
      * update space information.
@@ -127,6 +139,39 @@ public interface ISpaceService extends IService<SpaceEntity> {
      * @return SpaceVO List
      */
     List<SpaceVO> getSpaceListByUserId(Long userId, GetSpaceListFilterCondition condition);
+
+    /**
+     * get credit usage chart data.
+     *
+     * @param spaceId            space id
+     * @param chartTimeDimension time dimension
+     * @return CreditUsages
+     */
+    CreditUsages getCreditUsagesChart(
+        String spaceId, ChartTimeDimension chartTimeDimension);
+
+    /**
+     * query the seat usage of space.
+     *
+     * @param spaceId space id
+     * @return SeatUsage
+     */
+    SeatUsage getSeatUsage(String spaceId);
+
+    /**
+     * check whether seat nums of the space is over limit.
+     *
+     * @param spaceId space id
+     */
+    void checkSeatOverLimit(String spaceId);
+
+    /**
+     * check whether seat nums of the space is over limit.
+     *
+     * @param spaceId       space id
+     * @param addedSeatNums added seat nums
+     */
+    void checkSeatOverLimit(String spaceId, long addedSeatNums);
 
     /**
      * get space info.
@@ -195,13 +240,21 @@ public interface ISpaceService extends IService<SpaceEntity> {
     Long getSpaceMainAdminUserId(String spaceId);
 
     /**
-     * Check that the member is not the master administrator of the space
+     * Check that the member is not the master administrator of the space.
      *
      * @param spaceId  space id
      * @param memberId memberId
      * @param consumer consumer
      */
     void checkMemberIsMainAdmin(String spaceId, Long memberId, Consumer<Boolean> consumer);
+
+    /**
+     * throw exception if member is not admin in space.
+     *
+     * @param spaceId  space id
+     * @param memberId member id
+     */
+    void checkMemberIsAdmin(String spaceId, Long memberId);
 
     /**
      * Check that the members is not the master administrator of the space
@@ -324,4 +377,13 @@ public interface ISpaceService extends IService<SpaceEntity> {
      * @return SpaceSubscribeVo
      */
     SpaceSubscribeVo getSpaceSubscriptionInfo(String spaceId);
+
+    /**
+     * Get space seat available status.
+     *
+     * @param spaceId space id
+     * @return SeatAvailableStatus
+     * @author Chambers
+     */
+    boolean getSpaceSeatAvailableStatus(String spaceId);
 }

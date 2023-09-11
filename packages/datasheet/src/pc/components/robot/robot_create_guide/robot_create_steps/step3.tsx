@@ -16,6 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+// eslint-disable-next-line no-restricted-imports
 import { Avatar, Box, Button, Select, Tooltip, useTheme } from '@apitable/components';
 import { integrateCdnHost, Selectors, Strings, t } from '@apitable/core';
 import { getEnvVariables } from 'pc/utils/env';
@@ -61,7 +62,7 @@ export const RobotCreateGuideStep3 = (props: IStepProps) => {
       robotId: robotId!,
       actionTypeId
     });
-    await mutate(`/robots/${robotId}/action`);
+    await mutate(`/automation/robots/${robotId}/action`);
     const robotBaseInfo = await getRobotBaseInfo(robotId!);
     updateRobot(robotBaseInfo);
     refreshRobotList(datasheetId!);

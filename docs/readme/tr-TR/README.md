@@ -14,7 +14,7 @@
     <!-- Java -->
     <img src="https://img.shields.io/badge/Java-ED8B00?logo=spring&logoColor=white" alt="Java Dili, Bahar Çerçevesi" />
     <!-- hub.docker.com-->
-    <a target="_blank" href="#installation">
+    <a target="_blank" href="#Kurulum">
         <img src="https://img.shields.io/docker/pulls/apitable/init-db" />
     </a>
     <!-- Github Release Latest -->
@@ -70,7 +70,7 @@ Sadece APITable[^info]'i denemek istiyorsanız, [apitable.com](https://apitable.
 
 Bu APITable açık kaynak projesinin demosunu yapmak istiyorsanız, [⚡️Gitpod Online Demo](https://gitpod.io/#https://github.com/apitable/apitable) için buraya tıklayın.
 
-APITable'ı yerel veya bulut bilişim ortamınıza kurmak istiyorsanız, bkz. 💾 [Kurulum](#installation)
+APITable'ı yerel veya bulut bilişim ortamınıza kurmak istiyorsanız, bkz. 💾 [Kurulum](#Kurulum)
 
 Yerel geliştirme ortamınızı kurmak istiyorsanız 🧑‍💻 [Geliştirici Kılavuzumuzu okuyun](./docs/contribute/developer-guide.md)
 
@@ -157,7 +157,7 @@ APITable, kişiselden işletmeye kadar bir dizi şaşırtıcı özellik sunar.
   - Gerçek zamanlı işbirliği ile 100k+ veri satırı.
   - Verilerden Meta Verilere kadar tam yığın API erişimi.
   - Tek Yönlü / Çift Yönlü Tablo Bağlantısı ve Sonsuz Çapraz Bağlantılar
-  - Community-friendly programming languages and framework, TypeScript ([NextJS](https://nextjs.org/) + [NestJS](https://nestjs.com/)) and Java ([Spring Boot](https://spring.io/projects/spring-boot)), and we are moving to Rust gradually.
+  - Community-friendly programming languages and framework, TypeScript ([NextJS](https://nextjs.org/) + [NestJS](https://nestjs.com/)) and Java ([Spring Boot](https://spring.io/projects/spring-boot)).
 - Güzel ve Zengin Veritabanı-Ekran Tablosu Kullanıcı Arayüzü
   - `CRUD`: Tabloları, Sütunları ve Satırları Oluşturma, Okuma, Güncelleme, Silme
   - `Alan İşlemleri`: sıralama, filtreleme, gruplama, gizleme/gösterme, yükseklik ayarı.
@@ -317,7 +317,6 @@ APITable bu ortak kuralları kullanır:
 - Versiyonlama ve etiketleme nasıl yapılır? [Anlamsal Versiyonlama](https://semver.org/)
 - Java Kodlama Kılavuzu nedir? [Java Kodlama Kılavuzu](https://google.github.io/styleguide/javaguide.html) | [Intellij IDEA Eklentisi](https://plugins.jetbrains.com/plugin/8527)
 - TypeScript Kodlama Kılavuzu nedir? [-> TypeScript Stil Kılavuzu](https://google.github.io/styleguide/tsguide.html) | [ESLint](https://www.npmjs.com/package/@typescript-eslint/eslint-plugin)
-- What is the Rust Coding Guideline? -> [Rust API Guidelines](https://rust-lang.github.io/api-guidelines/about.html)
 - Mimariye Genel Bakış nedir? -> [APITable'ı Anlayın - Mimariye Genel Bakış](./docs/contribute/architecute-overview.md)
 
 ### Belgeler

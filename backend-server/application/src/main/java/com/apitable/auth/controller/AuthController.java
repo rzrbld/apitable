@@ -24,7 +24,6 @@ import com.apitable.auth.enums.LoginType;
 import com.apitable.auth.ro.LoginRo;
 import com.apitable.auth.ro.RegisterRO;
 import com.apitable.auth.service.IAuthService;
-import com.apitable.auth.service.impl.AuthServiceImpl;
 import com.apitable.auth.vo.LoginResultVO;
 import com.apitable.auth.vo.LogoutVO;
 import com.apitable.core.support.ResponseData;
@@ -43,6 +42,8 @@ import com.apitable.shared.config.properties.CookieProperties;
 import com.apitable.shared.context.SessionContext;
 import com.apitable.shared.util.information.ClientOriginInfo;
 import com.apitable.shared.util.information.InformationUtil;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import com.apitable.user.service.IUserService;
 import com.auth0.jwk.JwkException;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -70,6 +71,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
+import com.apitable.auth.service.impl.AuthServiceImpl;
+
 
 /**
  * Authorization interface.
@@ -126,9 +129,6 @@ public class AuthController {
     @PostResource(path = "/register", requiredLogin = false)
     @Operation(summary = "register", description = "serving for community edition")
     public ResponseData<Void> register(@RequestBody @Valid final RegisterRO data) {
-        if (oidcImplicitIsEnabled){
-            return null;
-        }
         if (BooleanUtil.isFalse(skipRegisterValidate)) {
             return ResponseData.error("Validate failure");
         }
@@ -208,6 +208,7 @@ public class AuthController {
         return new ModelAndView("redirect:" + oidcImplicitSuccessRedirect);
     }
 
+
     /**
      * login router.
      *
@@ -216,8 +217,7 @@ public class AuthController {
      * @return {@link ResponseData}
      */
     @PostResource(name = "Login", path = "/signIn", requiredLogin = false)
-    @Operation(summary = "login",
-        description = AUTH_DESC)
+    @Operation(summary = "login", description = AUTH_DESC)
     public ResponseData<LoginResultVO> login(@RequestBody @Valid final LoginRo data,
                                     final HttpServletRequest request) {
         ClientOriginInfo origin = InformationUtil.getClientOriginInfo(request,
@@ -243,7 +243,7 @@ public class AuthController {
         });
         // SMS verification code login
         loginActionFunc.put(LoginType.SMS_CODE, loginRo -> {
-            if (oidcImplicitIsEnabled){
+             if (oidcImplicitIsEnabled){
                 return null;
             }
             UserLoginDTO result = iAuthService.loginUsingSmsCode(loginRo);
@@ -264,7 +264,7 @@ public class AuthController {
         });
         // Email verification code login
         loginActionFunc.put(LoginType.EMAIL_CODE, loginRo -> {
-            if (oidcImplicitIsEnabled){
+             if (oidcImplicitIsEnabled){
                 return null;
             }
             UserLoginDTO result = iAuthService.loginUsingEmailCode(loginRo);

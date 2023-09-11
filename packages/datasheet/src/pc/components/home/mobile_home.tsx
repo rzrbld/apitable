@@ -33,7 +33,7 @@ import { useSelector } from 'react-redux';
 export const MobileHome: React.FC<React.PropsWithChildren<unknown>> = () => {
   const inviteLinkInfo = useSelector((state: IReduxState) => state.invite.inviteLinkInfo);
   const inviteEmailInfo = useSelector((state: IReduxState) => state.invite.inviteEmailInfo);
-  const [action, setAction] = useState<ActionType>(ActionType.SignUp);
+  const [action, setAction] = useState<ActionType>(ActionType.SignIn);
   const [email, setEmail] = useState<string>('');
 
   const switchActionType = (actionType: ActionType) => {
@@ -76,9 +76,9 @@ export const MobileHome: React.FC<React.PropsWithChildren<unknown>> = () => {
     }
   };
 
-  let logo = getEnvVariables().LOGIN_LOGO!
+  let logo = getEnvVariables().LOGIN_LOGO!;
   if (useTheme().palette.type === ThemeName.Light && getEnvVariables().LOGIN_LOGO_LIGHT) {
-    logo = getEnvVariables().LOGIN_LOGO_LIGHT!
+    logo = getEnvVariables().LOGIN_LOGO_LIGHT!;
   }
 
   return (

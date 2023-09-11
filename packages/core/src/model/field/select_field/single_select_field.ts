@@ -26,7 +26,7 @@ import { IReduxState } from '../../../exports/store';
 import { BasicValueType, FieldType, IField, ISelectFieldProperty, ISingleSelectField, IStandardValue } from 'types/field_types';
 import { ISelectFieldBaseOpenValue } from 'types/field_types_open';
 import { FOperator, IFilterCondition, IFilterSingleSelect } from 'types/view_types';
-import { DatasheetActions } from '../../datasheet';
+import { DatasheetActions } from '../../../commands_actions/datasheet';
 import { isOptionId, SelectField } from './common_select_field';
 import { IEffectOption, IWriteOpenSelectBaseFieldProperty } from 'types/open';
 import { IOpenFilterValueSelect } from 'types/open/open_filter_types';
@@ -203,22 +203,21 @@ export class SingleSelectField extends SelectField {
     if (operator === FOperator.IsNotEmpty) {
       return cellValue != null;
     }
-    const [filterValue] = conditionValue;
     switch (operator) {
       case FOperator.Is: {
-        return cellValue === filterValue;
+        return Array.isArray(conditionValue) && cellValue === conditionValue[0];
       }
 
       case FOperator.IsNot: {
-        return cellValue !== filterValue;
+        return Array.isArray(conditionValue) && cellValue !== conditionValue[0];
       }
 
       case FOperator.Contains: {
-        return conditionValue.some(value => value === cellValue);
+        return Array.isArray(conditionValue) && conditionValue.some(value => value === cellValue);
       }
 
       case FOperator.DoesNotContain: {
-        return !conditionValue.some(value => value === cellValue);
+        return !Array.isArray(conditionValue) || !conditionValue.some(value => value === cellValue);
       }
 
       default: {

@@ -17,16 +17,28 @@
  */
 
 import {
-  clearComputeCache, IEventInstance, IEventResourceMap,
-  IOPEvent, IReduxState, IRemoteChangeset, IServerDatasheetPack,
-  OP2Event, OPEventManager, OPEventNameEnums, ResourceType,
+  clearComputeCache,
+  IEventInstance,
+  IEventResourceMap,
+  IOPEvent,
+  IReduxState,
+  IRemoteChangeset,
+  IServerDatasheetPack,
+  OP2Event,
+  OPEventManager,
+  OPEventNameEnums,
+  ResourceType,
 } from '@apitable/core';
 import { Injectable } from '@nestjs/common';
-import { InjectLogger } from 'shared/common';
-import { Logger } from 'winston';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { EventTypeEnums } from 'automation/events/domains/event.type.enums';
+import { OFFICIAL_SERVICE_SLUG } from 'automation/events/helpers/trigger.event.helper';
+import { RobotTriggerService } from 'automation/services/robot.trigger.service';
+import { RobotTriggerTypeService } from 'automation/services/robot.trigger.type.service';
 import { CommandService } from 'database/command/services/command.service';
 import { DatasheetService } from 'database/datasheet/services/datasheet.service';
-import { FlowQueue } from 'automation/queues';
+import { InjectLogger } from 'shared/common';
+import { Logger } from 'winston';
 
 /**
  * Event listener service, convert op to domains, and handle related domains listening.
@@ -39,23 +51,25 @@ export class RobotEventService {
     @InjectLogger() private readonly logger: Logger,
     private datasheetService: DatasheetService,
     private commandService: CommandService,
-    private readonly flowQueue: FlowQueue,
+    private robotTriggerService: RobotTriggerService,
+    private robotTriggerTypeService: RobotTriggerTypeService,
+    private readonly eventEmitter: EventEmitter2,
   ) {
     // Server side only listens to record content CRUD domains.
     const clientWatchedEvents = [
       OPEventNameEnums.CellUpdated,
       OPEventNameEnums.RecordCreated,
       OPEventNameEnums.RecordDeleted,
-      OPEventNameEnums.RecordUpdated
+      OPEventNameEnums.RecordUpdated,
     ];
     this.opEventManager = new OPEventManager({
       options: {
         enableVirtualEvent: true,
         enableCombEvent: true,
-        enableEventComplete: true
+        enableEventComplete: true,
       },
       getState: (resourceMap) => this.makeState(resourceMap),
-      op2Event: new OP2Event(clientWatchedEvents)
+      op2Event: new OP2Event(clientWatchedEvents),
     });
   }
 
@@ -79,7 +93,8 @@ export class RobotEventService {
   }
 
   async handleChangesets(changesets: IRemoteChangeset[]) {
-    const msgIds = changesets.map(cs => cs.messageId);
+    const msgIds = changesets.map((cs) => cs.messageId);
+    // core event manager
     const events = await this.opEventManager.asyncHandleChangesets(changesets);
     if (events.length === 0) {
       return;
@@ -89,32 +104,27 @@ export class RobotEventService {
       return;
     }
     // Clear cache after domains computation, make sure compute field cache is cleared
-    resourceIds.forEach(resourceId => {
+    resourceIds.forEach((resourceId) => {
       clearComputeCache(resourceId);
     });
-    for (const event of events) {
-      try {
-        if (event.eventName === OPEventNameEnums.RecordCreated  || event.eventName === OPEventNameEnums.RecordUpdated) {
-          await this.flowQueue.add(event.eventName, {
-            realType: event.realType,
-            atomType: event.atomType,
-            scope: event.scope,
-            sourceType: event.sourceType,
-            context: {
-              datasheetName: event.context.datasheetName,
-              datasheetId: event.context.datasheetId,
-              recordId: event.context.recordId,
-              fields: event.context.fields,
-              diffFields: event.context.diffFields,
-              eventFields: event.context.eventFields,
-              fieldMap: event.context.state.datasheetMap[event.context.datasheetId].datasheet!.snapshot.meta.fieldMap!
-            },
-            beforeApply: false,
-          });
-        }
-      } catch (e: any) {
-       this.logger.error(`messageIds[${ msgIds }]: add job error`, e);
-      }
-    }
+    const dstIdTriggersMap = await this.robotTriggerService.getTriggersGroupByResourceId(resourceIds);
+    const triggerSlugTypeIdMap = await this.robotTriggerTypeService.getServiceSlugToTriggerTypeId(
+      [EventTypeEnums.RecordMatchesConditions, EventTypeEnums.RecordCreated],
+      OFFICIAL_SERVICE_SLUG,
+    );
+    this.logger.info(`messageIds:automation:[${msgIds}]:`, { slug: OFFICIAL_SERVICE_SLUG, triggerMap: dstIdTriggersMap });
+    await Promise.all(
+      events.map((event) => {
+        return this.eventEmitter.emitAsync(event.eventName, {
+          ...event,
+          beforeApply: false,
+          metaContext: {
+            dstIdTriggersMap,
+            triggerSlugTypeIdMap,
+            msgIds,
+          },
+        });
+      }),
+    );
   }
 }

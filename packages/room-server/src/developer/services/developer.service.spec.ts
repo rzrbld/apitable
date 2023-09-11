@@ -16,30 +16,32 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { Test, TestingModule } from '@nestjs/testing';
-import { DeveloperRepository } from '../repositories/developer.repository';
-import { UserRepository } from '../../user/repositories/user.repository';
-import { DeveloperService } from './developer.service';
 import { UserEntity } from 'user/entities/user.entity';
-import { AppModule } from 'app.module';
+import { DeveloperRepository } from '../repositories/developer.repository';
+import { DeveloperService } from './developer.service';
+import { Test } from '@nestjs/testing';
+import { UserService } from '../../user/services/user.service';
 import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
+import { AppModule } from 'app.module';
 
-describe('developer service', () => {
+describe('DeveloperService', () => {
   let app: NestFastifyApplication;
-  let module: TestingModule;
   let developerService: DeveloperService;
   let developerRepo: DeveloperRepository;
-  let userRepository: UserRepository;
+  let userService: UserService;
   const knownAPIKey = 'key1';
-  const knownExpiredAPIKey= 'key2';
+  const knownExpiredAPIKey = 'key2';
   const knownUserId = 12345;
 
   beforeAll(async() => {
-    module = await Test.createTestingModule({
-      imports: [AppModule],
+    const moduleFixture = await Test.createTestingModule({
+      imports: [AppModule]
     }).compile();
-    app = module.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
+    app = moduleFixture.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
     await app.init();
+    developerRepo = app.get<DeveloperRepository>(DeveloperRepository);
+    userService = app.get<UserService>(UserService);
+    developerService = app.get<DeveloperService>(DeveloperService);
   });
 
   afterAll(async() => {
@@ -47,32 +49,29 @@ describe('developer service', () => {
   });
 
   beforeEach(() => {
-    developerService = module.get<DeveloperService>(DeveloperService);
-    developerRepo = module.get<DeveloperRepository>(DeveloperRepository); 
-    userRepository = module.get<UserRepository>(UserRepository);
-    jest.spyOn(developerRepo, 'selectUserIdByApiKey').mockImplementation(async(apiKey) => {
+    jest.spyOn(developerRepo, 'selectUserIdByApiKey').mockImplementation((apiKey) => {
       if (apiKey === knownAPIKey) {
-        return await Promise.resolve({ userId: BigInt(knownUserId) });
+        return Promise.resolve({ userId: BigInt(knownUserId) });
       } else if (apiKey === knownExpiredAPIKey) {
-        return await Promise.resolve({ userId: BigInt(Math.floor(Math.random()*10000)) });
+        return Promise.resolve({ userId: BigInt(Math.floor(Math.random() * 10000)) });
       }
-      return await Promise.resolve(undefined);
+      return Promise.resolve(undefined);
     });
-    jest.spyOn(userRepository, 'selectUserBaseInfoById').mockImplementation(async(userId) => {
+    jest.spyOn(userService, 'selectUserBaseInfoById').mockImplementation((userId) => {
       if (userId === knownUserId.toString()) {
         const nikeName = 'xiaoming';
         const userEntity = new UserEntity();
         userEntity.nikeName = nikeName;
         return Promise.resolve(userEntity);
       }
-      return await Promise.resolve(undefined);
+      return Promise.resolve(undefined);
     });
   });
 
   describe('test getUserInfoByApiKey', () => {
 
     it('should return null with an unknown API key', async() => {
-      const result = await developerService.getUserInfoByApiKey(Math.floor(Math.random()*10000).toString());
+      const result = await developerService.getUserInfoByApiKey(Math.floor(Math.random() * 10000).toString());
       expect(result).toBeNull();
     });
 
@@ -86,7 +85,5 @@ describe('developer service', () => {
       const result = (await developerService.getUserInfoByApiKey(knownExpiredAPIKey))!;
       expect(result).toBeUndefined();
     });
-
   });
-
 });

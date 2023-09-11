@@ -18,7 +18,7 @@
 
 import { ResourceType } from 'types';
 import { ExecuteResult, ICollaCommandDef, ICollaCommandExecuteContext } from '../../command_manager';
-import { DashboardAction } from '../../model/dashboard';
+import { DashboardAction } from '../../commands_actions/dashboard';
 import { IDashboardLayout, Selectors } from '../../exports/store';
 import { CollaCommandName } from '..';
 
@@ -32,7 +32,7 @@ export const changeDashboardLayout: ICollaCommandDef<IChangeDashboardLayout> = {
   undoable: false,
 
   execute(context: ICollaCommandExecuteContext, options) {
-    const { model: state } = context;
+    const { state: state } = context;
     const { dashboardId, layout } = options;
     const installedWidgetIds = Selectors.getInstalledWidgetInDashboard(state);
     if (!installedWidgetIds) { return null; }

@@ -14,7 +14,7 @@
     <!-- Java -->
     <img src="https://img.shields.io/badge/Java-ED8B00?logo=spring&logoColor=white" alt="Язык Java, Spring Framework" />
     <!-- hub.docker.com-->
-    <a target="_blank" href="#installation">
+    <a target="_blank" href="#Установка">
         <img src="https://img.shields.io/docker/pulls/apitable/init-db" />
     </a>
     <!-- Github Release Latest -->
@@ -70,7 +70,7 @@
 
 Если вы хотите посмотреть этот проект с открытым исходным кодом, нажмите сюда для [⚡Gitpod Online Demo](https://gitpod.io/#https://github.com/apitable/apitable).
 
-Если вы хотите установить APITable локально или в облаке, смотрите [💾 Установка](#installation)
+Если вы хотите установить APITable локально или в облаке, смотрите [💾 Установка](#Установка)
 
 Если вы хотите установить локальную среду разработки, прочитайте наше [🧑<unk> 💻 Руководство разработчика](./docs/contribute/developer-guide.md)
 
@@ -157,7 +157,7 @@ APITable предоставляет целый ряд удивительных �
   - **100k+** data rows with real-time collaboration.
   - Доступ к API Full-stack, от `Data` до `метаданных`.
   - Таблица с одним направлением / двумя направлениями и `бесконечные перекрестные ссылки`
-  - Community-friendly programming languages and framework, TypeScript ([NextJS](https://nextjs.org/) + [NestJS](https://nestjs.com/)) and Java ([Spring Boot](https://spring.io/projects/spring-boot)), and we are moving to Rust gradually.
+  - Community-friendly programming languages and framework, TypeScript ([NextJS](https://nextjs.org/) + [NestJS](https://nestjs.com/)) and Java ([Spring Boot](https://spring.io/projects/spring-boot)).
 - пользовательский интерфейс для работы с базами данных и таблицами
   - `CRUD`: Создание, Чтение, Обновление, Удаление таблиц, столбцов и строк
   - `Операции с полями`: сортировка, фильтр, группировка, скрытие/скрытие, установка высоты.
@@ -317,7 +317,6 @@ APITable использует эти общие соглашения:
 - Как создавать версии и теги? [Семантическое версионирование](https://semver.org/)
 - Что такое руководство по кодированию Java? [Руководство по кодированию Java](https://google.github.io/styleguide/javaguide.html)  | [Плагин Intellij IDEA](https://plugins.jetbrains.com/plugin/8527)
 - Что такое руководство по кодированию TypeScript? -> [Руководство по стилю TypeScript](https://google.github.io/styleguide/tsguide.html) | [ESLint](https://www.npmjs.com/package/@typescript-eslint/eslint-plugin)
-- What is the Rust Coding Guideline? -> [Rust API Guidelines](https://rust-lang.github.io/api-guidelines/about.html)
 
 ### Документация
 

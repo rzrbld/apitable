@@ -56,6 +56,7 @@ define ANNOUNCE_BODY
      /\   |  __ \_   _|__   __|  | |   | |
     /  \  | |__) || |    | | __ _| |__ | | ___
    / /\ \ |  ___/ | |    | |/ _` | '_ \| |/ _ \
+
   / ____ \| |    _| |_   | | (_| | |_) | |  __/
  /_/    \_\_|   |_____|  |_|\__,_|_.__/|_|\___|
 
@@ -96,9 +97,18 @@ build: ## build
 	make build-local
 
 build-local:
+	make _pre-check
 	make _build-java
 	make _build-room
 	make _build-web
+
+_pre-check:
+	make _check-web
+
+_check-web:
+	yarn install && yarn build:pre
+	yarn workspaces focus @apitable/core @apitable/i18n-lang @apitable/icons @apitable/components @apitable/widget-sdk @apitable/datasheet root
+	yarn check:datasheet
 
 _build-web:
 	yarn workspaces focus @apitable/core @apitable/i18n-lang @apitable/icons @apitable/components @apitable/widget-sdk @apitable/datasheet root
@@ -189,24 +199,12 @@ test-ut-room-docker:
 		unit-test-room yarn test:ut:room:cov
 	@echo "${GREEN}finished unit test, clean up images...${RESET}"
 
-_generate_room_coverage:
-	cd packages/room-native-api
-	grcov . --binary-path ./target/debug/deps/ -s . -t lcov --branch --ignore-not-existing --ignore '../*' --ignore "/*" -o target/coverage/tests.lcov
-
 _clean_room_coverage:
 	if [ -d "./packages/room-server/coverage" ]; then \
 		sudo chown -R $(shell id -u):$(shell id -g) ./packages/room-server/coverage; \
 	fi
-	if [ -d "./packages/room-native-api/coverage" ]; then \
-		sudo chown -R $(shell id -u):$(shell id -g) ./packages/room-native-api/coverage; \
-	fi
-	if [ -d "./packages/room-native-api/target" ]; then \
-		sudo chown -R $(shell id -u):$(shell id -g) ./packages/room-native-api/target; \
-	fi
 	make _test_clean
 	rm -fr ./packages/room-server/coverage || true
-	rm -fr ./packages/room-native-api/coverage || true
-	rm -fr ./packages/room-native-api/target || true
 
 ###### 【backend server unit test】 ######
 
@@ -271,12 +269,18 @@ Which service do you want to start run?
   1) backend-server
   2) room-server
   3) web-server
+  4) databus-server
 endef
 export RUN_LOCAL_TXT
 
 define RUN_PERF_TXT
+*NOTE* You must build a package before profiling it.
+
 Which service do you want to start run?
   1) room-server / production mode / Clinic.js flamegraph
+  2) room-server / production mode / Clinic.js doctor
+  3) room-server / production mode / Clinic.js heapprofiler
+  4) room-server / production mode / Clinic.js bubbleprof
 endef
 export RUN_PERF_TXT
 
@@ -296,13 +300,17 @@ run-local: ## run services with local programming language envinroment
 	@read -p "ENTER THE NUMBER: " SERVICE ;\
  	if [ "$$SERVICE" = "1" ]; then make _run-local-backend-server; fi ;\
  	if [ "$$SERVICE" = "2" ]; then make _run-local-room-server; fi ;\
- 	if [ "$$SERVICE" = "3" ]; then make _run-local-web-server; fi
+ 	if [ "$$SERVICE" = "3" ]; then make _run-local-web-server; fi ;\
+ 	if [ "$$SERVICE" = "4" ]; then make _run-docker-databus-server; fi
 
 .PHONY: run-perf
-run-perf: ## run services with local programming language envinroment for performance profiling
+run-perf: ## run room-server with local programming language envinroment for performance profiling
 	@echo "$$RUN_PERF_TXT"
 	@read -p "ENTER THE NUMBER: " SERVICE ;\
- 	if [ "$$SERVICE" = "1" ]; then make _run-perf-flame-local-room-server; fi
+ 	if [ "$$SERVICE" = "1" ]; then export PERF_TYPE=flame; make _run-perf-local-room-server; fi; \
+ 	if [ "$$SERVICE" = "2" ]; then export PERF_TYPE=doctor; make _run-perf-local-room-server; fi; \
+ 	if [ "$$SERVICE" = "3" ]; then export PERF_TYPE=heapprofiler; make _run-perf-local-room-server; fi; \
+ 	if [ "$$SERVICE" = "4" ]; then export PERF_TYPE=bubbleprof; make _run-perf-local-room-server; fi
 
 _run-local-backend-server:
 	source scripts/export-env.sh $$ENV_FILE;\
@@ -319,16 +327,19 @@ _run-local-room-server:
 	source scripts/export-env.sh $$DEVENV_FILE;\
 	yarn start:room-server
 
-_run-perf-flame-local-room-server:
+_run-perf-local-room-server:
 	source scripts/export-env.sh $$ENV_FILE;\
 	source scripts/export-env.sh $$DEVENV_FILE;\
-	yarn start:room-server:perf:flame
+	yarn start:room-server:perf:$$PERF_TYPE
 
 _run-local-web-server:
 	source scripts/export-env.sh $$ENV_FILE;\
 	source scripts/export-env.sh $$DEVENV_FILE;\
 	rm -rf packages/datasheet/web_build;\
 	yarn sd
+
+_run-docker-databus-server:
+	$(_DATAENV) up databus-server
 
 define DEVENV_TXT
 Which devenv do you want to start run?
@@ -477,12 +488,12 @@ INIT_DB_DOCKER_PATH=apitable/init-db
 db-plan: ## init-db dry update
 	cd init-db ;\
 	docker build -f Dockerfile . --tag=${INIT_DB_DOCKER_PATH}
-	docker run --rm --env-file $$ENV_FILE -e ACTION=updateSQL ${INIT_DB_DOCKER_PATH}
+	docker run --rm --env-file $$ENV_FILE -e ACTION=updateSQL --network apitable_default ${INIT_DB_DOCKER_PATH}
 
 db-apply: ## init-db update database structure (use .env)
 	cd init-db ;\
 	docker build -f Dockerfile . --tag=${INIT_DB_DOCKER_PATH}
-	docker run --rm --env-file $$ENV_FILE -e ACTION=update ${INIT_DB_DOCKER_PATH}
+	docker run --rm --env-file $$ENV_FILE -e ACTION=update --network apitable_default ${INIT_DB_DOCKER_PATH}
 
 changelog: ## make changelog with github api
 	@read -p "GITHUB_TOKEN: " GITHUB_TOKEN;\

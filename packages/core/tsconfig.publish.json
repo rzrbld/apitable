@@ -5,6 +5,7 @@
       "jest",
       "node"
     ],
+    "moduleResolution": "node",
     // "sourceMap": true,
     "outDir": "dist",
     "rootDir": "src",

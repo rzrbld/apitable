@@ -20,6 +20,7 @@ package com.apitable.starter.oss.core;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.List;
 import java.util.function.Consumer;
 
 public interface OssClientRequest {
@@ -43,5 +44,7 @@ public interface OssClientRequest {
     OssUploadAuth uploadToken(String bucket, String key, long expires, OssUploadPolicy uploadPolicy);
 
     boolean isValidCallback(String originAuthorization, String url, byte[] body, String contentType);
+
+    void migrationResources(String sourceBucket, String targetBucket, String resourceKey);
 
 }

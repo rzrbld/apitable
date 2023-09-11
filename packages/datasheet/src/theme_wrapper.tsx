@@ -25,7 +25,9 @@ import { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 
 const ThemeWrapper: React.FC<React.PropsWithChildren<unknown>> = (props) => {
-  const [theme, setTheme] = useLocalStorageState<ThemeName>('theme', { defaultValue: (getEnvVariables().SYSTEM_CONFIGURATION_DEFAULT_THEME as ThemeName) || ThemeName.Light });
+  const [theme, setTheme] = useLocalStorageState<ThemeName>('theme', {
+    defaultValue: (getEnvVariables().SYSTEM_CONFIGURATION_DEFAULT_THEME as ThemeName) || ThemeName.Light
+  });
   const [systemTheme, setSystemTheme] = useLocalStorageState<SystemTheme>('systemTheme', { defaultValue: SystemTheme.Close });
   const dispatch = useDispatch();
   const cacheTheme = useSelector(Selectors.getTheme);
@@ -39,7 +41,10 @@ const ThemeWrapper: React.FC<React.PropsWithChildren<unknown>> = (props) => {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      const newSystemTheme = (localStorage.getItem('systemTheme'));
+      let newSystemTheme = null;
+      try {
+        newSystemTheme = localStorage.getItem('systemTheme');
+      } catch (e) {}
       if (newSystemTheme && JSON.parse(newSystemTheme) !== systemTheme) {
         setSystemTheme(systemTheme === SystemTheme.Close ? SystemTheme.Open : SystemTheme.Close);
       }

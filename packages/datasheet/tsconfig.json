@@ -1,6 +1,7 @@
 {
   "extends": "../../common-tsconfig.json",
   "compilerOptions": {
+    "moduleResolution": "node",
     "target": "es5",
     "lib": [
       "dom",
@@ -12,7 +13,7 @@
         "./src/pc"
       ],
       "enterprise": [
-        "../../../enterprise/datasheet"
+        "./src/modules/enterprise/"
       ]
     },
     "module": "esnext",
@@ -27,12 +28,13 @@
     "noImplicitAny": true,
     "alwaysStrict": true,
     "strictNullChecks": true,
-    "noUnusedLocals": true,
+    "noUnusedLocals": false,
     "noImplicitReturns": true,
     "noImplicitOverride": true,
     "noFallthroughCasesInSwitch": true,
+    "useUnknownInCatchVariables": false,
 //    "noUncheckedIndexedAccess": true,
-    "noUnusedParameters": true,
+    "noUnusedParameters": false,
     "strictBindCallApply": true,
     "strictFunctionTypes": true
   },

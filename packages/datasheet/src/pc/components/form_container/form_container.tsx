@@ -18,16 +18,39 @@
 
 import { Button, ContextMenu, TextButton, useThemeColors } from '@apitable/components';
 import {
-  Api, AutoTestID, CacheManager, ConfigConstant, Events, ExpCache, Field, FieldOperateType, FieldType, FormApi, getNewId, IDPrefix, IField, IFieldMap,
-  IFormState, IRecord, ISegment, Navigation, OVER_LIMIT_PER_SHEET_RECORDS, OVER_LIMIT_SPACE_RECORDS, Player, Selectors, StatusCode, StoreActions,
-  string2Segment, Strings, t,
+  Api,
+  AutoTestID,
+  CacheManager,
+  ConfigConstant,
+  Events,
+  ExpCache,
+  Field,
+  FieldOperateType,
+  FieldType,
+  FormApi,
+  getNewId,
+  IDPrefix,
+  IField,
+  IFieldMap,
+  IFormState,
+  IRecord,
+  Navigation,
+  OVER_LIMIT_PER_SHEET_RECORDS,
+  OVER_LIMIT_SPACE_RECORDS,
+  Player,
+  SegmentType,
+  Selectors,
+  StatusCode,
+  StoreActions,
+  Strings,
+  t,
 } from '@apitable/core';
 import { ArrowDownOutlined, ArrowUpOutlined, EditOutlined, InfoCircleOutlined } from '@apitable/icons';
 import * as Sentry from '@sentry/nextjs';
 import { useDebounceFn, useMount, useUnmount } from 'ahooks';
 import classnames from 'classnames';
 // @ts-ignore
-import { triggerUsageAlertForDatasheet } from 'enterprise';
+import { triggerUsageAlertForDatasheet, PreFillPanel } from 'enterprise';
 import produce from 'immer';
 import { debounce, isArray } from 'lodash';
 import _map from 'lodash/map';
@@ -40,12 +63,12 @@ import { Modal } from 'pc/components/common/modal';
 import { FieldDesc } from 'pc/components/multi_grid/field_desc';
 import { FieldSetting } from 'pc/components/multi_grid/field_setting';
 import { Router } from 'pc/components/route_manager/router';
-import { useDispatch, useQuery, useResponsive } from 'pc/hooks';
+import { useDispatch, useResponsive } from 'pc/hooks';
 import { store } from 'pc/store';
-import { flatContextData } from 'pc/utils';
+import { flatContextData, IURLMeta } from 'pc/utils';
 import { getStorage, setStorage, StorageMethod, StorageName } from 'pc/utils/storage/storage';
 import * as React from 'react';
-import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { Dispatch, SetStateAction, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { shallowEqual, useSelector } from 'react-redux';
 import { Node } from 'slate';
 import IconSuccess from 'static/icon/datasheet/form/successful.png';
@@ -57,8 +80,11 @@ import { ShareContext } from '../share';
 import { FormContext } from './form_context';
 import { FormFieldContainer } from './form_field_container';
 import { FormPropContainer } from './form_prop_container';
-import styles from './style.module.less';
 import { getEnvVariables } from 'pc/utils/env';
+import { VikaSplitPanel } from '../common/vika_split_panel';
+import { query2formData, string2Query } from './util';
+import { Popup } from 'pc/components/common/mobile/popup';
+import styles from './style.module.less';
 
 enum IFormContentType {
   Form = 'Form',
@@ -90,7 +116,8 @@ const defaultMeta = {
 
 const tempRecordID = `${getNewId(IDPrefix.Record)}_temp`;
 
-export const FormContainer: React.FC<React.PropsWithChildren<unknown>> = () => {
+export const FormContainer: React.FC<React.PropsWithChildren<{ preFill: boolean, setPreFill: Dispatch<SetStateAction<boolean>>; }>> = (props) => {
+  const { preFill, setPreFill } = props;
   const {
     id,
     name,
@@ -141,6 +168,7 @@ export const FormContainer: React.FC<React.PropsWithChildren<unknown>> = () => {
   const { datasheetId, viewId } = sourceInfo;
   const { screenIsAtMost } = useResponsive();
   const isMobile = screenIsAtMost(ScreenSize.md);
+  const isPad = screenIsAtMost(ScreenSize.lg);
   const { shareInfo } = useContext(ShareContext);
   const fillDisabled = shareId && !fillAnonymous && !isLogin;
   const hasSubmitPermission = isLogin || fillAnonymous;
@@ -148,7 +176,7 @@ export const FormContainer: React.FC<React.PropsWithChildren<unknown>> = () => {
   const fieldMap = useMemo(() => formRelMeta.fieldMap || {}, [formRelMeta.fieldMap]);
   const prevFieldMap = useRef(fieldMap);
   const unmounted = useRef(false);
-  const query = useQuery();
+  const query = string2Query();
   const colors = useThemeColors();
   const theme = useSelector(Selectors.getTheme);
   const { FORM_LOGIN_URL } = getEnvVariables();
@@ -321,7 +349,7 @@ export const FormContainer: React.FC<React.PropsWithChildren<unknown>> = () => {
     return false;
   };
 
-  const onSubmit = () => {
+  const onSubmit = async() => {
     if (isEmpty) {
       emptyTip();
       return;
@@ -342,12 +370,31 @@ export const FormContainer: React.FC<React.PropsWithChildren<unknown>> = () => {
         return set;
       }, new Set<string>());
 
-    const postData = Object.keys(formData).reduce((obj, key) => {
-      if (formData[key] != null && !noAccessibleFieldIdSet.has(key)) {
-        obj[key] = formData[key];
+    const postData = {};
+    for(const key in formData) {
+      let val = formData[key];
+      if (val != null && !noAccessibleFieldIdSet.has(key)) {
+        const { property, type } = fieldMap[key];
+        if (type === FieldType.URL && property?.isRecogURLFlag) {
+          const matchMeta = val[0]?.text;
+          const res = await Api.getURLMetaBatch([matchMeta]);
+          if (res?.data?.success) {
+            const metaMap = res.data.data.contents;
+            const meta: IURLMeta = metaMap[matchMeta];
+            if (meta?.isAware) {
+              val = [{
+                text: matchMeta,
+                type: SegmentType.Url,
+                favicon: meta?.favicon,
+                title: meta?.title,
+              }];
+            }
+          }
+        }
+        postData[key] = val;
       }
-      return obj;
-    }, {});
+    }
+
     if (shareId) {
       return FormApi.addShareFormRecord(id, shareId, postData)
         .then(response => {
@@ -376,7 +423,7 @@ export const FormContainer: React.FC<React.PropsWithChildren<unknown>> = () => {
     let str = t(Strings.form_error_tip);
     if (code === StatusCode.SPACE_CAPACITY_OVER_LIMIT) str = t(Strings.form_space_capacity_over_limit);
     if ([OVER_LIMIT_PER_SHEET_RECORDS, OVER_LIMIT_SPACE_RECORDS].includes(String(code))) {
-      return triggerUsageAlertForDatasheet(errMsg);
+      return triggerUsageAlertForDatasheet?.(errMsg);
     }
     warningTip(str);
   };
@@ -472,19 +519,6 @@ export const FormContainer: React.FC<React.PropsWithChildren<unknown>> = () => {
     return res;
   };
 
-  const validQuery = (fieldMap: IFieldMap) => {
-    const res: { [fieldId: string]: ISegment[] } = {};
-    for (const [key, value] of query) {
-      if (fieldMap[key]) {
-        const fieldAccessible = Selectors.getFormSheetAccessibleByFieldId(fieldPermissionMap, key);
-        if (fieldAccessible && [FieldType.SingleText, FieldType.Text].includes(fieldMap[key].type)) {
-          res[key] = string2Segment(value);
-        }
-      }
-    }
-    return res;
-  };
-
   useMount(() => {
     Player.doTrigger(Events.workbench_form_container_shown);
     if (fillDisabled) {
@@ -498,7 +532,7 @@ export const FormContainer: React.FC<React.PropsWithChildren<unknown>> = () => {
     } else {
       const formFieldContainer = getStorage(storageName);
       // const defaultData = collectDefaultData(fieldMap);
-      const queryData = validQuery(fieldMap);
+      const queryData = query2formData(query, fieldMap, fieldPermissionMap);
       const cacheData = validValue(formFieldContainer?.[id], fieldMap);
       setFormData({ ...cacheData, ...queryData });
       patchRecord({ id: recordId, data: cacheData, commentCount: 0 });
@@ -637,6 +671,28 @@ export const FormContainer: React.FC<React.PropsWithChildren<unknown>> = () => {
     [formErrors, patchRecord, recordId],
   );
 
+  const brandFooter = brandVisible ? (
+    <div className={styles.brandContainerWrapper}>
+      <div
+        className={classnames(styles.brandContainer, {
+          [styles.brandContainerMobile]: isMobile,
+          [styles.autoFixer]: realContentType === IFormContentType.Welcome,
+        })}
+      >
+        <TComponent
+          tkey={t(Strings.brand_desc)}
+          params={{
+            logo: (
+              <span className={styles.logoWrap} onClick={onJump}>
+                <Logo size='mini' theme={theme}/>
+              </span>
+            ),
+          }}
+        />
+      </div>
+    </div>
+  ) : null;
+
   return (
     <FormContext.Provider
       value={{
@@ -657,110 +713,114 @@ export const FormContainer: React.FC<React.PropsWithChildren<unknown>> = () => {
           content={serialize(formProps.description)}/>
       </Head>
       <div className={classnames(styles.formContainer, 'vikaFormContainer')} id={AutoTestID.FORM_CONTAINER}>
-        {/* Form completion page */}
-        {realContentType === IFormContentType.Form && (
-          <div
-            className={classnames(styles.formContent, {
-              [styles.fullScreen]: fullScreen || isMobile,
-              [styles.noCover]: !fullScreen && !coverVisible,
-              [styles.formContentMobile]: isMobile,
-            })}
+        <VikaSplitPanel
+          panelLeft={
+            realContentType === IFormContentType.Form ? (
+              <div className={styles.formContentWrapper}>
+                <div
+                  className={classnames(styles.formContent, {
+                    [styles.fullScreen]: fullScreen || isMobile,
+                    [styles.noCover]: !fullScreen && !coverVisible,
+                    [styles.formContentMobile]: isMobile,
+                  })}
+                >
+                  {/* Magic Forms own properties */}
+                  <FormPropContainer
+                    formId={id}
+                    title={name}
+                    formProps={formProps}
+                    // Property editing is only possible with administrative rights
+                    editable={manageable && !preFill}
+                  />
+    
+                  {/* Column attributes and filled data */}
+                  <div
+                    className={classnames(styles.formFieldContainer, {
+                      [styles.formFieldContainerMobile]: isMobile,
+                    })}
+                  >
+                    <FormFieldContainer
+                      filteredColumns={filteredColumns}
+                      datasheetId={datasheetId}
+                      viewId={viewId}
+                      meta={formRelMeta}
+                      editable={editable}
+                      recordId={recordId}
+                    />
+                  </div>
+    
+                  {/* Submit button */}
+                  {!preFill && <div
+                    className={classnames(styles.submitWrapper, {
+                      [styles.submitWrapperMobile]: isMobile,
+                      [styles.submitWrapperLoading]: loading || animationLoading,
+                    })}
+                  >
+                    <Button
+                      className={styles.submitBtn}
+                      block
+                      style={{
+                        height: '100%',
+                      }}
+                      color='primary'
+                      onClick={onSubmit}
+                      disabled={loading || !editable}
+                    >
+                      {animationLoading && <span className={classnames(styles.submitLoading, 'formSubmitLoading')}/>}
+                      {animationLoading && !loading && t(Strings.form_submit_success)}
+                      {!animationLoading && !loading && (fillAnonymous && shareId ? t(Strings.button_submit_anonymous) : t(Strings.form_submit))}
+                      {animationLoading && loading && t(Strings.form_submit_loading)}
+                    </Button>
+                  </div>}
+                </div>
+                {brandFooter}
+              </div>
+            ) : <div/>
+          }
+          panelRight={!isPad && preFill && PreFillPanel ?
+            <PreFillPanel formData={formData} fieldMap={fieldMap} setPreFill={setPreFill} columns={currentView.columns} /> : <div/>}
+          primary='second'
+          size={!isPad && preFill ? 320 : 0}
+          allowResize={false}
+          pane1Style={{ overflow: 'hidden' }}
+        />
+        {isPad && preFill && PreFillPanel && (
+          <Popup
+            width="100%"
+            height={isPad ? '60%' : '90%'}
+            open={preFill}
+            onClose={() => setPreFill(false)}
+            closable={false}
+            className={styles.mobilePreFill}
           >
-            {/* Magic Forms own properties */}
-            <FormPropContainer
-              formId={id}
-              title={name}
-              formProps={formProps}
-              // Property editing is only possible with administrative rights
-              editable={manageable}
-            />
-
-            {/* Column attributes and filled data */}
-            <div
-              className={classnames(styles.formFieldContainer, {
-                [styles.formFieldContainerMobile]: isMobile,
-              })}
-            >
-              <FormFieldContainer
-                filteredColumns={filteredColumns}
-                datasheetId={datasheetId}
-                viewId={viewId}
-                meta={formRelMeta}
-                editable={editable}
-                recordId={recordId}
-              />
-            </div>
-
-            {/* Submit button */}
-            <div
-              className={classnames(styles.submitWrapper, {
-                [styles.submitWrapperMobile]: isMobile,
-                [styles.submitWrapperLoading]: loading || animationLoading,
-              })}
-            >
-              <Button
-                className={styles.submitBtn}
-                block
-                style={{
-                  height: '100%',
-                }}
-                color='primary'
-                onClick={onSubmit}
-                disabled={loading || !editable}
-              >
-                {animationLoading && <span className={classnames(styles.submitLoading, 'formSubmitLoading')}/>}
-                {animationLoading && !loading && t(Strings.form_submit_success)}
-                {!animationLoading && !loading && (fillAnonymous && shareId ? t(Strings.button_submit_anonymous) : t(Strings.form_submit))}
-                {animationLoading && loading && t(Strings.form_submit_loading)}
-              </Button>
-            </div>
-          </div>
+            {<PreFillPanel formData={formData} fieldMap={fieldMap} setPreFill={setPreFill} columns={currentView.columns} /> }
+          </Popup>
         )}
 
         {/* Form welcome page */}
         {realContentType === IFormContentType.Welcome && (
-          <div
-            className={classnames(styles.welcomeWrapper, {
-              [styles.welcomeWrapperMobile]: isMobile,
-            })}
-          >
-            <div className={styles.welcome}>
-              <div className={styles.welcomeInner}>
-                <span className={styles.iconSuccess}>
-                  <Image src={IconSuccess} alt='submit_success' width={100} height={80}/>
-                </span>
-                <span className={styles.thankText}>{t(Strings.form_thank_text)}</span>
-                {submitLimit === 0 && (
-                  <TextButton color='primary' className={styles.linkBtn} onClick={onFillAgain}>
-                    {t(Strings.form_fill_again)}
-                  </TextButton>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Footer: Brand watermark */}
-        {brandVisible && (
-          <div className={styles.brandContainerWrapper}>
+          <>
             <div
-              className={classnames(styles.brandContainer, {
-                [styles.brandContainerMobile]: isMobile,
-                [styles.autoFixer]: realContentType === IFormContentType.Welcome,
+              className={classnames(styles.welcomeWrapper, {
+                [styles.welcomeWrapperMobile]: isMobile,
               })}
             >
-              <TComponent
-                tkey={t(Strings.brand_desc)}
-                params={{
-                  logo: (
-                    <span className={styles.logoWrap} onClick={onJump}>
-                      <Logo size='mini' theme={theme}/>
-                    </span>
-                  ),
-                }}
-              />
+              <div className={styles.welcome}>
+                <div className={styles.welcomeInner}>
+                  <span className={styles.iconSuccess}>
+                    <Image src={IconSuccess} alt='submit_success' width={100} height={80}/>
+                  </span>
+                  <span className={styles.thankText}>{t(Strings.form_thank_text)}</span>
+                  {submitLimit === 0 && (
+                    <TextButton color='primary' className={styles.linkBtn} onClick={onFillAgain}>
+                      {t(Strings.form_fill_again)}
+                    </TextButton>
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
+            {brandFooter}
+          </>
         )}
 
         {/* Top left: brand logo */}
@@ -787,7 +847,7 @@ export const FormContainer: React.FC<React.PropsWithChildren<unknown>> = () => {
           <FieldDesc
             fieldId={activeFieldId}
             datasheetId={datasheetId}
-            readOnly={!manageable}
+            readOnly={!manageable || preFill}
             targetDOM={document.querySelector('.vikaFormContainer') as HTMLElement}
           />
         )}

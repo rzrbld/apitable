@@ -39,7 +39,7 @@
           AND vodmr.member_id = #{memberId}
     </select>
 
-    <select id="countByTeamId" resultType="java.lang.Integer">
+    <select id="countByTeamId" resultType="java.lang.Long">
         SELECT COUNT(DISTINCT vom.id)
         FROM ${tablePrefix}unit_team_member_rel vodmr
         JOIN ${tablePrefix}unit_member vom ON vodmr.member_id = vom.id AND vom.is_deleted = 0
@@ -182,4 +182,19 @@
             #{item}
         </foreach>
     </delete>
+
+    <select id="selectMemberIdsByTeamIdAndPage" resultType="java.lang.Long">
+        SELECT member_id
+        FROM ${tablePrefix}unit_team_member_rel
+        WHERE team_id = #{teamId}
+    </select>
+
+    <select id="selectTeamIdsByMemberIds" resultType="com.apitable.organization.entity.TeamMemberRelEntity">
+        SELECT team_id, member_id
+        FROM ${tablePrefix}unit_team_member_rel
+        WHERE member_id IN
+        <foreach collection="memberIds" index="index" item="item" open="(" separator="," close=")">
+            #{item}
+        </foreach>
+    </select>
 </mapper>

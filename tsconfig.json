@@ -5,6 +5,7 @@
     "strict": true,
     "incremental": true,
     "isolatedModules": true,
+    "moduleResolution": "node",
     "noEmit": true,
     "jsx": "react"
   },

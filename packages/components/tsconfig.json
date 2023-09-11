@@ -15,6 +15,7 @@
     "noUnusedParameters": true,
     "strictBindCallApply": true,
     "strictFunctionTypes": true,
+    "moduleResolution": "node",
     "rootDir": "src",
     "baseUrl": "src",
     "target": "es2015",

@@ -16,7 +16,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-/** @type {import('next').NextConfig} */
 /* eslint no-undef: 0 */
 const withLess = require('next-with-less')
 const path = require('path')
@@ -39,19 +38,21 @@ const plugins = [
   }
   ],
   [
-    withTM(['@apitable/components', 'antd', 'rc-pagination', 'rc-util', 'rc-picker', 'rc-notification', '@ant-design/icons', 'rc-calendar'])
+    withTM(['@apitable/components', 'antd', 'antd-mobile', 'rc-pagination', 'rc-util', 'rc-picker', 'rc-notification', '@ant-design/icons', 'rc-calendar'])
   ],
   [
     withBundleAnalyzer({enabled: process.env.ANALYZE === 'true'})
   ]
 ]
-
+/** @type {import('next').NextConfig} */
 module.exports = withPlugins(plugins, {
   // Use the CDN in production and localhost for development.
   assetPrefix: isProd ? process.env.NEXT_ASSET_PREFIX : '',
+  // Possible fix for  timeout error in static page generation
+  staticPageGenerationTimeout: 120,
   images: {
     unoptimized: true,
-    domains: ['s4.vika.cn', 's1.vika.cn', 'mp.weixin.qq.com', 'localhost', 'legacy-s1.apitable.com', 's1.apitable.com'],
+    domains: ['s4.vika.cn', 's1.vika.cn', 'mp.weixin.qq.com', 'localhost', 's1.apitable.com'],
     remotePatterns: [{
       protocol: 'http',
       hostname: '**',
@@ -70,6 +71,7 @@ module.exports = withPlugins(plugins, {
       pathname: '/assets/**'
     }]
   },
+  swcMinify: true,
   poweredByHeader: false,
   publicRuntimeConfig: {
     // use local public folder for editions, e.g. apitable

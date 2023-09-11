@@ -19,6 +19,7 @@
 package com.apitable.organization.service;
 
 import com.apitable.organization.dto.MemberIsolatedInfo;
+import com.apitable.organization.dto.TeamBaseInfoDTO;
 import com.apitable.organization.entity.TeamEntity;
 import com.apitable.organization.vo.MemberInfoVo;
 import com.apitable.organization.vo.MemberPageVo;
@@ -31,8 +32,18 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 public interface ITeamService extends IService<TeamEntity> {
+
+    /**
+     * Get Team Base Information.
+     *
+     * @param teamIds team ids
+     * @return List<TeamBaseInfoDTO>
+     * @author Chambers
+     */
+    List<TeamBaseInfoDTO> getTeamBaseInfo(List<Long> teamIds);
 
     /**
      * Get team Tree.
@@ -87,7 +98,7 @@ public interface ITeamService extends IService<TeamEntity> {
      * @param teamId team id
      * @return the member amount
      */
-    int countMemberCountByParentId(Long teamId);
+    long countMemberCountByParentId(Long teamId);
 
     /**
      * count the teams' members, only count self teams' members.
@@ -95,7 +106,7 @@ public interface ITeamService extends IService<TeamEntity> {
      * @param teamIds team ids
      * @return the member amount
      */
-    int getMemberCount(List<Long> teamIds);
+    long getMemberCount(List<Long> teamIds);
 
     /**
      * @param teamIds team ids
@@ -161,12 +172,36 @@ public interface ITeamService extends IService<TeamEntity> {
     Long createSubTeam(String spaceId, String name, Long superId);
 
     /**
+     * create subTeam.
+     *
+     * @param spaceId  space id
+     * @param name     team name
+     * @param superId  parent team id
+     * @param sequence team order
+     * @return team id
+     */
+    Long createSubTeam(String spaceId, String name, Long superId, Integer sequence);
+
+    /**
+     * create subTeam.
+     *
+     * @param spaceId  space id
+     * @param name     team name
+     * @param superId  parent team id
+     * @param sequence team order
+     * @param roleIds  role is list
+     * @return team id
+     */
+    Long createSubTeam(String spaceId, String name, Long superId, Integer sequence,
+                       List<Long> roleIds);
+
+    /**
      * batch insert team by name
      * !!!Designed for uploading data processing, otherwise use don't use.
      *
-     * @param spaceId space id
+     * @param spaceId    space id
      * @param rootTeamId root id
-     * @param teamNames team names(such as：[level one, level two, level three])
+     * @param teamNames  team names(such as：[level one, level two, level three])
      * @return team ids
      */
     List<Long> createBatchByTeamName(String spaceId, Long rootTeamId, List<String> teamNames);
@@ -195,11 +230,19 @@ public interface ITeamService extends IService<TeamEntity> {
     /**
      * adjust the team hierarchy
      *
-     * @param teamId team id
+     * @param teamId   team id
      * @param teamName team name
      * @param parentId parent team id
      */
     void updateTeamParent(Long teamId, String teamName, Long parentId);
+
+    /**
+     * update team.
+     *
+     * @param team    team
+     * @param roleIds team roles
+     */
+    void updateTeam(TeamEntity team, List<Long> roleIds);
 
     /**
      * @param teamId team id
@@ -288,19 +331,65 @@ public interface ITeamService extends IService<TeamEntity> {
      * get member's each team's full hierarchy team name
      *
      * @param memberTeamMap member and team rel map
-     * @param spaceId space id
+     * @param spaceId       space id
      * @return map
      */
     Map<Long, List<String>> getMemberEachTeamPathName(Map<Long, List<Long>> memberTeamMap,
-        String spaceId);
+                                                      String spaceId);
 
     /**
      * batch handle team name, get full hierarchy team names and teamId
      *
      * @param memberIds member ids
-     * @param spaceId space id
+     * @param spaceId   space id
      * @return map member's team path names
      */
     Map<Long, List<MemberTeamPathInfo>> batchGetFullHierarchyTeamNames(List<Long> memberIds,
-        String spaceId);
+                                                                       String spaceId);
+
+    /**
+     * check the team name.
+     *
+     * @param spaceId  space id
+     * @param parentId team parent id
+     * @param name     team name
+     */
+    void checkNameExists(String spaceId, Long parentId, String name);
+
+    /**
+     * check the team name.
+     *
+     * @param spaceId  space id
+     * @param parentId team parent id
+     * @param teamId   current team id
+     * @param name     team name
+     */
+    void checkNameExists(String spaceId, Long parentId, Long teamId, String name);
+
+    /**
+     * get unit team id.
+     *
+     * @param spaceId space id
+     * @param unitId  unit_id
+     * @return team id
+     */
+    Long getTeamIdByUnitId(String spaceId, String unitId, Consumer<Boolean> consumer);
+
+    /**
+     * get unit team id.
+     *
+     * @param spaceId space id
+     * @param unitIds unit_id list
+     * @return list of team id
+     */
+    List<Long> getTeamIdsByUnitIds(String spaceId, List<String> unitIds);
+
+    /**
+     * get team.
+     *
+     * @param spaceId space id
+     * @param unitId  unit_id
+     * @return TeamEntity
+     */
+    TeamEntity getTeamByUnitId(String spaceId, String unitId);
 }

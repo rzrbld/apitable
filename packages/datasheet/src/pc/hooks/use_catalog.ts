@@ -20,7 +20,7 @@ import { useRequest } from 'pc/hooks';
 
 import {
   IReduxState, StoreActions, Selectors,
-  ConfigConstant, t, Strings, ResourceIdPrefix
+  ConfigConstant, t, Strings, ResourceIdPrefix,
 } from '@apitable/core';
 import { useSelector, useDispatch } from 'react-redux';
 import { useCatalogTreeRequest } from './use_catalogtree_request';
@@ -57,8 +57,11 @@ export const useCatalog = () => {
     parentNodeId?: string,
     type: ConfigConstant.NodeType = ConfigConstant.NodeType.DATASHEET,
     extra?: { [key: string]: any },
-    nodeName?: string) => {
-    if (addNodeLoading) { return; }
+    nodeName?: string,
+  ) => {
+    if (addNodeLoading) {
+      return;
+    }
     if (!parentNodeId) {
       parentNodeId = activeNodeId ? treeNodesMap[activeNodeId].parentId : rootId;
     }
@@ -66,17 +69,20 @@ export const useCatalog = () => {
       dispatch(StoreActions.setExpandedKeys([...expandedKeys, parentNodeId]));
     }
     const childNodes = treeNodesMap[parentNodeId]?.children || [];
-    if (!nodeName && type === ConfigConstant.NodeType.FORM) {
-      const existForm = childNodes.reduce((acc, item) => {
-        if (item.startsWith(ResourceIdPrefix.Form)) {
-          return acc + 1;
-        }
-        return acc;
-      }, 0);
-      nodeName = existForm ? `${t(Strings.view_form)}${existForm + 1}` : t(Strings.view_form);
-    }
-    if (type === ConfigConstant.NodeType.DATASHEET) {
+    if (type === ConfigConstant.NodeType.FORM) {
+      if (!nodeName) {
+        const existForm = childNodes.reduce((acc, item) => {
+          if (item.startsWith(ResourceIdPrefix.Form)) {
+            return acc + 1;
+          }
+          return acc;
+        }, 0);
+        nodeName = existForm ? `${t(Strings.view_form)}${existForm + 1}` : t(Strings.view_form);
+      }
+    } else if (type === ConfigConstant.NodeType.DATASHEET) {
       extra = { viewName: t(Strings.default_view) };
+    } else if (type === ConfigConstant.NodeType.AI) {
+      // nodeName = t(Strings.ai_new_chatbot);
     }
     addNode(parentNodeId, type, nodeName, undefined, extra);
   };

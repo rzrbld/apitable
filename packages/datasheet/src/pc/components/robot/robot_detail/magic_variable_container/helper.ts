@@ -16,15 +16,25 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import {
-  IExpression, IExpressionOperand, IField, InputParser, IOperand,
-  MagicVariableParser, OperandTypeEnums, OperatorEnums,
-  ACTION_INPUT_PARSER_BASE_FUNCTIONS, EmptyNullOperand, IFieldPermissionMap, Strings, t,
-} from '@apitable/core';
 import produce from 'immer';
 import { isSafari } from 'react-device-detect';
-import { Transforms, Selection, BaseEditor } from 'slate';
+import { BaseEditor, Selection, Transforms } from 'slate';
 import { ReactEditor } from 'slate-react';
+import {
+  ACTION_INPUT_PARSER_BASE_FUNCTIONS,
+  EmptyNullOperand,
+  IExpression,
+  IExpressionOperand,
+  IField,
+  IFieldPermissionMap,
+  InputParser,
+  IOperand,
+  MagicVariableParser,
+  OperandTypeEnums,
+  OperatorEnums,
+  Strings,
+  t,
+} from '@apitable/core';
 import { fields2Schema } from '../../helper';
 import { IJsonSchema, INodeOutputSchema, IUISchemaLayoutGroup } from '../../interface';
 
@@ -487,7 +497,27 @@ export const transformSlateValue = (paragraphs: any): {
   };
 };
 
-export const withMagicVariable = (editor: any) => {
+export const modifyTriggerId = (triggerId: string, nodeItem: Node) => {
+  return produce(nodeItem, draft => {
+    // @ts-ignore
+    if(nodeItem.type === 'magicVariable'){
+      // @ts-ignore
+      nodeItem.children = [{
+        text: ''
+      }];
+      // @ts-ignore
+      const firstOperand = nodeItem.data.operands[0];
+      // @ts-ignore
+      const firstOperandType = nodeItem.data.operands[0]?.type;
+      if(firstOperandType === 'Expression') {
+        const firstInnerOperand = firstOperand['value']?.operands[0];
+        firstInnerOperand.value = triggerId;
+      }
+    }
+  });
+};
+
+export const withMagicVariable = (editor: any, triggerId?: string) => {
   const { isInline, isVoid, onChange } = editor;
 
   editor.isInline = (element: { type: string; }) => {
@@ -507,10 +537,19 @@ export const withMagicVariable = (editor: any) => {
     }
     onChange(...params);
   };
-
-  // editor.normalizeNode = (node, editor) => {
-
-  // }
+  
+  // // @ts-ignore
+  // editor.insertData = data => {
+  //   const html = data.getData('text/html');
+  //
+  //   if (html) {
+  //     const serializedToSlate = htmlToSlate(html, parseConfig);
+  //     const modifiedNodes = modifyTriggerId(triggerId, serializedToSlate);
+  //     Transforms.insertFragment(editor, modifiedNodes);
+  //     return;
+  //   }
+  //   insertData(data);
+  // };
 
   return editor;
 };

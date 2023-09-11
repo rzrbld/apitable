@@ -55,6 +55,8 @@ public enum IdRulePrefixEnum {
 
     WIDGET_PACKAGE("wpk"),
 
+    AUTOMATION("aut"),
+
     AUTOMATION_ROBOT("arb"),
 
     AUTOMATION_TRIGGER("atr"),
@@ -72,6 +74,8 @@ public enum IdRulePrefixEnum {
     ALB("alb"),
 
     EMB("emb"),
+
+    AI("ai_"),
 
     ;
 

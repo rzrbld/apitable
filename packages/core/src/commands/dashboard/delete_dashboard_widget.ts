@@ -20,7 +20,7 @@ import { CollaCommandName } from 'commands';
 import { ExecuteResult, ICollaCommandDef, ICollaCommandExecuteContext } from 'command_manager';
 import { Selectors } from '../../exports/store';
 import { ResourceType } from 'types';
-import { DashboardAction } from '../../model/dashboard';
+import { DashboardAction } from '../../commands_actions/dashboard';
 
 export interface IDeleteDashboardWidget {
   cmd: CollaCommandName.DeleteDashboardWidget;
@@ -32,7 +32,7 @@ export const deleteDashboardWidget: ICollaCommandDef<IDeleteDashboardWidget> = {
   undoable: false,
 
   execute(context: ICollaCommandExecuteContext, options: IDeleteDashboardWidget) {
-    const { model: state } = context;
+    const { state: state } = context;
     const { dashboardId, widgetId } = options;
     const snapshot = Selectors.getDashboardSnapshot(state);
 

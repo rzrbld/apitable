@@ -45,6 +45,7 @@ import com.apitable.core.exception.BusinessException;
 import com.apitable.core.util.ExceptionUtil;
 import com.apitable.core.util.HttpContextUtil;
 
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 import static com.apitable.auth.enums.AuthException.NONE_RESOURCE;
@@ -77,7 +78,8 @@ public class ResourceInterceptor extends AbstractServletSupport implements Handl
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
         String requestPath = resolveServletPath(request);
-        ResourceDefinition resourceDef = apiResourceFactory.getResourceByUrl(requestPath);
+        ResourceDefinition resourceDef =
+            apiResourceFactory.getResourceByUrl(requestPath, request.getMethod());
         if (resourceDef == null) {
             log.error("Request path [{}] is not exist", requestPath);
             throw new BusinessException(NONE_RESOURCE);
@@ -91,8 +93,11 @@ public class ResourceInterceptor extends AbstractServletSupport implements Handl
         if (!HttpContextUtil.hasSession()) {
             // Get API KEY
             String apiKey = ApiHelper.getApiKey(request);
-            ExceptionUtil.isNotNull(apiKey, AuthException.UNAUTHORIZED);
-            userId = developerMapper.selectUserIdByApiKey(apiKey);
+            if (StringUtils.isEmpty(apiKey)) {
+                userId = SessionContext.getUserIdFromRequest();
+            }else {
+                userId = developerMapper.selectUserIdByApiKey(apiKey);
+            }
             if (userId == null) {
                 throw new BusinessException(AuthException.UNAUTHORIZED);
             }

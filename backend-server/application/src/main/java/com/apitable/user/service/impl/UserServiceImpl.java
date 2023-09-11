@@ -46,7 +46,6 @@ import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.PageUtil;
 import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
-import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.apitable.asset.service.IAssetService;
 import com.apitable.base.enums.DatabaseException;
@@ -65,9 +64,7 @@ import com.apitable.organization.entity.MemberEntity;
 import com.apitable.organization.mapper.MemberMapper;
 import com.apitable.organization.service.IMemberService;
 import com.apitable.player.mapper.PlayerActivityMapper;
-import com.apitable.player.ro.NotificationCreateRo;
 import com.apitable.player.service.IPlayerActivityService;
-import com.apitable.player.service.IPlayerNotificationService;
 import com.apitable.shared.cache.bean.LoginUserDto;
 import com.apitable.shared.cache.bean.OpenedSheet;
 import com.apitable.shared.cache.bean.UserLinkInfo;
@@ -84,7 +81,6 @@ import com.apitable.shared.component.notification.NotificationManager;
 import com.apitable.shared.component.notification.NotificationTemplateId;
 import com.apitable.shared.config.properties.ConstProperties;
 import com.apitable.shared.constants.LanguageConstants;
-import com.apitable.shared.constants.NotificationConstants;
 import com.apitable.shared.context.LoginContext;
 import com.apitable.shared.security.PasswordService;
 import com.apitable.shared.sysconfig.notification.NotificationTemplate;
@@ -96,6 +92,7 @@ import com.apitable.space.service.ISpaceInviteLinkService;
 import com.apitable.space.service.ISpaceService;
 import com.apitable.user.dto.UserInPausedDto;
 import com.apitable.user.dto.UserLangDTO;
+import com.apitable.user.dto.UserSensitiveDTO;
 import com.apitable.user.entity.UserEntity;
 import com.apitable.user.entity.UserHistoryEntity;
 import com.apitable.user.enums.UserClosingException;
@@ -116,6 +113,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import javax.annotation.Resource;
 import javax.servlet.http.HttpSession;
@@ -145,6 +143,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserEntity>
     private LoginUserCacheService loginUserCacheService;
 
     @Resource
+    private LanguageManager languageManager;
+
+    @Resource
     private IAssetService iAssetService;
 
     @Resource
@@ -172,7 +173,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserEntity>
     private ISpaceInviteLinkService spaceInviteLinkService;
 
     @Resource
-    private IPlayerNotificationService notificationService;
+    private IMemberService iMemberService;
 
     @Resource
     private MemberMapper memberMapper;
@@ -191,9 +192,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserEntity>
 
     @Resource
     private SocialServiceFacade socialServiceFacade;
-
-    @Resource
-    private IMemberService iMemberService;
 
     @Resource
     private INotificationFactory notificationFactory;
@@ -393,15 +391,16 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserEntity>
             ? mobile : StringUtils.substringBefore(email, "@"));
         // Create user with mobile number
         UserEntity entity = UserEntity.builder()
-            .uuid(IdUtil.fastSimpleUUID())
-            .code(areaCode)
-            .mobilePhone(mobile)
-            .nickName(name)
-            .avatar(nullToDefaultAvatar(avatar))
-            .color(color)
-            .email(email)
-            .lastLoginTime(LocalDateTime.now())
-            .build();
+                .uuid(IdUtil.fastSimpleUUID())
+                .code(areaCode)
+                .mobilePhone(mobile)
+                .nickName(name)
+                .avatar(nullToDefaultAvatar(avatar))
+                .locale(languageManager.getDefaultLanguageTag())
+                .color(color)
+                .email(email)
+                .lastLoginTime(LocalDateTime.now())
+                .build();
         boolean flag = saveUser(entity);
         ExceptionUtil.isTrue(flag, REGISTER_FAIL);
         boolean hasSpace = false;
@@ -452,14 +451,15 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserEntity>
         Integer color = nullToDefaultAvatar(avatar) != null ? null
             : RandomUtil.randomInt(0, USER_AVATAR_COLOR_MAX_VALUE);
         UserEntity entity = UserEntity.builder()
-            .uuid(IdUtil.fastSimpleUUID())
-            .code(areaCode)
-            .mobilePhone(mobile)
-            .nickName(nullToDefaultNickName(nickName, mobile))
-            .avatar(nullToDefaultAvatar(avatar))
-            .color(color)
-            .lastLoginTime(LocalDateTime.now())
-            .build();
+                .uuid(IdUtil.fastSimpleUUID())
+                .code(areaCode)
+                .mobilePhone(mobile)
+                .nickName(nullToDefaultNickName(nickName, mobile))
+                .locale(languageManager.getDefaultLanguageTag())
+                .avatar(nullToDefaultAvatar(avatar))
+                .color(color)
+                .lastLoginTime(LocalDateTime.now())
+                .build();
         boolean flag = saveUser(entity);
         ExceptionUtil.isTrue(flag, REGISTER_FAIL);
         // Create user activity record
@@ -479,12 +479,13 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserEntity>
     @Transactional(rollbackFor = Exception.class)
     public UserEntity createUserByEmail(final String email, final String password) {
         UserEntity entity = UserEntity.builder()
-            .uuid(IdUtil.fastSimpleUUID())
-            .email(email)
-            .nickName(StringUtils.substringBefore(email, "@"))
-            .color(RandomUtil.randomInt(0, USER_AVATAR_COLOR_MAX_VALUE))
-            .lastLoginTime(LocalDateTime.now())
-            .build();
+                .uuid(IdUtil.fastSimpleUUID())
+                .email(email)
+                .nickName(StringUtils.substringBefore(email, "@"))
+                .locale(languageManager.getDefaultLanguageTag())
+                .color(RandomUtil.randomInt(0, USER_AVATAR_COLOR_MAX_VALUE))
+                .lastLoginTime(LocalDateTime.now())
+                .build();
         if (password != null) {
             entity.setPassword(passwordService.encode(password));
         }
@@ -888,38 +889,23 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserEntity>
         if (spaces.size() == 0) {
             return;
         }
-        List<NotificationCreateRo> notificationCreateRos =
-            genNotificationCreateRos(user, spaces);
-        notificationService.batchCreateNotify(notificationCreateRos);
+        TaskManager.me().execute(() -> this.sendClosingAccountNotify(user, spaces, members));
     }
 
-    /**
-     * Encapsulate Notification to notify the master administrator that the member has applied for
-     * logoff.
-     *
-     * @param user   User
-     * @param spaces Space List
-     * @return NotificationCreateRo List
-     */
-    private List<NotificationCreateRo> genNotificationCreateRos(
-        final UserEntity user, final List<SpaceEntity> spaces) {
-        List<NotificationCreateRo> ros = Lists.newArrayList();
-        spaces.forEach(spaceEntity -> {
-            NotificationCreateRo notifyRo = new NotificationCreateRo();
-            notifyRo.setSpaceId(spaceEntity.getSpaceId());
-            String memberId = String.valueOf(spaceEntity.getOwner());
-            notifyRo.setToMemberId(Lists.newArrayList(memberId));
-            notifyRo.setFromUserId(String.valueOf(user.getId()));
-            Dict extras = Dict.create().set("nickName", user.getNickName());
-            JSONObject data = JSONUtil.createObj()
-                .putOnce(NotificationConstants.BODY_EXTRAS, extras)
-                .set("nickName", user.getNickName());
-            notifyRo.setBody(data);
-            notifyRo.setTemplateId(NotificationTemplateId
-                .MEMBER_APPLIED_TO_CLOSE_ACCOUNT.getValue());
-            ros.add(notifyRo);
-        });
-        return ros;
+    private void sendClosingAccountNotify(UserEntity user,
+        List<SpaceEntity> spaces, List<MemberEntity> members) {
+        Map<String, String> spaceIdToMemberNameMap = members.stream()
+            .collect(Collectors.toMap(MemberEntity::getSpaceId, MemberEntity::getMemberName));
+        for (SpaceEntity space : spaces) {
+            NotificationManager.me().playerNotify(
+                NotificationTemplateId.MEMBER_APPLIED_TO_CLOSE_ACCOUNT,
+                Lists.newArrayList(space.getOwner()),
+                user.getId(),
+                space.getSpaceId(),
+                Dict.create().set("nickName", user.getNickName())
+                    .set("MEMBER_NAME", spaceIdToMemberNameMap.get(space.getSpaceId()))
+            );
+        }
     }
 
     private void updateIsPaused(final Long userId, final boolean isPaused) {
@@ -1167,5 +1153,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserEntity>
                 log.error("CloseUserError:{}", userId, e);
             }
         });
+    }
+
+    @Override
+    public List<UserSensitiveDTO> getUserSensitiveInfoByIds(List<Long> userIds) {
+        return baseMapper.selectEmailAndMobilePhoneByIds(userIds);
     }
 }

@@ -26,6 +26,7 @@ import com.apitable.control.service.IControlRoleService;
 import com.apitable.control.service.IControlService;
 import com.apitable.interfaces.billing.facade.EntitlementServiceFacade;
 import com.apitable.internal.service.IFieldService;
+import com.apitable.internal.service.InternalSpaceService;
 import com.apitable.mock.bean.MockInvitation;
 import com.apitable.mock.bean.MockUserSpace;
 import com.apitable.organization.ro.RoleMemberUnitRo;
@@ -198,6 +199,9 @@ public abstract class AbstractIntegrationTest extends TestSuiteWithDB {
     @Autowired
     protected IResourceMetaService iResourceMetaService;
 
+    @Autowired
+    protected InternalSpaceService internalSpaceService;
+
     @Value("#{'${exclude}'.split(',')}")
     private List<String> excludeTables;
 
@@ -276,7 +280,7 @@ public abstract class AbstractIntegrationTest extends TestSuiteWithDB {
     }
 
     protected String createSpaceWithoutName(UserEntity user) {
-        return iSpaceService.createSpace(user, "test space");
+        return iSpaceService.createSpace(user, "test space").getId();
     }
 
     protected Long createMember(Long userId, String spaceId) {
@@ -289,13 +293,16 @@ public abstract class AbstractIntegrationTest extends TestSuiteWithDB {
     }
 
     protected MockUserSpace createSingleUserAndSpace() {
-        UserEntity user = createUserRandom();
+        UserEntity user = createUserWithEmailAndPassword("test_user@apitable.com");
         String spaceId = createSpaceWithoutName(user);
 
         // init context
         initCallContext(user.getId());
 
-        return new MockUserSpace(user.getId(), spaceId);
+        // get member id in space
+        Long memberId = iMemberService.getMemberIdByUserIdAndSpaceId(user.getId(), spaceId);
+
+        return new MockUserSpace(user.getId(), spaceId, memberId);
     }
 
     protected void initCallContext(Long userId) {

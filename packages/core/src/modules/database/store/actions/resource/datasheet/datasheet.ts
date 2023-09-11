@@ -32,7 +32,7 @@ import {
   IServerDatasheetPack,
   ISetFieldInfoState,
   ISnapshot,
-  IViewDerivation,
+  IViewDerivation, IViewProperty,
   ModalConfirmKey,
 } from 'exports/store';
 import { deleteNode, loadFieldPermissionMap, updateUnitMap, updateUserMap } from 'exports/store/actions';
@@ -84,7 +84,7 @@ import {
   SET_ROBOT_PANEL_STATUS,
   SET_SEARCH_KEYWORD,
   SET_SEARCH_RESULT_CURSOR_INDEX,
-  SET_VIEW_DERIVATION,
+  SET_VIEW_DERIVATION, SET_VIEW_PROPERTY,
   SWITCH_ACTIVE_PANEL,
   TOGGLE_CALENDAR_GRID,
   TOGGLE_CALENDAR_GUIDE_STATUS,
@@ -213,7 +213,7 @@ const checkSortInto = (snapshot: ISnapshot) => {
   return produce(snapshot, draft => {
     const views = draft.meta.views;
     for (const v of views) {
-      if (Array.isArray(v.sortInfo)) {
+      if (Array.isArray(v?.sortInfo)) {
         v.sortInfo = {
           keepSort: true,
           rules: v.sortInfo,
@@ -901,7 +901,20 @@ export const setViewDerivation = (datasheetId: string, payload: { viewId: string
   };
 };
 
-// As opposed to set, patch means partial update
+export const setViewProperty = (
+  datasheetId: string,
+  payload: {
+      viewId: string,
+      viewProperty: IViewProperty
+    }
+) => {
+  return {
+    datasheetId,
+    type: SET_VIEW_PROPERTY,
+    payload,
+  };
+};
+
 export const patchViewDerivation = (datasheetId: string, payload: { viewId: string; viewDerivation: Partial<IViewDerivation> }) => {
   return {
     datasheetId,

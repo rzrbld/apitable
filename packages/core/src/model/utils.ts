@@ -176,7 +176,7 @@ const FieldTypeStringMap = {
   [FieldType.Cascader]: APIMetaFieldType.Cascader,
 };
 
-export const getFieldTypeString = (fieldType: FieldType) => {
+export const getFieldTypeString = (fieldType: FieldType): APIMetaFieldType => {
   return FieldTypeStringMap[fieldType];
 };
 
@@ -324,7 +324,7 @@ export const isNullValue = (value: any): value is null => {
 
 /**
  * IOpenComputedFormat => IComputedFieldFormattingProperty
- * Convert the external read calculation field format content into executable cmd format (formula, magic reference)
+ * Convert the external read calculation field format content into executable cmd format (formula, lookup)
  * @param fieldInstance
  * @param format
  */

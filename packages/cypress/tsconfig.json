@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "moduleResolution": "node",
     /* Basic Options */
     // "incremental": true,                   /* Enable incremental compilation */
     "target": "ESNEXT",

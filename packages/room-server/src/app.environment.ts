@@ -37,9 +37,6 @@ export const enableQueueWorker = Object.is(process.env.ENABLE_QUEUE_WORKER, 'tru
 // whether or not enable socket. (data collaboration middleware)
 export const enableSocket = Object.is(process.env.ENABLE_SOCKET, 'true');
 
-// whether or not enable automation worker
-export const enableAutomationWorker = Object.is(process.env.enableAutomationWorker, 'true');
-
 // project root directory
 export const PROJECT_DIR = __dirname;
 
@@ -52,6 +49,11 @@ export const skipUsageVerification = Object.is(process.env.SKIP_USAGE_VERIFICATI
  * whether show anonymous person in room.
  */
 export const showAnonymous: boolean = Object.is(process.env.SHOW_ANONYMOUS || 'true', 'true');
+export const enableAmqp: boolean = Object.is(process.env.ENABLE_AMQP || 'true', 'true');
+
+export const enableAutomationWorker = Object.is(process.env.ENABLE_QUEUE_WORKER, 'true');
+
+export const maxRobotActionCount = parseInt(process.env.MAX_ROBOT_ACTION_COUNT || '9', 10);
 
 export default {
   isDevMode,

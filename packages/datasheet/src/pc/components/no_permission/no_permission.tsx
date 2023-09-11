@@ -17,22 +17,22 @@
  */
 
 import { Button, ThemeName } from '@apitable/components';
-import { Api, integrateCdnHost, IReduxState, Navigation, StoreActions, Strings, t } from '@apitable/core';
+import { Api, IReduxState, integrateCdnHost, Navigation, StoreActions, Strings, t } from '@apitable/core';
 import { useUnmount, useUpdateEffect } from 'ahooks';
 import Image from 'next/image';
 import { Router } from 'pc/components/route_manager/router';
 import { useSideBarVisible } from 'pc/hooks';
 import { FC } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import restrictedAccessLight from 'static/icon/datasheet/restricted_access_light.png';
+import restrictedAccessDark from 'static/icon/datasheet/restricted_access_dark.png';
 import NoPermissionPng from 'static/icon/common/common_img_noaccess.png';
-import { ComponentDisplay, ScreenSize } from '../common/component_display';
-import { MobileBar } from '../mobile_bar';
-import styles from './style.module.less';
 // @ts-ignore
 import { ServiceQrCode } from 'enterprise';
 import { getEnvVariables } from 'pc/utils/env';
-import restrictedAccessLight from 'static/icon/datasheet/restricted_access_light.png';
-import restrictedAccessDark from 'static/icon/datasheet/restricted_access_dark.png';
+import { MobileBar } from '../mobile_bar';
+import { ComponentDisplay, ScreenSize } from '../common/component_display';
+import styles from './style.module.less';
 
 export const NoPermission: FC<React.PropsWithChildren<{ desc?: string }>> = ({ desc }) => {
   const pageParams = useSelector((state: IReduxState) => state.pageParams);
@@ -51,7 +51,7 @@ export const NoPermission: FC<React.PropsWithChildren<{ desc?: string }>> = ({ d
     Router.redirect(Navigation.HOME);
   };
   const env = getEnvVariables();
-  const qrcodeVisible = env.CUSTOMER_SERVICE_QRCODE_VISIBLE;
+  const qrcodeVisible = !(env.IS_SELFHOST || env.IS_APITABLE);
 
   const themeName = useSelector(state => state.theme);
   const RestrictedAccess = themeName === ThemeName.Light ? restrictedAccessLight : restrictedAccessDark;
@@ -65,15 +65,14 @@ export const NoPermission: FC<React.PropsWithChildren<{ desc?: string }>> = ({ d
               {
                 qrcodeVisible ?
                   <>
-                    <Image src={integrateCdnHost(t(Strings.no_permission_img_url))} width={340} height={190} />
+                    <Image src={integrateCdnHost(t(Strings.no_permission_img_url))} width={340} height={190} alt="" />
                     <div className={styles.imgContentQRcode}>
                       <ServiceQrCode />
                     </div>
                   </>
                   :
-                  <Image src={RestrictedAccess} width={200} height={150} />
+                  <Image src={RestrictedAccess} width={200} height={150} alt="" />
               } 
-
             </div>
             <h6>{t(Strings.no_file_permission)}</h6>
             <div className={styles.tidiv}>{desc || t(Strings.no_file_permission_content)}</div>
@@ -99,15 +98,10 @@ export const NoPermission: FC<React.PropsWithChildren<{ desc?: string }>> = ({ d
               qrcodeVisible ?
                 <Image src={NoPermissionPng} alt={t(Strings.no_permission)} />
                 :
-                <Image src={RestrictedAccess} width={200} height={150} />
+                <Image src={RestrictedAccess} width={200} height={150} alt="" />
             }
-
+           
             <div className={styles.tidiv}>{t(Strings.not_found_this_file)}</div>
-            <div className={styles.tidiv}>
-              {t(Strings.please_contact_admin_if_you_have_any_problem)} 
-              { qrcodeVisible ? <></> :
-                <a href={env.HELP_MENU_USER_COMMUNITY_URL} target="_blank" rel="noreferrer"><br/>{t(Strings.join_discord_community)}</a>}
-            </div> 
             {!pageParams.embedId && <div className={styles.btnWrap}>
               <Button color='primary' onClick={() => setSideBarVisible(true)}>
                 {t(Strings.open_workbench)}

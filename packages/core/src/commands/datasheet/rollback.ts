@@ -24,7 +24,7 @@ import { ExecuteResult, ICollaCommandDef, ILinkedActions } from 'command_manager
 import { IRecordMap, IReduxState, ISnapshot } from '../../exports/store';
 import { fastCloneDeep, getNewId, getUniqName, IDPrefix, ActionType, parseAction } from 'utils';
 import { getField, getSnapshot, getDatasheet } from '../../exports/store/selectors';
-import { DatasheetActions } from 'model/datasheet';
+import { DatasheetActions } from 'commands_actions/datasheet';
 import { createNewField, setField } from 'commands/common/field';
 import { TextField } from 'model/field/text_field';
 import { Events, Player } from '../../modules/shared/player';
@@ -126,7 +126,7 @@ export const rollback: ICollaCommandDef<IRollbackOptions> = {
   undoable: false,
 
   execute: (context, options) => {
-    const { model: state } = context;
+    const { state: state } = context;
     const { datasheetId, data } = options;
     const { operations } = data;
     const preDatasheet = getDatasheet(state, datasheetId);
@@ -138,7 +138,6 @@ export const rollback: ICollaCommandDef<IRollbackOptions> = {
     const postSnapshot = fastCloneDeep(preSnapshot);
     const actions = getRollbackActions(operations, state, postSnapshot);
 
-    console.log(postSnapshot, preSnapshot);
     if (!actions.length) {
       return null;
     }
@@ -432,6 +431,5 @@ function patchFieldValues(
     action && foreignActions.push(action);
   });
 
-  console.log({ sourceActions, foreignActions });
   return { sourceActions, foreignActions };
 }

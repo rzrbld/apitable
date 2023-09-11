@@ -20,7 +20,7 @@ import { getResourceWidgetPanels } from '../../exports/store/selectors';
 import { ResourceType } from 'types';
 import { CollaCommandName } from '..';
 import { ExecuteResult, ICollaCommandDef, ICollaCommandExecuteContext } from '../../command_manager';
-import { DatasheetActions } from '../../model/datasheet';
+import { DatasheetActions } from '../../commands_actions/datasheet';
 
 export interface IModifyWidgetPanelName {
   cmd: CollaCommandName.ModifyWidgetPanelName;
@@ -34,7 +34,7 @@ export const modifyWidgetPanelName: ICollaCommandDef<IModifyWidgetPanelName> = {
   undoable: false,
 
   execute(context: ICollaCommandExecuteContext, options: IModifyWidgetPanelName) {
-    const { model: state } = context;
+    const { state: state } = context;
     const { panelName, panelId, resourceId, resourceType } = options;
 
     if (!panelName) {

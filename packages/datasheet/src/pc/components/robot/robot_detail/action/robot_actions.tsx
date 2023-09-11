@@ -24,7 +24,7 @@ import useSWR from 'swr';
 import { getFilterActionTypes, getNodeOutputSchemaList } from '../../helper';
 import { IActionType, IRobotAction, IRobotTrigger, ITriggerType } from '../../interface';
 import { RobotAction } from './robot_action';
-import { CreateNewAction } from './robot_action_create';
+import { CreateNewAction, CONST_MAX_ACTION_COUNT } from './robot_action_create';
 
 const req = axios.create({
   baseURL: '/nest/v1/',
@@ -45,7 +45,7 @@ export const RobotActions = ({ robotId, triggerTypes, actionTypes, trigger, onSc
     return getFilterActionTypes(actionTypes);
   }, [actionTypes]);
 
-  const { data, error } = useSWR(`/robots/${robotId}/actions`, req);
+  const { data, error } = useSWR(`/automation/robots/${robotId}/actions`, req);
   if (!data || error) {
     return null;
   }
@@ -82,6 +82,7 @@ export const RobotActions = ({ robotId, triggerTypes, actionTypes, trigger, onSc
     triggerTypes,
     trigger,
   });
+
   // Guides the creation of a trigger when there is no trigger
   // <NodeForm schema={triggerUpdateForm as any} onSubmit={handleUpdateFormChange} />
   return (
@@ -100,6 +101,7 @@ export const RobotActions = ({ robotId, triggerTypes, actionTypes, trigger, onSc
         />)
       }
       <CreateNewAction
+        disabled={actionList?.length >= CONST_MAX_ACTION_COUNT}
         robotId={robotId}
         actionTypes={filterActionTypes}
         prevActionId={actionList[actionList.length - 1].id}

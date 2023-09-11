@@ -21,6 +21,7 @@ package com.apitable.interfaces.auth.facade;
 import com.apitable.interfaces.auth.model.AuthParam;
 import com.apitable.interfaces.auth.model.UserAuth;
 import com.apitable.interfaces.auth.model.UserLogout;
+
 import okhttp3.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
@@ -28,11 +29,12 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 import com.apitable.auth.service.IAuthService;
 import com.apitable.user.service.IUserService;
-import com.apitable.auth.service.impl.AuthServiceImpl;
+
 
 import javax.annotation.Resource;
 import java.io.IOException;
 import java.util.Random;
+import com.apitable.auth.service.impl.AuthServiceImpl;
 
 
 @Component
@@ -40,21 +42,6 @@ public class DefaultAuthServiceFacadeImpl implements AuthServiceFacade {
 
     @Value("${OIDC_URI_GRANT_TYPE_PASSWORD:empty_string}")
     private String oidcUriGrantTypePassword;
-
-//    public String gimmieSomeRandomStringForPassword() {
-//        int leftLimit = 48; // numeral '0'
-//        int rightLimit = 122; // letter 'z'
-//        int targetStringLength = 25;
-//        Random random = new Random();
-//
-//        String generatedString = random.ints(leftLimit, rightLimit + 1)
-//                .filter(i -> (i <= 57 || i >= 65) && (i <= 90 || i >= 97))
-//                .limit(targetStringLength)
-//                .collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append)
-//                .toString();
-//
-//        return generatedString;
-//    }
 
     public Boolean isThisUserAbleToAuth(AuthParam param) throws IOException {
         String UserName = param.getUsername();

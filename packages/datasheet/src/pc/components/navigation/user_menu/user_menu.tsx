@@ -30,6 +30,7 @@ import {
 } from 'enterprise';
 import { AnimationItem } from 'lottie-web';
 import Image from 'next/image';
+// eslint-disable-next-line no-restricted-imports
 import { Avatar, AvatarSize, ImageCropUpload, Message, Modal, Tooltip } from 'pc/components/common';
 import { ComponentDisplay, ScreenSize } from 'pc/components/common/component_display';
 import { IPreviewShape, ISelectInfo, IUploadType } from 'pc/components/common/image_crop_upload';
@@ -65,7 +66,7 @@ const customTips = {
 
 export const UserMenu: FC<React.PropsWithChildren<IUserMenuProps>> = props => {
   const colors = useThemeColors();
-  const { ACCOUNT_LOGOUT_VISIBLE, USER_BIND_PHONE_VISIBLE, INVITATION_CODE_VISIBLE } = getEnvVariables();
+  const { ACCOUNT_LOGOUT_VISIBLE, USER_BIND_PHONE_VISIBLE, IS_SELFHOST, IS_APITABLE } = getEnvVariables();
   const { userInfo, spaceId, spaceInfo, unitMap } = useSelector(
     (state: IReduxState) => ({
       userInfo: state.user.info,
@@ -222,12 +223,12 @@ export const UserMenu: FC<React.PropsWithChildren<IUserMenuProps>> = props => {
     {
       label: t(Strings.privacy_policy_pure_string),
       onClick: () => window.open(linkToPrivacyPolicy),
-      visible: getEnvVariables().MOBILE_USER_SETTING_PRIVACY_POLICY_VISIBLE,
+      visible: !getEnvVariables().IS_SELFHOST,
     },
     {
       label: t(Strings.terms_of_service_pure_string),
       onClick: () => window.open(linkToTermsOfService),
-      visible: getEnvVariables().MOBILE_USER_SETTING_SERVICE_AGREEMENT_VISIBLE,
+      visible: !getEnvVariables().IS_SELFHOST,
     },
     {
       label: t(Strings.user_center),
@@ -326,7 +327,7 @@ export const UserMenu: FC<React.PropsWithChildren<IUserMenuProps>> = props => {
             </Tooltip>
             {!isIdassPrivateDeployment() && (
               <button className={styles.editNameButton}>
-                <EditOutlined color={colors.black[50]} />
+                <EditOutlined currentColor />
               </button>
             )}
             {inEditName && (
@@ -375,7 +376,7 @@ export const UserMenu: FC<React.PropsWithChildren<IUserMenuProps>> = props => {
             {email || t(Strings.unbound)}
           </div>
 
-          {isEnterprise && !isWecomSpace && INVITATION_CODE_VISIBLE && inviteCode && (
+          {isEnterprise && !isWecomSpace && !(IS_SELFHOST || IS_APITABLE) && inviteCode && (
             <div className={classNames(styles.centerItem, styles.inviteItem)}>
               <span className={styles.label}>{t(Strings.personal_invite_code_usercenter)}</span>
               <div className={styles.valueWrapper}>
@@ -389,7 +390,7 @@ export const UserMenu: FC<React.PropsWithChildren<IUserMenuProps>> = props => {
             </div>
           )}
           {isMobile && items.filter(item => item.visible).map(item => <PrivacyItem key={item.label} label={item.label} onClick={item.onClick} />)}
-          {!isMobile && !isMobileApp() && !isWecomSpace && INVITATION_CODE_VISIBLE && isEnterprise && (
+          {!isMobile && !isMobileApp() && !isWecomSpace && !(IS_SELFHOST || IS_APITABLE) && isEnterprise && (
             <div className={styles.inviteCodeBtnWrap}>
               <div
                 className={styles.inviteCodeBtn}
@@ -404,7 +405,7 @@ export const UserMenu: FC<React.PropsWithChildren<IUserMenuProps>> = props => {
             </div>
           )}
         </div>
-        {!isWecomSpace && INVITATION_CODE_VISIBLE && isEnterprise && (
+        {!isWecomSpace && !(IS_SELFHOST || IS_APITABLE) && isEnterprise && (
           <ComponentDisplay maxWidthCompatible={ScreenSize.md}>
             <div className={styles.centerTip}>
               <span>{t(Strings.invitation_code_usage_tip)}</span>

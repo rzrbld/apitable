@@ -51,7 +51,7 @@ public interface IStaticsService {
     /**
      * Get the API usage from this month to yesterday, and update the cache.
      *
-     * @param spaceId spaceid
+     * @param spaceId space id
      * @return amount
      */
     Long getCurrentMonthApiUsageUntilYesterday(String spaceId);
@@ -62,7 +62,15 @@ public interface IStaticsService {
      * @param spaceId space id
      * @return amount
      */
-    long getMemberTotalCountBySpaceId(String spaceId);
+    long getActiveMemberTotalCountFromCache(String spaceId);
+
+    /**
+     * Get the API usage from this month to yesterday, and update the cache.
+     *
+     * @param spaceId space id
+     * @return amount
+     */
+    long getTotalChatbotNodesfromCache(String spaceId);
 
     /**
      * Total number of space acquisition groups.

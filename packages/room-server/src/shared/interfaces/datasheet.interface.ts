@@ -16,7 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import type { CellFormatEnum, ICellValue, IFieldMap, IRecord, IRecordMap, IReduxState, ISnapshot, ISortedField, IMeta } from '@apitable/core';
+import type { CellFormatEnum, ICellValue, IFieldMap, IMeta, IRecord, IRecordMap, IReduxState, ISnapshot, ISortedField } from '@apitable/core';
 import type { Store } from 'redux';
 import type { IBaseException } from 'shared/exception/base.exception';
 
@@ -98,7 +98,7 @@ export interface IDatasheetDataMap {
 }
 
 export interface IViewInfoOptions {
-  partialRecordsInDst: boolean;
+  recordIds?: string[];
   viewId?: string;
   sortRules: ISortedField[];
   snapshot: ISnapshot;
@@ -128,7 +128,7 @@ export interface ILinkedRecordMap {
  */
 export interface IFetchDataOptions {
   /**
-   * array of recordIds
+   * array of recordIds. The returned data pack may contain more records if needExtendMainDstRecords is true.
    */
   recordIds?: string[];
   /**
@@ -139,15 +139,25 @@ export interface IFetchDataOptions {
    * datasheet meta
    */
   meta?: IMeta;
+
+  /**
+   * The records specified by recordIds may require extra main datasheet records to render themselves,
+   * if this field is set to true, these extra records will be included in the returned data pack in adition to
+   * records specified by recordIds.
+   */
+  needExtendMainDstRecords?: boolean;
+
+  /** If comment count is queried. Default to false */
+  includeCommentCount?: boolean;
 }
 
 export interface IFetchDataPackOptions extends IFetchDataOptions {
   isTemplate?: boolean;
   metadataException?: IBaseException;
   /**
-  * If true, the returned `resourceIds` will contain foreign datasheet IDs and widget IDs. Otherwise,
-  * `resourceIds` will contain the datasheet ID and foreign datasheet IDs.
-  */
+   * If true, the returned `resourceIds` will contain foreign datasheet IDs and widget IDs. Otherwise,
+   * `resourceIds` will contain the datasheet ID and foreign datasheet IDs.
+   */
   isDatasheet?: boolean;
 }
 
@@ -190,4 +200,9 @@ export interface ILoadBasePackOptions {
 
   /** If deleted flag is ignoerd. Default to false */
   ignoreDeleted?: boolean;
+
+  /** If load record metadata. Default to false */
+  loadRecordMeta?: boolean;
+
+  filterViewFilterInfo?: boolean;
 }

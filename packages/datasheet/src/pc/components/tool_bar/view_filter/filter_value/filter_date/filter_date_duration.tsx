@@ -16,6 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+// eslint-disable-next-line no-restricted-imports
 import { Select, useThemeColors } from '@apitable/components';
 import { FieldType, FilterDuration, FOperator, IFilterCondition, Strings, t } from '@apitable/core';
 import produce from 'immer';
@@ -40,17 +41,19 @@ export const DateDuration = [
 ];
 
 interface IFilterDateDurationProps {
+  disabled?: boolean;
   conditionIndex: number;
   changeFilter: (cb: ExecuteFilterFn) => void;
   condition: IFilterCondition<FieldType>;
 }
 
 export const FilterDateDuration: React.FC<React.PropsWithChildren<IFilterDateDurationProps>> = props => {
-  const { conditionIndex, condition, changeFilter } = props;
+  const { conditionIndex, condition, disabled = false, changeFilter } = props;
   const colors = useThemeColors();
   const { screenIsAtMost } = useResponsive();
   const isMobile = screenIsAtMost(ScreenSize.md);
-  const { isViewLock } = useContext(ViewFilterContext);
+  const { isViewLock: isViewLockOrigin } = useContext(ViewFilterContext);
+  const isViewLock = isViewLockOrigin || disabled
 
   function createOptionData() {
     const operate = condition.operator;
@@ -121,7 +124,6 @@ export const FilterDateDuration: React.FC<React.PropsWithChildren<IFilterDateDur
       openSearch={false}
       triggerStyle={{ width: 100 }}
       disabled={isViewLock}
-      disabledTip={'123'}
     />
   );
 };

@@ -19,7 +19,7 @@
 import { getResourceWidgetPanels } from '../../exports/store/selectors';
 import { ResourceType } from 'types';
 import { ExecuteResult, ICollaCommandDef, ICollaCommandExecuteContext } from '../../command_manager';
-import { DatasheetActions } from '../../model/datasheet';
+import { DatasheetActions } from '../../commands_actions/datasheet';
 import { CollaCommandName } from '..';
 
 export interface IDeleteWidgetPanel {
@@ -33,7 +33,7 @@ export const deleteWidgetPanel: ICollaCommandDef<IDeleteWidgetPanel> = {
   undoable: false,
 
   execute(context: ICollaCommandExecuteContext, options: IDeleteWidgetPanel) {
-    const { model: state } = context;
+    const { state: state } = context;
     const { deletePanelId, resourceType, resourceId } = options;
 
     const widgetPanels = getResourceWidgetPanels(state, resourceId, resourceType);

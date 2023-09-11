@@ -7,7 +7,7 @@ import { useMount, useUnmount } from 'ahooks';
 import { dashboardReg } from 'pc/hooks';
 import { resourceService } from 'pc/resource_service';
 import { store } from 'pc/store';
-import { getDependenceByDstIds } from 'pc/utils/dependence_dst';
+import { getDependenceByDstIdsByGlobalResource } from 'pc/utils/dependence_dst';
 import React, { useEffect, useImperativeHandle, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { WidgetLoader } from 'widget-stage/main/widget/widget_loader';
@@ -50,6 +50,18 @@ export const WidgetBlockMainBase: React.ForwardRefRenderFunction<IWidgetBlockRef
     return sourceId?.startsWith('mir') ? Selectors.getMirrorErrorCode(state, sourceId) : Selectors.getDatasheetErrorCode(state, datasheetId);
   });
 
+  const dashboardConnected = useSelector(state => {
+    try {
+      const dashboardId = state.pageParams.dashboardId;
+      if(!dashboardId ) {
+        return false;
+      }
+      return Selectors.getDashboardPack(state, nodeId)?.connected;
+    } catch (error) {
+      return false;
+    }
+  });
+  
   const nodeConnected = useSelector(state => {
     const datasheet = Selectors.getDatasheet(state, nodeId);
     const bindDatasheetLoaded = datasheet && !datasheet.isPartOfData;
@@ -94,10 +106,11 @@ export const WidgetBlockMainBase: React.ForwardRefRenderFunction<IWidgetBlockRef
     if (!datasheetId) {
       throw new Error("Unexpected errors: Can't get the datasheetId bound by the widget");
     }
-    const foreignDatasheetIds = getDependenceByDstIds(state, datasheetId);
+    const computeRefManager = resourceService.instance.computeRefManager;
+    const foreignDatasheetIds = getDependenceByDstIdsByGlobalResource(state, datasheetId, computeRefManager);
     const widgetStore = initWidgetStore(initRootWidgetState(state, widgetId, { foreignDatasheetIds }), widgetId);
     setWidgetStore(widgetStore);
-  }, [widgetId, nodeConnected]);
+  }, [widgetId, nodeConnected, dashboardConnected]);
 
   useEffect(() => {
     eventMessage.onSyncCmdOptions(widgetId, async res => {

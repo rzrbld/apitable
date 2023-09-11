@@ -19,11 +19,8 @@
 import { IReduxState } from '../exports/store';
 import { ResourceType } from 'types';
 import { IChangeset, IOperation } from '../engine/ot/interface';
-import {
-  EventAtomTypeEnums,
-  EventNameClsMap, EventRealTypeEnums, EventSourceTypeEnums,
-  OPEventNameEnums, REMOTE_NEW_CHANGES
-} from './const';
+import { EventNameClsMap, REMOTE_NEW_CHANGES } from './const';
+import { EventAtomTypeEnums, EventRealTypeEnums, EventSourceTypeEnums, OPEventNameEnums } from './enum';
 import { OPEventCellUpdated } from './events/datasheet/cell_updated';
 import { IAtomEventType } from './events/interface';
 import {
@@ -49,11 +46,18 @@ export class OP2Event implements IOP2Event {
     events.forEach(event => {
       // datasheet resources
       if (event.scope === ResourceType.Datasheet) {
-        const { datasheetId, recordId } = event.context;
+        const { datasheetId, recordId, linkDatasheetId, change } = event.context;
         if (res.has(datasheetId)) {
           recordId && res.get(datasheetId)!.push(recordId);
         } else {
           recordId && res.set(datasheetId, [recordId]);
+        }
+        if (linkDatasheetId && linkDatasheetId != datasheetId && change?.to) {
+          if (res.has(linkDatasheetId)) {
+            res.get(linkDatasheetId)!.push(...change?.to);
+          } else {
+            res.set(linkDatasheetId, [...change?.to]);
+          }
         }
       }
     });

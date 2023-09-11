@@ -19,6 +19,7 @@
     "noUnusedParameters": true,
     "strictBindCallApply": true,
     "strictFunctionTypes": true,
+    "moduleResolution": "node",
     "outDir": "dist",
     "rootDir": "src",
     "baseUrl": "src",

@@ -18,8 +18,8 @@
 
 // FIXME:THEME
 import { colors, ThemeName } from '@apitable/components';
-import { ISegment, SegmentType } from '@apitable/core';
-import { UserGroupOutlined } from '@apitable/icons';
+import { IHyperlinkSegment, ISegment, SegmentType } from '@apitable/core';
+import { UserGroupOutlined, WebOutlined } from '@apitable/icons';
 import GraphemeSplitter from 'grapheme-splitter';
 import { AvatarSize, AvatarType, getAvatarRandomColor, getFirstWordFromString } from 'pc/components/common';
 import { autoSizerCanvas } from 'pc/components/konva_components';
@@ -33,6 +33,7 @@ import {
 
 export const graphemeSplitter = new GraphemeSplitter();
 const DepartmentOutlinedPath = UserGroupOutlined.toString();
+const WebOutlinedPath = WebOutlined.toString();
 
 const DEFAULT_FONT_FAMILY = `"Segoe UI", Roboto, "Helvetica Neue", Arial, 
 "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"`;
@@ -270,21 +271,13 @@ export class KonvaDrawer {
     const cacheTextData = textDataCache.get(cacheKey);
     if (cacheTextData) {
       if (this.needDraw && needDraw) {
-        favicon && this.rect({
-          x,
-          y: y - 5,
-          width: 20,
-          height: 20,
-          stroke: colors.borderCommonDefault,
-          radius: 4
-        });
         favicon && this.image({
           x,
-          y: y - 5,
+          y: y - 3,
           url: favicon,
-          width: 20,
-          height: 20,
-        }, true);
+          width: 16,
+          height: 16,
+        }, true, true);
         textRenderer(cacheTextData.data);
       }
       return cacheTextData;
@@ -311,12 +304,14 @@ export class KonvaDrawer {
         if (item.type === SegmentType.Url || isLinkSplit) {
           linkMap[linkIndex] = {
             endIndex: nextIndex - 1,
-            url: item.text
+            url: (item as IHyperlinkSegment).link || item.text
           };
         }
         linkIndex = isLinkSplit ? nextIndex + 2 : nextIndex;
       });
     }
+
+    const isEllipsis = this.textEllipsis({ text, maxWidth: maxWidth }).isEllipsis;
 
     for (let n = 0; n < textLength; n++) {
       const curText = arrText[n];
@@ -326,7 +321,7 @@ export class KonvaDrawer {
       const isLimitRow = maxRow ? rowCount >= (maxRow - 1) : false;
       const singleTextWidth = isLineBreak ? 0 : this.ctx.measureText(singleText).width;
       showLineWidth += singleTextWidth;
-      const diffWidth = isLimitRow ? (showLineWidth + ellipsisWidth) : showLineWidth;
+      const diffWidth = isLimitRow ? (showLineWidth + (isEllipsis ? ellipsisWidth : 0)) : showLineWidth;
       const isLineEnd = diffWidth > maxWidth;
       const linkData = linkMap[n];
 
@@ -468,7 +463,7 @@ export class KonvaDrawer {
     this.ctx.fillText(text, x, y + baselineOffset);
   }
 
-  public image(props: IImageProps, crossOrigin?: boolean) {
+  public image(props: IImageProps, crossOrigin?: boolean, allowDefault?: boolean) {
     const { x, y, url, width, height, opacity = 1, clipFunc } = props;
     if (!url) {
       return;
@@ -476,11 +471,20 @@ export class KonvaDrawer {
     const image = imageCache.getImage(url);
     // Not loaded successfully
     if (image === false) {
+      if (allowDefault) {
+        this.path({
+          x,
+          y: y + 2,
+          data: WebOutlinedPath,
+          size: 16,
+          fill: colors.textCommonPrimary,
+        });
+      }
       return;
     }
     // Unloaded
     if (image == null) {
-      return imageCache.loadImage(url, url, crossOrigin);
+      return imageCache.loadImage(url, url, { crossOrigin });
     }
     const isOrigin = opacity === 1;
 

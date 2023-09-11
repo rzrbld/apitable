@@ -31,7 +31,6 @@ import styles from './style.module.less';
 import { useSelector } from 'react-redux';
 import { getEnvVariables } from 'pc/utils/env';
 
-
 const env = getEnvVariables();
 
 const oidcIsEnabled = env.OIDC_IMPLICIT_IS_ENABLED;
@@ -41,6 +40,7 @@ const oidcClientId = env.OIDC_IMPLICIT_CLIENT_ID
 const oidcResponseType = env.OIDC_IMPLICIT_RESPONSE_TYPE
 const oidcScope = env.OIDC_IMPLICIT_SCOPE
 const oidcFinalUrl = oidcUrl+"?client_id="+oidcClientId+"&response_type="+oidcResponseType+"&scope="+oidcScope+"&response_mode=form_post&redirect_uri="+oidcRedirectUrl
+
 
 interface ILoginErrorMsg {
   username?: string;
@@ -167,6 +167,7 @@ export const Login: React.FC<React.PropsWithChildren<ILoginProps>> = (props) => 
     if (event.key === ' ') {
       event.preventDefault();
     }
+    event.key === 'Enter' && handleSubmit();
   }
 
   const handleOIDCClick = () => {
@@ -184,8 +185,6 @@ export const Login: React.FC<React.PropsWithChildren<ILoginProps>> = (props) => 
 
   }else{
 
-  
-
   return (
     <div className={styles.loginWrap}>
       <Form onFinish={handleSubmit}>
@@ -198,7 +197,7 @@ export const Login: React.FC<React.PropsWithChildren<ILoginProps>> = (props) => 
               className={styles.input}
               value={username}
               onChange={handleEmailChange}
-              onKeyPress={handleKeyPress}
+              onKeyDown={handleKeyPress}
               prefix={<EmailFilled color={colors.textCommonPrimary}/>}
               placeholder={t(Strings.email_placeholder)}
               error={Boolean(errorMsg.username)}
@@ -225,6 +224,7 @@ export const Login: React.FC<React.PropsWithChildren<ILoginProps>> = (props) => 
               >
                 {isVisible ? <EyeOpenOutlined color={colors.textCommonTertiary}/> : <EyeCloseOutlined color={colors.textCommonTertiary}/>}
               </div>}
+              onKeyDown={handleKeyPress}
               placeholder={t(Strings.placeholder_input_password)}
               error={Boolean(errorMsg.password)}
               block

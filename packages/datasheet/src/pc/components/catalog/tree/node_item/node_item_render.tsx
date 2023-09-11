@@ -22,11 +22,11 @@ import { NodeIcon } from '../node_icon';
 import classnames from 'classnames';
 import { Space } from 'antd';
 import { EditingNode } from './editing_node';
-import { Tooltip } from 'pc/components/common';
 import { INodesMapItem } from '@apitable/core';
 import { AddOutlined, MoreStandOutlined, LockFilled, ShareFilled } from '@apitable/icons';
 import { useMount } from 'ahooks';
 import { browserIsDesktop } from 'pc/utils/os';
+import { FloatUiTooltip as Tooltip, Typography } from '@apitable/components';
 
 export interface IItemRender {
   id: string;
@@ -97,10 +97,9 @@ export const ItemRender: React.FC<React.PropsWithChildren<IItemRender>> = (props
           <EditingNode node={node} />
         ) : (
           <Tooltip
-            title={node.nodeName}
-            textEllipsis
+            content={node.nodeName}
           >
-            <div className={styles.nodeName}>{node.nodeName}</div>
+            <Typography ellipsis variant="body3" className={styles.nodeName}>{node.nodeName}</Typography>
           </Tooltip>
         )}
       </div>

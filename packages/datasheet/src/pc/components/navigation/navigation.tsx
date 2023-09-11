@@ -19,7 +19,7 @@
 import { useThemeColors } from '@apitable/components';
 import { Events, IReduxState, NAV_ID, Player, Settings, StoreActions, Strings, t } from '@apitable/core';
 import {
-  ChevronDownOutlined, NotificationOutlined, PlanetOutlined, SearchOutlined, Setting2Outlined, UserGroupOutlined, WorkbenchOutlined
+  ChevronDownOutlined, NotificationOutlined, PlanetOutlined, SearchOutlined, Setting2Outlined, UserGroupOutlined, WorkbenchOutlined, LivechatFilled
 } from '@apitable/icons';
 import { useToggle } from 'ahooks';
 import { Badge } from 'antd';
@@ -30,6 +30,7 @@ import { AnimationItem } from 'lottie-web/index';
 import { ShortcutActionManager, ShortcutActionName } from 'modules/shared/shortcut_key';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
+// eslint-disable-next-line no-restricted-imports
 import { Avatar, AvatarSize, AvatarType, Message, Tooltip } from 'pc/components/common';
 import {
   IDingTalkModalType, showModalInDingTalk, showModalInFeiShu, showModalInWecom, UpgradeInDDContent, UpgradeInFeiShuContent, UpgradeInWecomContent,
@@ -37,11 +38,12 @@ import {
 import { Notification } from 'pc/components/notification';
 import { navigationToUrl } from 'pc/components/route_manager/navigation_to_url';
 import { useNotificationRequest, useRequest, useResponsive } from 'pc/hooks';
-import { isHiddenLivechat, isMobileApp } from 'pc/utils/env';
+import { isMobileApp, getEnvVariables, isHiddenLivechat } from 'pc/utils/env';
 import * as React from 'react';
 import { FC, useCallback, useEffect, useRef, useState } from 'react';
 import { shallowEqual, useDispatch, useSelector } from 'react-redux';
 import AnimationJson from 'static/json/notification_new.json';
+import { useContactUs } from 'pc/hooks/use_contact_us';
 import { ComponentDisplay, ScreenSize } from '../common/component_display';
 import { Popup } from '../common/mobile/popup';
 import { openEruda } from '../development/dev_tools_panel';
@@ -90,6 +92,8 @@ export const Navigation: FC<React.PropsWithChildren<unknown>> = () => {
   const { screenIsAtMost } = useResponsive();
   const isMobile = screenIsAtMost(ScreenSize.md);
   const [clickCount, setClickCount] = useState(0);
+  const contactUs = useContactUs();
+  const env = getEnvVariables();
   useRequest(notificationStatistics);
   // Check if there is a system banner notification to be displayed
   useRequest(getNotificationList);
@@ -250,8 +254,9 @@ export const Navigation: FC<React.PropsWithChildren<unknown>> = () => {
     return (
       <>
         <ComponentDisplay minWidthCompatible={ScreenSize.md}>
-          <Link href={'/notify' + search} onClick={noticeIconClick}>
+          <Link href={'/notify' + search}>
             <a
+              onClick={noticeIconClick}
               className={classNames(styles.notificationNavLink, {
                 [styles.navActiveItem]: router.pathname.includes('notify'),
               })}
@@ -392,6 +397,11 @@ export const Navigation: FC<React.PropsWithChildren<unknown>> = () => {
             </Popup>
           </ComponentDisplay>
         </div>
+        {env.IS_ENTERPRISE && <Tooltip title={t(Strings.contact_us)} placement='right'>
+          <div className={styles.iconWrap} onClick={() => contactUs()}>
+            <LivechatFilled className={styles.icon} size={32} />
+          </div>
+        </Tooltip>}
         <Tooltip title={t(Strings.quick_search_title)} placement='right'>
           <div className={styles.iconWrap} onClick={() => expandSearch()}>
             <SearchOutlined className={styles.icon} size={24} />

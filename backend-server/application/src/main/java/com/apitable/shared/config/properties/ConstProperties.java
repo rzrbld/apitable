@@ -39,7 +39,7 @@ public class ConstProperties {
 
     public static final String PREFIX_CONST = "const";
 
-    private String languageTag = "zh-CN";
+    private String languageTag = "en-US";
 
     private String serverDomain;
 
@@ -97,7 +97,7 @@ public class ConstProperties {
             || token.startsWith("http")) {
             return token;
         }
-        return StrUtil.format("{}/{}", this.getOssBucketByAsset(), token);
+        return StrUtil.format("{}/{}", this.getOssBucketByAsset().resourceUrl, token);
     }
 
     public String defaultServerDomain() {

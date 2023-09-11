@@ -33,6 +33,7 @@ import { useSelector } from 'react-redux';
 import { batchActions } from 'redux-batched-actions';
 import { getEnvVariables } from 'pc/utils/env';
 import { ActionType } from 'pc/components/home/pc_home';
+import { deleteStorageByKey, StorageName } from '../utils/storage';
 
 export const LOGIN_SUCCESS = 'LOGIN_SUCCESS';
 
@@ -120,11 +121,11 @@ export const useUserRequest = () => {
         if (inviteCode) {
           Api.submitInviteCode(inviteCode);
         }
+        if (urlParams.has('inviteLinkToken')) {
+          join();
+          return;
+        }
         if (!data) {
-          if (urlParams.has('inviteLinkToken')) {
-            join();
-            return res.data;
-          }
           if (urlParams.has('inviteMailToken') && inviteEmailInfo) {
             Router.redirect(Navigation.WORKBENCH, {
               params: { spaceId: inviteEmailInfo.data.spaceId },
@@ -181,7 +182,7 @@ export const useUserRequest = () => {
         return res.data;
       }
 
-      if (secondStepVerify(code)) {
+      if (!secondStepVerify(code)) {
         return;
       }
       dispatch(
@@ -292,7 +293,7 @@ export const useUserRequest = () => {
         }
         Router.push(Navigation.HOME);
       }
-      if (!env.DISABLE_AWSC) {
+      if (!env.IS_SELFHOST) {
         if (code === StatusCode.SECONDARY_VALIDATION || code === StatusCode.NVC_FAIL) {
           openSliderVerificationModal();
         } else if (code === StatusCode.PHONE_VALIDATION) {
@@ -300,7 +301,7 @@ export const useUserRequest = () => {
             title: t(Strings.warning),
             content: t(Strings.status_code_phone_validation),
             onOk: () => {
-              if (!env.DISABLE_AWSC) {
+              if (!env.IS_SELFHOST) {
                 window['nvc'].reset();
               }
             },
@@ -327,6 +328,8 @@ export const useUserRequest = () => {
     return Api.signUp(token, inviteCode).then((res) => {
       const { success } = res.data;
       if (success) {
+        localStorage.removeItem('client-lang');
+        deleteStorageByKey(StorageName.IsPanelClosed);
         const searchParams = getSearchParams();
         if (searchParams.toString()) {
           const paramsObj = {};
@@ -351,6 +354,8 @@ export const useUserRequest = () => {
     return Api.register(username, credential).then((res) => {
       const { success } = res.data;
       if (success) {
+        localStorage.removeItem('client-lang');
+        deleteStorageByKey(StorageName.IsPanelClosed);
         dispatch(StoreActions.setLoading(true));
 
         const urlParams = getSearchParams();
@@ -382,6 +387,7 @@ export const useUserRequest = () => {
     return Api.signOut().then((res) => {
       const { success, data } = res.data;
       if (success) {
+        deleteStorageByKey(StorageName.IsPanelClosed);
         if (data.needRedirect) {
           window.location.href = data.redirectUri;
         } else {
@@ -537,7 +543,7 @@ export const useUserRequest = () => {
     const env = getEnvVariables();
     return Api.getSmsCode(areaCode, phone, type, data).then((res) => {
       const { success, code } = res.data;
-      if (success || env.DISABLE_AWSC) {
+      if (success || env.IS_SELFHOST) {
         return res.data;
       }
       // Perform secondary verification (slider verification)
@@ -548,7 +554,7 @@ export const useUserRequest = () => {
           title: t(Strings.warning),
           content: t(Strings.status_code_phone_validation),
           onOk: () => {
-            if (!env.DISABLE_AWSC) {
+            if (!env.IS_SELFHOST) {
               window['nvc'].reset();
             }
           },

@@ -16,17 +16,17 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { Field, FieldType, IField, IRecord, IReduxState, IViewColumn, Selectors, Strings, t } from '@apitable/core';
-import { SubtractCircleFilled } from '@apitable/icons';
 import classNames from 'classnames';
 import Image from 'next/image';
+import * as React from 'react';
+import { useMemo } from 'react';
+import { useSelector } from 'react-redux';
+import { Field, FieldType, IField, IRecord, IReduxState, IViewColumn, Selectors, Strings, t } from '@apitable/core';
+import { SubtractCircleFilled } from '@apitable/icons';
 import { DisplayFile } from 'pc/components/display_file';
 import { CellValue } from 'pc/components/multi_grid/cell/cell_value';
 import { useResponsive } from 'pc/hooks';
 import { store } from 'pc/store';
-import * as React from 'react';
-import { useMemo } from 'react';
-import { useSelector } from 'react-redux';
 import NoImage from 'static/icon/datasheet/gallery/emptystates_img_datasheet.png';
 import { ScreenSize } from '../component_display';
 import styles from './style.module.less';

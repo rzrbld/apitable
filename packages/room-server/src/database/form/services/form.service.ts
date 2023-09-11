@@ -17,29 +17,46 @@
  */
 
 import {
-  ApiTipConstant, ConfigConstant, EventAtomTypeEnums, EventRealTypeEnums, EventSourceTypeEnums, ExecuteResult, FieldType, ICollaCommandOptions,
-  IFormProps, ILocalChangeset, IMeta, IRecordCellValue, IServerDatasheetPack, OPEventNameEnums, ResourceType, Selectors, StoreActions,
+  ApiTipConstant,
+  ConfigConstant,
+  EventAtomTypeEnums,
+  EventRealTypeEnums,
+  EventSourceTypeEnums,
+  ExecuteResult,
+  FieldType,
+  ICollaCommandOptions,
+  IFormProps,
+  ILinkIds,
+  ILocalChangeset,
+  IMeta,
+  IRecordCellValue,
+  IServerDatasheetPack,
+  OPEventNameEnums,
+  ResourceType,
+  Selectors,
+  StoreActions,
   transformOpFields
 } from '@apitable/core';
+import { Span } from '@metinseylan/nestjs-opentelemetry';
 import { Injectable } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { CommandService } from 'database/command/services/command.service';
 import { DatasheetChangesetSourceService } from 'database/datasheet/services/datasheet.changeset.source.service';
 import { DatasheetMetaService } from 'database/datasheet/services/datasheet.meta.service';
 import { DatasheetRecordSourceService } from 'database/datasheet/services/datasheet.record.source.service';
 import { DatasheetService } from 'database/datasheet/services/datasheet.service';
-import { NodeService } from 'node/services/node.service';
 import { OtService } from 'database/ot/services/ot.service';
+import { MetaService } from 'database/resource/services/meta.service';
 import { FusionApiTransformer } from 'fusion/transformer/fusion.api.transformer';
 import { omit } from 'lodash';
+import { NodeService } from 'node/services/node.service';
 import { InjectLogger } from 'shared/common';
 import { SourceTypeEnum } from 'shared/enums/changeset.source.type.enum';
 import { ApiException, DatasheetException, ServerException } from 'shared/exception';
+import { getRecordUrl } from 'shared/helpers/env';
 import { IAuthHeader, IFetchDataOptions } from 'shared/interfaces';
 import { Logger } from 'winston';
 import { FormDataPack } from '../../interfaces';
-import { MetaService } from 'database/resource/services/meta.service';
-import { FlowQueue } from '../../../automation/queues';
-import { Span } from '@metinseylan/nestjs-opentelemetry';
 
 @Injectable()
 export class FormService {
@@ -54,10 +71,11 @@ export class FormService {
     private readonly transform: FusionApiTransformer,
     private resourceMetaService: MetaService,
     private readonly datasheetChangesetSourceService: DatasheetChangesetSourceService,
-    private readonly flowQueue: FlowQueue,
-  ) { }
+    private readonly eventEmitter: EventEmitter2,
+  ) {
+  }
 
-  async fetchDataPack(formId: string, auth: IAuthHeader, templateId?: string): Promise<FormDataPack> {
+  async fetchDataPack(formId: string, auth: IAuthHeader, templateId?: string, embedId?: string): Promise<FormDataPack> {
     const beginTime = +new Date();
     this.logger.info(`Start loading form data [${formId}]`);
     // Query node info
@@ -68,9 +86,8 @@ export class FormService {
     );
     const { formProps, nodeRelInfo, dstId, meta } = await this.getRelDatasheetInfo(formId);
     // Get source datasheet permission in space
-    if (!templateId) {
-      const permissions = await this.nodeService.getPermissions(dstId, auth, { internal: true, main: false });
-      nodeRelInfo.datasheetPermissions = permissions;
+    if (!templateId && !embedId) {
+      nodeRelInfo.datasheetPermissions = await this.nodeService.getPermissions(dstId, auth, { internal: true, main: false });
     }
     const endTime = +new Date();
     this.logger.info(`Finished loading form data, duration: ${endTime - beginTime}ms`);
@@ -122,7 +139,10 @@ export class FormService {
     const dstId = nodeRelInfo.datasheetId;
     // Query meta of referenced datasheet
     const meta = await this.datasheetMetaService.getMetaDataByDstId(dstId, DatasheetException.DATASHEET_NOT_EXIST);
-    return { formProps, nodeRelInfo, dstId, meta };
+    const views = meta.views.filter(i => i.id === nodeRelInfo.viewId).map(i => {
+      return { ...i, rows: [] };
+    });
+    return { formProps, nodeRelInfo, dstId, meta: { views, fieldMap: meta.fieldMap }};
   }
 
   async addRecord(
@@ -168,29 +188,39 @@ export class FormService {
         datasheetId: dstId,
         recordId
       });
+      const eventContext = {
+        // TODO: Old structure left for Qianfan, delete later
+        datasheet: {
+          id: dstId,
+          name: nodeRelInfo.datasheetName
+        },
+        record: {
+          id: recordId,
+          url: getRecordUrl(dstId, recordId),
+          fields: eventFields
+        },
+        formId: formId,
+        // Flattened new structure
+        datasheetId: dstId,
+        datasheetName: nodeRelInfo.datasheetName,
+        recordId,
+        recordUrl: getRecordUrl(dstId, recordId),
+        ...eventFields
+      };
       this.logger.info(
         'dispatchFormSubmittedEvent eventContext',
+        eventContext,
         eventFields
       );
-      try {
-        await this.flowQueue.add(OPEventNameEnums.FormSubmitted, {
-          eventName: OPEventNameEnums.FormSubmitted,
-          scope: ResourceType.Form,
-          realType: EventRealTypeEnums.REAL,
-          atomType: EventAtomTypeEnums.ATOM,
-          sourceType: EventSourceTypeEnums.ALL,
-          context: {
-            datasheetName: nodeRelInfo.datasheetName,
-            datasheetId: dstId,
-            recordId,
-            formId,
-            eventFields,
-          },
-          beforeApply: false,
-        });
-      } catch (e) {
-        this.logger.error(`datasheet [${ dstId }]: add job error`, e);
-      }
+      await this.eventEmitter.emitAsync(OPEventNameEnums.FormSubmitted, {
+        eventName: OPEventNameEnums.FormSubmitted,
+        scope: ResourceType.Form,
+        realType: EventRealTypeEnums.REAL,
+        atomType: EventAtomTypeEnums.ATOM,
+        sourceType: EventSourceTypeEnums.ALL,
+        context: eventContext,
+        beforeApply: false,
+      });
     } catch (error) {
       this.logger.info('dispatchFormSubmittedEvent error', error);
     }
@@ -259,7 +289,7 @@ export class FormService {
   /**
    * Get linked record data by meta and recordData
    */
-  private getLinkedRecordMap(dstId: string, meta: IMeta, recordData: any): IFetchDataOptions {
+  private getLinkedRecordMap(dstId: string, meta: IMeta, recordData: IRecordCellValue): IFetchDataOptions {
     const recordIds: string[] = [];
     const linkedRecordMap = {};
     // linked datasheet set
@@ -282,12 +312,12 @@ export class FormService {
       if (recordData[fieldId]) {
         // collect self-linking recordId
         if (foreignDatasheetId === dstId) {
-          recordIds.push(...recordData[fieldId]);
+          recordIds.push(...recordData[fieldId] as ILinkIds);
           return;
         }
         linkedRecordMap[foreignDatasheetId] =
           Array.isArray(linkedRecordMap[foreignDatasheetId])
-            ? [...linkedRecordMap[foreignDatasheetId], ...recordData[fieldId]]
+            ? [...linkedRecordMap[foreignDatasheetId], ...recordData[fieldId] as ILinkIds]
             : recordData[fieldId];
       }
     });

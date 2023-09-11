@@ -27,6 +27,13 @@ app.prepare().then(() => {
   const server = express();
 
   if (isDevelopment) {
+    server.use(createProxyMiddleware('/databus', {
+              target: process.env.API_PROXY || 'http://127.0.0.1:8082',
+              changeOrigin: true,
+              cookieDomainRewrite: '',
+          })
+    );
+
     server.use(createProxyMiddleware('/nest', {
         // Direct connection to local NodeJS environment
         target: process.env.API_PROXY || process.env.API_ROOM_SERVER || 'http://127.0.0.1:3333',
@@ -43,7 +50,7 @@ app.prepare().then(() => {
     );
 
     server.use(createProxyMiddleware('/fusion', {
-        target: process.env.API_PROXY || process.env.API_FUSION_SERVER || 'http://127.0.0.1',
+        target: process.env.API_PROXY || process.env.API_FUSION_SERVER || 'http://127.0.0.1:3333',
         changeOrigin: true,
         cookieDomainRewrite: '',
       })

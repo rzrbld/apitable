@@ -23,7 +23,7 @@ import { IReduxState, Selectors } from '../../../exports/store';
 import { FieldType } from 'types';
 import { ResourceType } from 'types/resource_types';
 import { IAtomEventType, ICellUpdatedContext } from '../interface';
-import { EventAtomTypeEnums, EventRealTypeEnums, EventSourceTypeEnums, OPEventNameEnums } from './../../const';
+import { EventAtomTypeEnums, EventRealTypeEnums, EventSourceTypeEnums, OPEventNameEnums } from './../../enum';
 import { IEventInstance, IOPBaseContext, IOPEvent, IVirtualAtomEvent } from './../../interface/event.interface';
 
 // @EventMeta(OPEventNameEnums.CellUpdated)
@@ -32,7 +32,7 @@ export class OPEventCellUpdated extends IAtomEventType<ICellUpdatedContext> {
   realType = EventRealTypeEnums.REAL;
   scope = ResourceType.Datasheet;
   test(opContext: IOPBaseContext) {
-    const { action, resourceId, resourceType } = opContext;
+    const { op, action, resourceId, resourceType } = opContext;
     if (resourceType !== ResourceType.Datasheet) {
       return {
         pass: false,
@@ -47,6 +47,7 @@ export class OPEventCellUpdated extends IAtomEventType<ICellUpdatedContext> {
         fieldId,
         datasheetId: resourceId,
         action,
+        linkDatasheetId: op.mainLinkDstId,
         change: {
           from: action['od'],
           to: action['oi'],

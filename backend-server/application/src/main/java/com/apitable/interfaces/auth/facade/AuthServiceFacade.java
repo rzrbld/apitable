@@ -21,7 +21,6 @@ package com.apitable.interfaces.auth.facade;
 import com.apitable.interfaces.auth.model.AuthParam;
 import com.apitable.interfaces.auth.model.UserAuth;
 import com.apitable.interfaces.auth.model.UserLogout;
-
 import java.io.IOException;
 
 /**
