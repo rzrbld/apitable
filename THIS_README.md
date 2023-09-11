@@ -27,12 +27,11 @@ The following environment variables are used by KE for configuring the external 
 | OIDC_IMPLICIT_URL              | http://localhost:8080/realms/myrealm/protocol/openid-connect/auth | The authentication URL provided by the authentication provider.                        |
 | OIDC_IMPLICIT_REDIRECT_URL     | http://localhost/api/v1/oidccallback                 | The callback URL that must match the one specified in the authentication provider.    |
 | OIDC_IMPLICIT_CLIENT_ID        | login-app                                            | The client ID obtained from the authentication provider.                                |
-| OIDC_IMPLICIT_RESPONSE_TYPE    | token                                                | The response type for the authentication flow.                                                 |
+| OIDC_IMPLICIT_RESPONSE_TYPE    | token                                                | The response type for the authentication flow. Support only `response_mode=form_post`, `fragment` and `query` is not supported.                                                 |
 | OIDC_IMPLICIT_SCOPE            | email                                                | The scope of the authentication request.                                                       |
 
 also don't forget to set default variable `FORM_LOGIN_URL`, or there wil be a problem with redirects to `undefined`.
 
-Support only `response_mode=form_post`, `fragment` and `query` is not supported.
 
 ### Tips
 - how to get all of this endpoints: `curl http://keycloak.local:8080/realms/<myrealm>/.well-known/openid-configuration | jq .`
@@ -40,8 +39,8 @@ Support only `response_mode=form_post`, `fragment` and `query` is not supported.
 - how to build only web room/ws: `make _build-web`
 
 ### Docker images
-- `rzrbld/web-server:test`
-- `rzrbld/backend-server:test`
+- `rzrbld/web-server:1_0_0beta_ke`
+- `rzrbld/backend-server:1_0_0beta_ke`
 
 ## Getting Started
 
