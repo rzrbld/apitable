@@ -16,12 +16,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { Field, FieldType, IField } from '@apitable/core';
 import classnames from 'classnames';
-import { getFieldHeight, getShowFieldType, getVietualFieldHeight } from 'pc/components/gallery_view/utils';
 import * as React from 'react';
-import styles from './style.module.less';
+import { Field, FieldType, IField } from '@apitable/core';
+import { getFieldHeight, getShowFieldType, getVietualFieldHeight } from 'pc/components/gallery_view/utils';
 import { UrlDiscern } from 'pc/components/multi_grid/cell/cell_text/url_discern';
+import styles from './style.module.less';
 
 interface ICardTextProps {
   cellValue: string;
@@ -34,21 +34,26 @@ interface ICardTextProps {
 
 export const EACH_TEXT_LINE_HEIGHT = 22;
 
-export const CardText: React.FC<React.PropsWithChildren<ICardTextProps>> = ({ cellValue, field, maxLine, autoHeight, isColNameVisible, isVirtual }) => {
+export const CardText: React.FC<React.PropsWithChildren<ICardTextProps>> = ({
+  cellValue,
+  field,
+  maxLine,
+  autoHeight,
+  isColNameVisible,
+  isVirtual,
+}) => {
   const isMultiLine = getShowFieldType(field) === FieldType.Text;
   const text = Field.bindModel(field).cellValueToString(cellValue);
   const style: React.CSSProperties = { width: '100%' };
   if (autoHeight) {
-    const contentHeight = getVietualFieldHeight(field, maxLine);
-    style.height = contentHeight;
+    style.height = getVietualFieldHeight(field, maxLine);
     style.marginTop = isColNameVisible ? 4 : 0;
     style.marginBottom = 8;
     style.lineHeight = '21px';
     style.overflow = 'hidden';
   } else {
     const contentHeight = getFieldHeight(field, maxLine);
-    const textFieldHeight = contentHeight + 4 + 12;
-    style.height = textFieldHeight;
+    style.height = contentHeight + 4 + 12;
     style.paddingTop = 4;
     style.paddingBottom = 12;
   }

@@ -16,8 +16,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { ConfigConstant, IReduxState, Navigation, NodeErrorType, Selectors, StoreActions, Strings, t } from '@apitable/core';
 import classnames from 'classnames';
+import * as React from 'react';
+import { FC, useRef } from 'react';
+import { useDispatch } from 'react-redux';
+import { ConfigConstant, IReduxState, Navigation, NodeErrorType, Selectors, StoreActions, Strings, t } from '@apitable/core';
 import { ScreenSize } from 'pc/components/common/component_display';
 import { Modal } from 'pc/components/common/modal/modal/modal';
 import { TComponent } from 'pc/components/common/t_component';
@@ -25,11 +28,10 @@ import { ITreeViewRef, TreeItem, TreeView } from 'pc/components/common/tree_view
 import { Router } from 'pc/components/route_manager/router';
 import { useCatalogTreeRequest, useRequest, useResponsive } from 'pc/hooks';
 import { isTouchDevice, shouldOpenInNewTab } from 'pc/utils';
-import * as React from 'react';
-import { FC, useRef } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
 import { NodeItem } from './node_item';
 import styles from './style.module.less';
+
+import {useAppSelector} from "pc/store/react-redux";
 
 export const EMOJI_SIZE = 20;
 
@@ -38,9 +40,9 @@ export interface ITreeProps {
 }
 
 const TreeBase: FC<React.PropsWithChildren<ITreeProps>> = ({ rightClick }) => {
-  const catalogTree = useSelector((state: IReduxState) => state.catalogTree);
-  const treeNodesMap = useSelector((state: IReduxState) => state.catalogTree.treeNodesMap);
-  const activeNodeId = useSelector(state => Selectors.getNodeId(state));
+  const catalogTree = useAppSelector((state: IReduxState) => state.catalogTree);
+  const treeNodesMap = useAppSelector((state: IReduxState) => state.catalogTree.treeNodesMap);
+  const activeNodeId = useAppSelector((state) => Selectors.getNodeId(state));
   const timerRef = useRef<any>(null);
   const lastOverNodeIdRef = useRef<any>(null);
   const treeViewRef = useRef<ITreeViewRef>(null);
@@ -63,8 +65,10 @@ const TreeBase: FC<React.PropsWithChildren<ITreeProps>> = ({ rightClick }) => {
   const leafNodes = new Set([
     ConfigConstant.NodeType.DATASHEET,
     ConfigConstant.NodeType.FORM,
+    ConfigConstant.NodeType.AUTOMATION,
     ConfigConstant.NodeType.DASHBOARD,
     ConfigConstant.NodeType.MIRROR,
+    ConfigConstant.NodeType.AI,
   ]);
 
   const onContextMenu = (e: React.MouseEvent) => {
@@ -170,13 +174,12 @@ const TreeBase: FC<React.PropsWithChildren<ITreeProps>> = ({ rightClick }) => {
           },
         });
       }
-
     }
   };
 
   const loadData = (nodeId: string) => {
     if (!treeNodesMap[nodeId]?.hasChildren || rootId === nodeId) {
-      return new Promise(resolve => {
+      return new Promise((resolve) => {
         resolve(false);
       });
     }
@@ -196,7 +199,7 @@ const TreeBase: FC<React.PropsWithChildren<ITreeProps>> = ({ rightClick }) => {
       return;
     }
     if (!timerRef.current && dropPosition === 0) {
-      timerRef.current = setTimeout(function() {
+      timerRef.current = setTimeout(function () {
         dispatch(StoreActions.setExpandedKeys([...expandedKeys, targetNodeId]));
       }, 1000);
     }
@@ -226,7 +229,7 @@ const TreeBase: FC<React.PropsWithChildren<ITreeProps>> = ({ rightClick }) => {
      * Confirmation of change of authority
      * Only move order or nodes with permission settings enabled
      */
-    if (dropPosition !== 0 && treeNodesMap[dragNodeId].parentId === treeNodesMap[dropNodeId].parentId || treeNodesMap[dragNodeId].nodePermitSet) {
+    if ((dropPosition !== 0 && treeNodesMap[dragNodeId].parentId === treeNodesMap[dropNodeId].parentId) || treeNodesMap[dragNodeId].nodePermitSet) {
       nodeMove(dragNodeId, dropNodeId, dropPosition);
       return;
     }

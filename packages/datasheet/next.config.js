@@ -16,68 +16,70 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-/** @type {import('next').NextConfig} */
 /* eslint no-undef: 0 */
-const withLess = require('next-with-less')
-const path = require('path')
-const loaderUtils = require('loader-utils')
-const withPlugins = require('next-compose-plugins')
-const withTM = require('next-transpile-modules')
-const withBundleAnalyzer = require('@next/bundle-analyzer')
-const isProd = process.env.NODE_ENV === 'production'
-const getWebpackConfig = require('./webpack.config')
-
+const withLess = require('next-with-less');
+const path = require('path');
+const withPlugins = require('next-compose-plugins');
+const withTM = require('next-transpile-modules');
+const withBundleAnalyzer = require('@next/bundle-analyzer');
+const isProd = process.env.NODE_ENV === 'production';
+const getWebpackConfig = require('./webpack.config');
 
 const plugins = [
   [
-    withLess, {
-    lessLoaderOptions: {
-      lessOptions: {
-        paths: [path.resolve(__dirname, './src')]
-      }
-    }
-  }
+    withLess,
+    {
+      lessLoaderOptions: {
+        lessOptions: {
+          paths: [path.resolve(__dirname, './src')],
+        },
+      },
+    },
   ],
-  [
-    withTM(['@apitable/components', 'antd', 'rc-pagination', 'rc-util', 'rc-picker', 'rc-notification', '@ant-design/icons', 'rc-calendar'])
-  ],
-  [
-    withBundleAnalyzer({enabled: process.env.ANALYZE === 'true'})
-  ]
-]
-
+  [withTM(['@apitable/components', '@apitable/ai', 'antd', 'antd-mobile', 'rc-util', 'rc-picker', 'rc-notification', 'rc-calendar'])],
+  [withBundleAnalyzer({ enabled: process.env.ANALYZE === 'true' })],
+];
+/** @type {import('next').NextConfig} */
 module.exports = withPlugins(plugins, {
   // Use the CDN in production and localhost for development.
   assetPrefix: isProd ? process.env.NEXT_ASSET_PREFIX : '',
+  // Possible fix for  timeout error in static page generation
+  staticPageGenerationTimeout: 120,
   images: {
     unoptimized: true,
-    domains: ['s4.vika.cn', 's1.vika.cn', 'mp.weixin.qq.com', 'localhost', 'legacy-s1.apitable.com', 's1.apitable.com'],
-    remotePatterns: [{
-      protocol: 'http',
-      hostname: '**',
-      pathname: '/vk-assets-ltd/**'
-    }, {
-      protocol: 'https',
-      hostname: '**',
-      pathname: '/vk-assets-ltd/**'
-    }, {
-      protocol: 'http',
-      hostname: '**',
-      pathname: '/assets/**'
-    }, {
-      protocol: 'https',
-      hostname: '**',
-      pathname: '/assets/**'
-    }]
+    domains: ['s4.vika.cn', 's1.vika.cn', 'mp.weixin.qq.com', 'localhost', 's1.apitable.com'],
+    remotePatterns: [
+      {
+        protocol: 'http',
+        hostname: '**',
+        pathname: '/vk-assets-ltd/**',
+      },
+      {
+        protocol: 'https',
+        hostname: '**',
+        pathname: '/vk-assets-ltd/**',
+      },
+      {
+        protocol: 'http',
+        hostname: '**',
+        pathname: '/assets/**',
+      },
+      {
+        protocol: 'https',
+        hostname: '**',
+        pathname: '/assets/**',
+      },
+    ],
   },
+  swcMinify: true,
   poweredByHeader: false,
   publicRuntimeConfig: {
     // use local public folder for editions, e.g. apitable
     staticFolder() {
-      if (process.env.USE_CUSTOM_PUBLIC_FILES === 'true') return ''
+      if (process.env.USE_CUSTOM_PUBLIC_FILES === 'true') return '';
 
-      return isProd ? process.env.NEXT_PUBLIC_ASSET_PREFIX : ''
-    }
+      return isProd ? process.env.NEXT_PUBLIC_ASSET_PREFIX : '';
+    },
   },
   webpack: getWebpackConfig,
   distDir: 'web_build',
@@ -85,6 +87,6 @@ module.exports = withPlugins(plugins, {
   experimental: {
     esmExternals: true,
     // this includes files from the monorepo base two directories up
-    outputFileTracingRoot: path.join(__dirname, '../../')
-  }
-})
+    outputFileTracingRoot: path.join(__dirname, '../../'),
+  },
+});

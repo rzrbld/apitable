@@ -18,18 +18,20 @@
 
 package com.apitable.organization.service.impl;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.util.Lists.list;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doNothing;
+
 import com.apitable.AbstractIntegrationTest;
 import com.apitable.mock.bean.MockUserSpace;
 import com.apitable.organization.entity.MemberEntity;
 import com.apitable.organization.enums.UserSpaceStatus;
+import com.apitable.starter.mail.autoconfigure.EmailMessage;
 import com.apitable.user.entity.UserEntity;
-import org.junit.jupiter.api.Test;
-
 import java.util.Collections;
 import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.util.Lists.list;
+import org.junit.jupiter.api.Test;
 
 /**
  * member service test
@@ -40,7 +42,7 @@ public class MemberServiceImplTest extends AbstractIntegrationTest {
     @Test
     public void testInvitationWithoutExistUser() {
         MockUserSpace mockUserSpace = createSingleUserAndSpace();
-
+        doNothing().when(mailTemplate).send(any(EmailMessage.class));
         List<String> emails = list("test@apitable.com");
         iMemberService.emailInvitation(mockUserSpace.getUserId(), mockUserSpace.getSpaceId(), emails);
 
@@ -59,6 +61,7 @@ public class MemberServiceImplTest extends AbstractIntegrationTest {
         UserEntity user = createUserWithEmail("shawndgh@163.com");
 
         List<String> emails = list("shawndgh@163.com");
+        doNothing().when(mailTemplate).send(any(EmailMessage.class));
         iMemberService.emailInvitation(mockUserSpace.getUserId(), mockUserSpace.getSpaceId(), emails);
 
         // check this member should join this space again
@@ -79,6 +82,7 @@ public class MemberServiceImplTest extends AbstractIntegrationTest {
         iMemberService.removeByMemberIds(Collections.singletonList(toDeletedMemberId));
 
         List<String> emails = list("shawndgh@163.com");
+        doNothing().when(mailTemplate).send(any(EmailMessage.class));
         iMemberService.emailInvitation(mockUserSpace.getUserId(), mockUserSpace.getSpaceId(), emails);
 
         // check this member should join this space again
@@ -103,6 +107,7 @@ public class MemberServiceImplTest extends AbstractIntegrationTest {
         Long existMemberId = createMember(user.getId(), mockUserSpace.getSpaceId());
 
         List<String> emails = list("shawndgh@163.com");
+        doNothing().when(mailTemplate).send(any(EmailMessage.class));
         iMemberService.emailInvitation(mockUserSpace.getUserId(), mockUserSpace.getSpaceId(), emails);
 
         // check this member should join this space again
@@ -111,5 +116,12 @@ public class MemberServiceImplTest extends AbstractIntegrationTest {
         assertThat(member.getIsActive()).isNotNull().isTrue();
         assertThat(member.getIsPoint()).isNotNull().isTrue();
         assertThat(member.getStatus()).isEqualTo(UserSpaceStatus.ACTIVE.getStatus());
+    }
+
+    @Test
+    void testGetTotalActiveMemberCountBySpaceId() {
+        MockUserSpace mockUserSpace = createSingleUserAndSpace();
+        long memberCount = iMemberService.getTotalActiveMemberCountBySpaceId(mockUserSpace.getSpaceId());
+        assertThat(memberCount).isEqualTo(1L);
     }
 }

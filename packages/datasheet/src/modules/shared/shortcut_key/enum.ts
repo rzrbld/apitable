@@ -18,7 +18,7 @@
 
 /* eslint-disable */
 export enum ContextName {
-  true = 'true',  // when is always true
+  true = 'true', // when is always true
   isEditing = 'isEditing', // When cell editing.
   isMenuOpening = 'isMenuOpening', // When a menu is open (e.g. column configuration menu)
   isGlobalEditing = 'isGlobalEditing', // When any input box is in focus.
@@ -27,7 +27,7 @@ export enum ContextName {
   isRecordExpanding = 'isRecordExpanding', // When the card editor is activated.
   visualizationEditable = 'visualizationEditable', // View toolbar editing
   recordEditable = 'recordEditable', // Record Record Editing
-  modalVisible = 'modalVisible',  // Is the modal window currently open
+  modalVisible = 'modalVisible', // Is the modal window currently open
   isQuickSearchExpanding = 'isQuickSearchExpanding', // quick search is expanding
 }
 
@@ -89,9 +89,11 @@ export enum ShortcutActionName {
   SearchNode = 'SearchNode',
   NewFolder = 'NewFolder',
   NewDatasheet = 'NewDatasheet',
+  NewAi = 'NewAi',
   RenameNode = 'Rename',
   CopyNode = 'CopyNode',
   Permission = 'Permission',
+  CreateBackup = 'CreateBackup',
   Share = 'Share',
   SaveAsTemplate = 'SaveAsTemplate',
   ToggleCatalogPanel = 'ToggleCatalogPanel',
@@ -101,6 +103,7 @@ export enum ShortcutActionName {
   ToggleApiPanel = 'ToggleApiPanel',
   ToggleRobotPanel = 'ToggleRobotPanel',
   ToggleTimeMachinePanel = 'ToggleTimeMachinePanel',
+  ToggleArchivedRecordsPanel = 'ToggleArchivedRecordsPanel',
   // Expand the card
   PreviousRecord = 'PreviousRecord',
   NextRecord = 'NextRecord',

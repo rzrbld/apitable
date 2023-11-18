@@ -16,12 +16,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+import { FC, useCallback, useMemo } from 'react';
 import { IWidget, Strings, t, WidgetInstallEnv, WidgetRuntimeEnv } from '@apitable/core';
 import { ScreenSize } from 'pc/components/common/component_display';
 import { useResponsive } from 'pc/hooks';
-import { FC, useCallback, useMemo } from 'react';
-import { useSelector } from 'react-redux';
 import { ErrorWidget } from '../error_widget';
+
+import {useAppSelector} from "pc/store/react-redux";
 
 enum PreLoadErrorCode {
   NotSupportMobile,
@@ -33,7 +34,7 @@ enum PreLoadErrorCode {
 export const usePreLoadError = (widget: IWidget | undefined): JSX.Element | undefined => {
   const { screenIsAtMost } = useResponsive();
   const isMobile = screenIsAtMost(ScreenSize.md);
-  const isDashboard = useSelector(state => Boolean(state.pageParams.dashboardId));
+  const isDashboard = useAppSelector((state) => Boolean(state.pageParams.dashboardId));
 
   const getError = useCallback(
     (widget: IWidget | undefined) => {

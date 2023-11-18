@@ -28,8 +28,6 @@ export const OPACITY_LINE_CLASS = 'opacityLineClass';
 
 export const EDITOR_CONTAINER = 'editor-container';
 
-export const DEFAULT_CHECK_ICON = 'white_check_mark';
-
 export const DEFAULT_LINK_RECORD_COUNT = 20;
 
 export const OPERATE_BUTTON_CLASS = 'operateButton';
@@ -40,8 +38,9 @@ export const FIELD_DOT = 'fieldDot';
 
 export const GHOST_RECORD_ID = 'ghostRecordId';
 
-// eslint-disable-next-line
-export const DEFAULT_FONT_FAMILY = " BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji'";
+export const DEFAULT_FONT_FAMILY =
+  // eslint-disable-next-line max-len
+  "BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji'";
 
 export enum ButtonOperateType {
   AddRecord = 'addRecord',
@@ -91,8 +90,7 @@ export const ALARM_SUBTRACT = {
 export const ALL_ALARM_SUBTRACT = {
   ...CURRENT_ALARM_SUBTRACT,
   ...INNER_DAY_ALARM_SUBTRACT,
-  ...ALARM_SUBTRACT
+  ...ALARM_SUBTRACT,
 };
 
-export const WECOM_ROBOT_URL= 'https://vika.cn/share/shrp05bbVP0YQXExy4HbU/fomqsurE54BZHHnjq1?fldqqe1zV9W7I=%E4%BC%81%E4%B8%9A%E5%BE%AE%E4%BF%A1';
-
+export const WECOM_ROBOT_URL = 'https://vika.cn/share/shrp05bbVP0YQXExy4HbU/fomqsurE54BZHHnjq1?fldqqe1zV9W7I=%E4%BC%81%E4%B8%9A%E5%BE%AE%E4%BF%A1';

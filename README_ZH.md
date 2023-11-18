@@ -21,9 +21,9 @@
     <a target="_blank" href="https://github.com/apitable/apitable/releases/latest">
         <img src="https://img.shields.io/github/v/release/apitable/apitable" />
     </a>
-    <!-- Render -->
-    <a target="_blank" href="https://render.com/deploy?repo=https://github.com/apitable/apitable">
-        <img src="https://img.shields.io/badge/render-deploy-5364e9" />
+    <!-- Deploy to DO -->
+    <a target="_blank" href="https://cloud.digitalocean.com/apps/new?repo=https://github.com/apitable/apitable/tree/develop&refcode=3fe758500293">
+        <img src="https://img.shields.io/badge/DigitalOcean-deploy-5364e9" alt="Deploy to DO" />
     </a>
     <br />
     <!-- LICENSE -->
@@ -68,7 +68,7 @@
 > 
 > 加入 [Discord](https://discord.gg/TwNb9nfdBU) 或 [Twitter](https://twitter.com/apitable_com) 保持联系。<!-- If you just want try out APITable\[^info], using our hosted version at [apitable.com\](https://apitable.com). -->如果您只是想尝试APITable[^info], 点击这里 [⚡️Gitpod 在线 Demo](https://gitpod.io/#https://github.com/apitable/apitable).
 
-如果您想要在本地或云端计算环境中安装 APITable ，请参阅 [💾 安装](#installation)
+如果您想要在本地或云端计算环境中安装 APITable ，请参阅 [💾 安装](#安装)
 
 如果你想要设置你的本地开发环境，请阅读我们的 [🧑‍💻 开发者指南 ](./docs/contribute/developer-guide.md)
 

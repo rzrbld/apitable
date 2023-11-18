@@ -16,21 +16,23 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { ConfigConstant, ResourceType, Selectors, Strings, t, PermissionType } from '@apitable/core';
-import { AddOutlined, ChevronDownOutlined, ChevronLeftOutlined, CloseOutlined } from '@apitable/icons';
-import { InstallPosition } from 'pc/components/widget/widget_center/enum';
 import RcTrigger from 'rc-trigger';
-import { useEffect, useMemo, useRef, useState } from 'react';
 import * as React from 'react';
-import { useSelector } from 'react-redux';
-import { expandWidgetCenter } from '../../widget_center/widget_center';
-import styles from './style.module.less';
-import { WidgetPanelList } from './widget_panel_list';
-import { getStorage, setStorage, StorageName } from 'pc/utils/storage/storage';
+import { useEffect, useRef, useState } from 'react';
 import { IconButton, useThemeColors } from '@apitable/components';
+import { PermissionType, ResourceType, Selectors, Strings, t } from '@apitable/core';
+import { AddOutlined, ChevronDownOutlined, ChevronLeftOutlined, CloseOutlined } from '@apitable/icons';
 import { ComponentDisplay, ScreenSize } from 'pc/components/common/component_display';
 import { Popup } from 'pc/components/common/mobile/popup';
+import { InstallPosition } from 'pc/components/widget/widget_center/enum';
+import { getStorage, setStorage, StorageName } from 'pc/utils/storage/storage';
+import { expandWidgetCenter } from '../../widget_center/widget_center';
+import { useJudgeReachInstalledCount } from '../hooks/use_judge_reach_installed_count';
+import styles from './style.module.less';
+import { WidgetPanelList } from './widget_panel_list';
 import { WrapperTooltip } from './wrapper_tooltip';
+
+import {useAppSelector} from "pc/store/react-redux";
 
 const ReactIconAdd = () => {
   const colors = useThemeColors();
@@ -51,26 +53,20 @@ export const WidgetPanelHeader = (props: { onClosePanel: () => void | Promise<vo
   const colors = useThemeColors();
   const triggerRef = useRef<any>(null);
   const [openPanelList, setOpenPanelList] = useState(false);
-  const { datasheetId, mirrorId } = useSelector(state => state.pageParams);
-  const activeWidgetPanel = useSelector(state => {
+  const { datasheetId, mirrorId } = useAppSelector((state) => state.pageParams);
+  const activeWidgetPanel = useAppSelector((state) => {
     const resourceId = mirrorId || datasheetId;
     const resourceType = mirrorId ? ResourceType.Mirror : ResourceType.Datasheet;
     return Selectors.getResourceActiveWidgetPanel(state, resourceId!, resourceType);
   })!;
-  const spaceId = useSelector(state => state.space.activeId);
-  const { embedId, shareId, templateId }= useSelector(state => state.pageParams);
-  const embedInfo = useSelector(state => Selectors.getEmbedInfo(state));
+  const spaceId = useAppSelector((state) => state.space.activeId);
+  const { embedId, shareId, templateId } = useAppSelector((state) => state.pageParams);
+  const embedInfo = useAppSelector((state) => Selectors.getEmbedInfo(state));
   const embedHidden = embedId && embedInfo && embedInfo.permissionType !== PermissionType.PRIVATEEDIT;
   const hiddenAddButton = shareId || templateId || embedHidden;
+  const activePanelName = activeWidgetPanel!.name;
 
-  const { activePanelName, widgetCount } = useMemo(() => {
-    return {
-      activePanelName: activeWidgetPanel!.name,
-      widgetCount: activeWidgetPanel!.widgets.length,
-    };
-  }, [activeWidgetPanel]);
-
-  const reachLimitInstalledCount = Boolean(widgetCount >= ConfigConstant.WIDGET_PANEL_MAX_WIDGET_COUNT);
+  const reachLimitInstalledCount = useJudgeReachInstalledCount();
 
   useEffect(() => {
     const widgetPanelStatusMap = getStorage(StorageName.WidgetPanelStatusMap)!;
@@ -101,11 +97,11 @@ export const WidgetPanelHeader = (props: { onClosePanel: () => void | Promise<vo
       {/* Display on pc side */}
       <ComponentDisplay minWidthCompatible={ScreenSize.md}>
         <WrapperTooltip wrapper tip={reachLimitInstalledCount ? t(Strings.reach_limit_installed_widget) : t(Strings.add_widget)}>
-          <IconButton 
-            component={'button'} 
-            onClick={openWidgetCenter} 
-            disabled={reachLimitInstalledCount || Boolean(hiddenAddButton)} 
-            icon={ReactIconAdd} 
+          <IconButton
+            component={'button'}
+            onClick={openWidgetCenter}
+            disabled={reachLimitInstalledCount || Boolean(hiddenAddButton)}
+            icon={ReactIconAdd}
           />
         </WrapperTooltip>
         <RcTrigger
@@ -133,7 +129,7 @@ export const WidgetPanelHeader = (props: { onClosePanel: () => void | Promise<vo
             <span
               style={{
                 transform: openPanelList ? 'rotate(180deg)' : '',
-                verticalAlign: '-0.125em'
+                verticalAlign: '-0.125em',
               }}
             >
               <ChevronDownOutlined size={16} color={colors.thirdLevelText} />
@@ -160,7 +156,7 @@ export const WidgetPanelHeader = (props: { onClosePanel: () => void | Promise<vo
             <span
               style={{
                 transform: openPanelList ? 'rotate(180deg)' : '',
-                verticalAlign: '-0.125em'
+                verticalAlign: '-0.125em',
               }}
             >
               <ChevronDownOutlined size={16} color={colors.thirdLevelText} />

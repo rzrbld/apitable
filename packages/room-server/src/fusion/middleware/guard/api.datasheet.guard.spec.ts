@@ -17,76 +17,96 @@
  */
 
 import { ApiTipConstant } from '@apitable/core';
-import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
-import { Test, TestingModule } from '@nestjs/testing';
-import { AppModule } from 'app.module';
-import { ApiDatasheetGuard } from 'fusion/middleware/guard/api.datasheet.guard';
+import { Reflector } from '@nestjs/core';
+import { ApiDatasheetGuard, IApiDatasheetOptions } from 'fusion/middleware/guard/api.datasheet.guard';
+import { DATASHEET_HTTP_DECORATE, USER_HTTP_DECORATE } from 'shared/common';
 import { ApiException } from '../../../shared/exception';
 
 describe('ApiDatasheetGuard', () => {
-  let app: NestFastifyApplication;
   let guard: ApiDatasheetGuard;
   // let request;
   let context: any;
   let memberRepository: any;
-  beforeAll(async() => {
-    jest.setTimeout(300000);
-    const module: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
-    app = module.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
-    await app.init();
+  let reflector: Reflector;
+  let metaService: any;
+  beforeEach(() => {
     // request = app.resolve(REQUEST);
     context = {
       switchToHttp: jest.fn().mockReturnThis(),
       getRequest: jest.fn().mockReturnThis(),
+      getHandler: jest.fn().mockReturnThis(),
     };
     memberRepository = {
       selectSpaceIdsByUserId: jest.fn().mockReturnThis(),
     };
-    guard = new ApiDatasheetGuard(memberRepository);
-  });
-
-  afterAll(async() => {
-    await app.close();
+    metaService = {
+      getMetaDataByDstId: jest.fn().mockReturnThis(),
+    };
+    reflector = new Reflector();
+    guard = new ApiDatasheetGuard(memberRepository, reflector, metaService);
   });
 
   describe('canActivate', () => {
-    it('datasheetId--null--should return error', () => {
+    it('dstId--null--should return error', () => {
+      jest.spyOn(reflector, 'get').mockImplementationOnce((): IApiDatasheetOptions => ({}));
       (context.switchToHttp().getRequest as jest.Mock).mockReturnValueOnce({
         params: {
-          datasheetId: null,
+          dstId: null,
         },
       });
       const error = ApiException.tipError(ApiTipConstant.api_datasheet_not_exist);
-      return guard.canActivate(context).catch(e => {
+      return guard.canActivate(context).catch((e) => {
         return expect(e).toStrictEqual(error);
       });
     });
     it('request datasheet null with error', () => {
+      jest.spyOn(reflector, 'get').mockImplementationOnce((): IApiDatasheetOptions => ({}));
       (context.switchToHttp().getRequest as jest.Mock).mockReturnValueOnce({
         datasheet: null,
       });
       const error = ApiException.tipError(ApiTipConstant.api_datasheet_not_exist);
-      return guard.canActivate(context).catch(e => {
+      return guard.canActivate(context).catch((e) => {
         return expect(e).toStrictEqual(error);
       });
     });
     it('request datasheet not in space error', () => {
+      jest.spyOn(reflector, 'get').mockImplementationOnce((): IApiDatasheetOptions => ({}));
       (context.switchToHttp().getRequest as jest.Mock).mockReturnValueOnce({
         datasheet: 'aaa',
         user: {
-          spaceId: ['aa']
+          spaceId: ['aa'],
         },
         params: {
-          datasheetId: 'aaa',
+          dstId: 'aaa',
         },
       });
       (memberRepository.selectSpaceIdsByUserId as jest.Mock).mockReturnValueOnce(['bbb']);
       const error = ApiException.tipError(ApiTipConstant.api_datasheet_not_visible);
-      return guard.canActivate(context).catch(e => {
+      return guard.canActivate(context).catch((e) => {
         return expect(e).toStrictEqual(error);
       });
+    });
+    it('should load metadata if requireMetadata is true', async() => {
+      (context.switchToHttp().getRequest as jest.Mock).mockReturnValueOnce({
+        [DATASHEET_HTTP_DECORATE]: {
+          spaceId: 'aaa',
+        },
+        [USER_HTTP_DECORATE]: {
+          spaceId: ['aa'],
+        },
+        params: {
+          dstId: 'aaa',
+        },
+      });
+      jest.spyOn(reflector, 'get').mockImplementationOnce(
+        (): IApiDatasheetOptions => ({
+          requireMetadata: true,
+        }),
+      );
+      (metaService.getMetaDataByDstId as jest.Mock).mockReturnValueOnce({});
+      (memberRepository.selectSpaceIdsByUserId as jest.Mock).mockReturnValueOnce(['aaa', 'bbb']);
+      const result = await guard.canActivate(context);
+      expect(result).toBeTruthy();
     });
   });
 });

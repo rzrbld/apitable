@@ -16,43 +16,49 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { DatasheetApi, IAttachmentValue, isImage, isPdf, isPrivateDeployment, Strings, t } from '@apitable/core';
-import { navigationToUrl } from 'pc/components/route_manager/navigation_to_url';
-import { useEffect, useState } from 'react';
+import classNames from 'classnames';
+import FileSaver from 'file-saver';
 import * as React from 'react';
-import styles from './style.module.less';
-import { copy2clipBoard, getDownloadSrc, getPreviewUrl, isSupportImage } from 'pc/utils';
-import { ITransFormInfo } from '../preview_file.interface';
+import { useEffect, useState } from 'react';
+import { Loading, useThemeColors } from '@apitable/components';
+import { DatasheetApi, IAttachmentValue, isImage, isPdf, isPrivateDeployment, Strings, t } from '@apitable/core';
 import {
+  AddCircleOutlined,
   CloseOutlined,
-  LinkOutlined,
   DeleteOutlined,
   DownloadOutlined,
   ExpandOutlined,
+  LinkOutlined,
+  NarrowOutlined,
   NewtabOutlined,
   RotateOutlined,
-  NarrowOutlined,
-  AddCircleOutlined,
   SubtractCircleOutlined,
 } from '@apitable/icons';
-import { IPreviewToolItem, PreviewToolItem } from './tool_item';
 import { Message } from 'pc/components/common';
-import { Loading, useThemeColors } from '@apitable/components';
-import { getFile } from '../preview_main/util';
-import FileSaver from 'file-saver';
-import { useSelector } from 'react-redux';
-import classNames from 'classnames';
+import { navigationToUrl } from 'pc/components/route_manager/navigation_to_url';
+import { copy2clipBoard, getDownloadSrc, getPreviewUrl, isSupportImage } from 'pc/utils';
+import { ITransFormInfo } from '../preview_file.interface';
 import { MAX_SCALE, MIN_SCALE } from '../preview_main/constant';
+import { getFile } from '../preview_main/util';
+import styles from './style.module.less';
+import { IPreviewToolItem, PreviewToolItem } from './tool_item';
+
+import {useAppSelector} from "pc/store/react-redux";
 
 interface IToolBar {
   transformInfo: ITransFormInfo;
   setTransformInfo: React.Dispatch<React.SetStateAction<ITransFormInfo>>;
   fileInfo: IAttachmentValue;
+
   onClose(): void;
+
   onDelete(): void;
+
   onZoom: (scale: number) => void;
   readonly?: boolean;
+
   onRotate(): void;
+
   previewEnable: boolean;
   isDocType: boolean;
   officePreviewUrl: string | null;
@@ -71,8 +77,10 @@ export const MULTIPLE = 1.5;
 
 export function directDownload(href: string, name: string) {
   const a = document.createElement('a');
+  const url = new URL(href);
+  url.searchParams.set('attname', name);
   a.download = name;
-  a.href = href;
+  a.href = url.href;
   document.body.appendChild(a);
   a.click();
   a.remove();
@@ -110,7 +118,7 @@ export async function download(fileInfo: IAttachmentValue) {
   Message.destroy();
 }
 
-export const ToolBar: React.FC<React.PropsWithChildren<IToolBar>> = props => {
+export const ToolBar: React.FC<React.PropsWithChildren<IToolBar>> = (props) => {
   const {
     transformInfo,
     fileInfo,
@@ -130,8 +138,8 @@ export const ToolBar: React.FC<React.PropsWithChildren<IToolBar>> = props => {
   const { scale, initActualScale } = transformInfo;
 
   const [adaptiveMode, setAdaptiveMode] = useState(true);
-  const isSideRecordOpen = useSelector(state => state.space.isSideRecordOpen);
-  const isRecordFullScreen = useSelector(state => state.space.isRecordFullScreen);
+  const isSideRecordOpen = useAppSelector((state) => state.space.isSideRecordOpen);
+  const isRecordFullScreen = useAppSelector((state) => state.space.isRecordFullScreen);
 
   useEffect(() => {
     // initActualScale changes, which means that the image is switched, and the adaptiveMode should be reset.
@@ -171,13 +179,12 @@ export const ToolBar: React.FC<React.PropsWithChildren<IToolBar>> = props => {
           },
           {
             component: (
-              <span style={{
-                opacity: scale * initActualScale >= MAX_SCALE || initActualScale === -1 ? 0.5 : 1
-              }}>
-                <AddCircleOutlined
-                  size={16}
-                  color={colors.black[50]}
-                />
+              <span
+                style={{
+                  opacity: scale * initActualScale >= MAX_SCALE || initActualScale === -1 ? 0.5 : 1,
+                }}
+              >
+                <AddCircleOutlined size={16} color={colors.black[50]} />
               </span>
             ),
             tip: t(Strings.zoom_in),

@@ -56,6 +56,7 @@ define ANNOUNCE_BODY
      /\   |  __ \_   _|__   __|  | |   | |
     /  \  | |__) || |    | | __ _| |__ | | ___
    / /\ \ |  ___/ | |    | |/ _` | '_ \| |/ _ \
+
   / ____ \| |    _| |_   | | (_| | |_) | |  __/
  /_/    \_\_|   |_____|  |_|\__,_|_.__/|_|\___|
 
@@ -96,25 +97,27 @@ build: ## build
 	make build-local
 
 build-local:
+	make _pre-check
 	make _build-java
-	make _build-room
-	make _build-web
+	make _build-ts
 
-_build-web:
-	yarn workspaces focus @apitable/core @apitable/i18n-lang @apitable/icons @apitable/components @apitable/widget-sdk @apitable/datasheet root
-	yarn build:dst
+_build-ts:
+	pnpm install
+	nx run-many -t build --exclude @apitable/datasheet
 
 _build-java:
 	cd backend-server && ./gradlew build -x test --stacktrace
 
-_build-core: ## build core
-	yarn workspaces focus @apitable/core @apitable/i18n-lang root
-	yarn build:i18n
-	yarn build:core
+_pre-check:
+	make _check-web
 
-_build-room: ## build room server
-	yarn workspaces focus @apitable/room-server root
-	yarn build:sr
+_check-web:
+	pnpm install && pnpm build:dst:pre
+	pnpm lint:datasheet
+
+_build-core:
+	pnpm install
+	nx run @apitable/core:build
 
 ################################ test
 
@@ -122,19 +125,18 @@ test: ## do test, unit tests, integration tests and so on.
 	make _test-ut-core-cov
 
 test-e2e: ## start integration tests
-	yarn cy:run
+	pnpm run cy:run
 test-e2e-open: ## start and debug integration tests
-	yarn cy:open
+	pnpm run cy:open
 
 ###### 【core unit test】 ######
 
 _test-ut-core:
-	make _build-core
-	yarn test:core
+	make _build-ts
+	pnpm run test:core
 
 _test-ut-core-cov:
-	make _build-core
-	yarn test:core:cov
+	pnpm run test:core:cov
 
 ###### 【core unit test】 ######
 
@@ -165,13 +167,13 @@ ifeq ($(SIKP_INITDB),false)
 	sleep 20
 	make _test_init_db
 endif
-	make _build-room
+	make _build-ts
 	MYSQL_HOST=127.0.0.1 MYSQL_PORT=3306 MYSQL_USERNAME=apitable MYSQL_PASSWORD=password MYSQL_DATABASE=apitable_test MYSQL_USE_SSL=false \
 	DATABASE_TABLE_PREFIX=apitable_ \
 	REDIS_HOST=127.0.0.1 REDIS_PORT=6379 REDIS_DB=4 REDIS_PASSWORD= \
 	RABBITMQ_HOST=127.0.0.1 RABBITMQ_PORT=5672 RABBITMQ_USERNAME=apitable RABBITMQ_PASSWORD=password \
 	INSTANCE_COUNT=1 APPLICATION_NAME=NEST_REST_SERVER \
-	yarn test:ut:room
+	pnpm run test:ut:room
 	make _test_clean
 
 test-ut-room-docker:
@@ -186,27 +188,15 @@ test-ut-room-docker:
 		-e MYSQL_HOST=test-mysql \
 		-e REDIS_HOST=test-redis \
 		-e RABBITMQ_HOST=test-rabbitmq \
-		unit-test-room yarn test:ut:room:cov
+		unit-test-room pnpm run test:ut:room:cov
 	@echo "${GREEN}finished unit test, clean up images...${RESET}"
-
-_generate_room_coverage:
-	cd packages/room-native-api
-	grcov . --binary-path ./target/debug/deps/ -s . -t lcov --branch --ignore-not-existing --ignore '../*' --ignore "/*" -o target/coverage/tests.lcov
 
 _clean_room_coverage:
 	if [ -d "./packages/room-server/coverage" ]; then \
 		sudo chown -R $(shell id -u):$(shell id -g) ./packages/room-server/coverage; \
 	fi
-	if [ -d "./packages/room-native-api/coverage" ]; then \
-		sudo chown -R $(shell id -u):$(shell id -g) ./packages/room-native-api/coverage; \
-	fi
-	if [ -d "./packages/room-native-api/target" ]; then \
-		sudo chown -R $(shell id -u):$(shell id -g) ./packages/room-native-api/target; \
-	fi
 	make _test_clean
 	rm -fr ./packages/room-server/coverage || true
-	rm -fr ./packages/room-native-api/coverage || true
-	rm -fr ./packages/room-native-api/target || true
 
 ###### 【backend server unit test】 ######
 
@@ -271,12 +261,18 @@ Which service do you want to start run?
   1) backend-server
   2) room-server
   3) web-server
+  4) databus-server
 endef
 export RUN_LOCAL_TXT
 
 define RUN_PERF_TXT
+*NOTE* You must build a package before profiling it.
+
 Which service do you want to start run?
   1) room-server / production mode / Clinic.js flamegraph
+  2) room-server / production mode / Clinic.js doctor
+  3) room-server / production mode / Clinic.js heapprofiler
+  4) room-server / production mode / Clinic.js bubbleprof
 endef
 export RUN_PERF_TXT
 
@@ -296,13 +292,17 @@ run-local: ## run services with local programming language envinroment
 	@read -p "ENTER THE NUMBER: " SERVICE ;\
  	if [ "$$SERVICE" = "1" ]; then make _run-local-backend-server; fi ;\
  	if [ "$$SERVICE" = "2" ]; then make _run-local-room-server; fi ;\
- 	if [ "$$SERVICE" = "3" ]; then make _run-local-web-server; fi
+ 	if [ "$$SERVICE" = "3" ]; then make _run-local-web-server; fi ;\
+ 	if [ "$$SERVICE" = "4" ]; then make _run-docker-databus-server; fi
 
 .PHONY: run-perf
-run-perf: ## run services with local programming language envinroment for performance profiling
+run-perf: ## run room-server with local programming language envinroment for performance profiling
 	@echo "$$RUN_PERF_TXT"
 	@read -p "ENTER THE NUMBER: " SERVICE ;\
- 	if [ "$$SERVICE" = "1" ]; then make _run-perf-flame-local-room-server; fi
+ 	if [ "$$SERVICE" = "1" ]; then export PERF_TYPE=flame; make _run-perf-local-room-server; fi; \
+ 	if [ "$$SERVICE" = "2" ]; then export PERF_TYPE=doctor; make _run-perf-local-room-server; fi; \
+ 	if [ "$$SERVICE" = "3" ]; then export PERF_TYPE=heapprofiler; make _run-perf-local-room-server; fi; \
+ 	if [ "$$SERVICE" = "4" ]; then export PERF_TYPE=bubbleprof; make _run-perf-local-room-server; fi
 
 _run-local-backend-server:
 	source scripts/export-env.sh $$ENV_FILE;\
@@ -317,18 +317,21 @@ _run-local-backend-server:
 _run-local-room-server:
 	source scripts/export-env.sh $$ENV_FILE;\
 	source scripts/export-env.sh $$DEVENV_FILE;\
-	yarn start:room-server
+	pnpm run start:room-server
 
-_run-perf-flame-local-room-server:
+_run-perf-local-room-server:
 	source scripts/export-env.sh $$ENV_FILE;\
 	source scripts/export-env.sh $$DEVENV_FILE;\
-	yarn start:room-server:perf:flame
+	pnpm run  start:room-server:perf:$$PERF_TYPE
 
 _run-local-web-server:
 	source scripts/export-env.sh $$ENV_FILE;\
 	source scripts/export-env.sh $$DEVENV_FILE;\
 	rm -rf packages/datasheet/web_build;\
-	yarn sd
+	pnpm run  sd
+
+_run-docker-databus-server:
+	$(_DATAENV) up databus-server
 
 define DEVENV_TXT
 Which devenv do you want to start run?
@@ -369,11 +372,11 @@ devenv-backend-server:
 
 .PHONY: devenv-web-server
 devenv-web-server:
-	$(RUNNER) web-server sh -c "yarn install && yarn sd"
+	$(RUNNER) web-server sh -c "pnpm run  install && pnpm run  sd"
 
 .PHONY: devenv-room-server
 devenv-room-server:
-	$(RUNNER) room-server yarn start:room-server
+	$(RUNNER) room-server pnpm run  start:room-server
 
 
 .PHONY: install
@@ -382,7 +385,7 @@ install: install-local
 
 .PHONY: install-local
 install-local: ## install all dependencies with local programming language environment
-	yarn install && yarn build:pre
+	pnpm install && pnpm build:dst:pre
 	cd backend-server && ./gradlew build -x test --stacktrace
 
 .PHONY: install-docker
@@ -395,11 +398,11 @@ _install-docker-backend-server:
 
 .PHONY: _install-docker-web-server
 _install-docker-web-server:
-	$(RUNNER) web-server sh -c "yarn install && yarn build:dst:pre"
+	$(RUNNER) web-server sh -c "pnpm run  install && pnpm run build"
 
 .PHONY: _install-docker-room-server
 _install-docker-room-server:
-	$(RUNNER) room-server sh -c "yarn install && yarn build:pre"
+	$(RUNNER) room-server sh -c "pnpm run  install && pnpm run build"
 
 
 .PHONY:
@@ -477,12 +480,12 @@ INIT_DB_DOCKER_PATH=apitable/init-db
 db-plan: ## init-db dry update
 	cd init-db ;\
 	docker build -f Dockerfile . --tag=${INIT_DB_DOCKER_PATH}
-	docker run --rm --env-file $$ENV_FILE -e ACTION=updateSQL ${INIT_DB_DOCKER_PATH}
+	docker run --rm --env-file $$ENV_FILE -e ACTION=updateSQL --network apitable_default ${INIT_DB_DOCKER_PATH}
 
 db-apply: ## init-db update database structure (use .env)
 	cd init-db ;\
 	docker build -f Dockerfile . --tag=${INIT_DB_DOCKER_PATH}
-	docker run --rm --env-file $$ENV_FILE -e ACTION=update ${INIT_DB_DOCKER_PATH}
+	docker run --rm --env-file $$ENV_FILE -e ACTION=update --network apitable_default ${INIT_DB_DOCKER_PATH}
 
 changelog: ## make changelog with github api
 	@read -p "GITHUB_TOKEN: " GITHUB_TOKEN;\
@@ -504,7 +507,7 @@ settings: ## settings and l10n init
 _l10n: ## l10n apitable-ce
 	bash ./scripts/language-generate.sh ./packages/i18n-lang/src ./packages/l10n/gen ./packages/l10n/base ./packages/i18n-lang/src ./
 	bash ./scripts/l10n.sh ./packages/i18n-lang/src ./packages/l10n/gen ./packages/l10n/base ./packages/l10n/base ./
-	yarn build:i18n
+	pnpm run build
 
 ### help
 .PHONY: search
@@ -524,3 +527,40 @@ help:
 	@echo '  '
 	@read -p "What do you want?>> " command; \
 	make $$command;
+
+
+define CONFIGURE_ENV_CHOOSE
+Which .env(envinroment) do you want to configure?
+  1) intergration
+  2) test
+endef
+export CONFIGURE_ENV_CHOOSE
+
+api-codegen: ##
+	@echo "$$CONFIGURE_ENV_CHOOSE"
+	@read -p "ENTER THE NUMBER: " ENV_NUMBER ;\
+ 	if [ "$$ENV_NUMBER" = "" ]; then make api-codegen-integration; fi ;\
+ 	if [ "$$ENV_NUMBER" = "1" ]; then make api-codegen-integration; fi ;\
+ 	if [ "$$ENV_NUMBER" = "2" ]; then make api-codegen-test; fi;
+
+api-codegen-test:
+	touch packages/api-client/package.json
+	cp packages/api-client/package.json /tmp/api-client_package.json.bak
+	rm -rf packages/api-client/**
+	openapi-generator generate --skip-validate-spec -g typescript -i https://test.vika.ltd/api/v1/v3/api-docs/  --additional-properties=stringEnums=false \
+       --additional-properties=npmName=@apitable/api-client  \
+       --additional-properties=npmVersion=0.0.1 \
+       --additional-properties=useObjectParameters=true  --additional-properties=prependFormOrBodyParameters=true  -o  ./packages/api-client
+	cp -rf /tmp/api-client_package.json.bak  packages/api-client/package.json
+
+
+
+api-codegen-integration:
+	touch packages/api-client/package.json
+	cp packages/api-client/package.json /tmp/api-client_package.json.bak
+	rm -rf packages/api-client/**
+	openapi-generator generate --skip-validate-spec -g typescript -i https://integration.vika.ltd/api/v1/v3/api-docs/  --additional-properties=stringEnums=false \
+       --additional-properties=npmName=@apitable/api-client  \
+       --additional-properties=npmVersion=0.0.1 \
+       --additional-properties=useObjectParameters=true  --additional-properties=prependFormOrBodyParameters=true  -o  ./packages/api-client
+	cp -rf /tmp/api-client_package.json.bak  packages/api-client/package.json

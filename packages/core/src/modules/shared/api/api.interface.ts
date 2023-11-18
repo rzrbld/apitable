@@ -59,6 +59,7 @@ export interface ICommitRemind {
   // Default: MindType.Member
   type?: MindType;
   extra?: {
+    recordTitle: string;
     content?: string;
     createdAt?: string;
   };
@@ -115,8 +116,6 @@ export interface IUpdateSecuritySetting {
   joinable?: boolean;
   // whether show member's phone number, example value(true)
   mobileShowable?: boolean;
-  // whether allow all member export datasheet, example value(true)  (this feature is deprecated)
-  nodeExportable?: boolean;
   // what level of member can export datasheet, (0 - disable, 1 - readonly+ can export, 2 - editable+ can export, 3 - manageable+ can export)
   exportLevel?: number;
   // whether the feature watermark is enabled.

@@ -25,6 +25,7 @@ import cn.hutool.core.map.MapUtil;
 import cn.hutool.core.util.BooleanUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
+import com.apitable.automation.service.IAutomationRobotService;
 import com.apitable.base.enums.DatabaseException;
 import com.apitable.base.enums.SystemConfigType;
 import com.apitable.base.model.SystemConfigDTO;
@@ -163,6 +164,9 @@ public class TemplateServiceImpl
     @Resource
     private IWidgetService iWidgetService;
 
+    @Resource
+    private IAutomationRobotService iAutomationRobotService;
+
     /**
      * Get SpaceId.
      *
@@ -188,6 +192,7 @@ public class TemplateServiceImpl
     public void checkTemplateForeignNode(final Long memberId,
         final String nodeId) {
         NodeType nodeType = iNodeService.getTypeByNodeId(nodeId);
+        List<String> singletonNodeIds = Collections.singletonList(nodeId);
         switch (nodeType) {
             case FOLDER:
                 // Check the permissions of all child descendant nodes
@@ -202,7 +207,7 @@ public class TemplateServiceImpl
                 this.checkFolderTemplate(subNodeIds, memberId);
                 break;
             case DATASHEET:
-                this.checkDatasheetTemplate(Collections.singletonList(nodeId),
+                this.checkDatasheetTemplate(singletonNodeIds,
                     false, TemplateException.NODE_LINK_FOREIGN_NODE);
                 // Check Field Permissions
                 this.checkFieldPermission(memberId, nodeId);
@@ -216,6 +221,11 @@ public class TemplateServiceImpl
             case MIRROR:
                 throw new BusinessException(
                     TemplateException.SINGLE_MIRROR_CREATE_FAIL);
+            case AUTOMATION:
+                // Check automation whether the external data table is referenced
+                iAutomationRobotService.checkAutomationReference(singletonNodeIds,
+                    singletonNodeIds);
+                break;
             default:
                 throw new BusinessException(NOT_ALLOW);
         }
@@ -266,6 +276,9 @@ public class TemplateServiceImpl
         this.checkFormOrMirrorIsForeignNode(subNodeIds, nodeTypeToNodeIdsMap,
             NodeType.MIRROR.getNodeType(),
             TemplateException.FOLDER_MIRROR_LINK_FOREIGN_NODE);
+        // Check automation whether the external data table is referenced
+        iAutomationRobotService.checkAutomationReference(subNodeIds,
+            nodeTypeToNodeIdsMap.get(NodeType.AUTOMATION.getNodeType()));
     }
 
     /**

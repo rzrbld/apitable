@@ -18,23 +18,18 @@
 
 package com.apitable.space.service.impl;
 
-import java.util.Collections;
-
-import javax.annotation.Resource;
-import javax.servlet.http.HttpSession;
+import static com.apitable.organization.enums.OrganizationException.INVITE_EXPIRE;
+import static com.apitable.space.enums.SpaceException.NO_ALLOW_OPERATE;
 
 import cn.hutool.core.collection.ListUtil;
 import cn.hutool.core.util.BooleanUtil;
 import cn.hutool.core.util.IdUtil;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
-import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import lombok.extern.slf4j.Slf4j;
-
 import com.apitable.control.infrastructure.role.RoleConstants.Node;
 import com.apitable.control.service.IControlRoleService;
-import com.apitable.interfaces.billing.facade.EntitlementServiceFacade;
-import com.apitable.interfaces.billing.model.EntitlementRemark;
+import com.apitable.core.util.ExceptionUtil;
+import com.apitable.core.util.HttpContextUtil;
 import com.apitable.interfaces.user.facade.UserServiceFacade;
 import com.apitable.organization.mapper.MemberMapper;
 import com.apitable.organization.mapper.TeamMapper;
@@ -48,23 +43,22 @@ import com.apitable.space.enums.InviteType;
 import com.apitable.space.mapper.InvitationMapper;
 import com.apitable.space.mapper.SpaceApplyMapper;
 import com.apitable.space.service.IInvitationService;
-import com.apitable.space.service.ISpaceInviteLinkService;
 import com.apitable.space.service.ISpaceService;
 import com.apitable.space.vo.SpaceGlobalFeature;
 import com.apitable.space.vo.SpaceLinkInfoVo;
-import com.apitable.user.mapper.UserMapper;
 import com.apitable.workspace.service.INodeRoleService;
 import com.apitable.workspace.service.INodeService;
-import com.apitable.core.constants.RedisConstants;
-import com.apitable.core.util.ExceptionUtil;
-import com.apitable.core.util.HttpContextUtil;
-
-import org.springframework.data.redis.core.RedisTemplate;
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import java.util.Collections;
+import javax.annotation.Resource;
+import javax.servlet.http.HttpSession;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import static com.apitable.organization.enums.OrganizationException.INVITE_EXPIRE;
-import static com.apitable.space.enums.SpaceException.NO_ALLOW_OPERATE;
-
+/**
+ * Invitation service implement.
+ */
 @Slf4j
 @Service
 public class InvitationServiceImpl extends ServiceImpl<InvitationMapper, InvitationEntity> implements IInvitationService {
@@ -84,16 +78,10 @@ public class InvitationServiceImpl extends ServiceImpl<InvitationMapper, Invitat
     private IMemberService iMemberService;
 
     @Resource
-    private ISpaceInviteLinkService iSpaceInviteLinkService;
-
-    @Resource
     private SpaceApplyMapper spaceApplyMapper;
 
     @Resource
     private MemberMapper memberMapper;
-
-    @Resource
-    private UserMapper userMapper;
 
     @Resource
     private INodeRoleService iNodeRoleService;
@@ -106,13 +94,6 @@ public class InvitationServiceImpl extends ServiceImpl<InvitationMapper, Invitat
 
     @Resource
     private IControlRoleService iControlRoleService;
-
-    @Resource
-    private EntitlementServiceFacade entitlementServiceFacade;
-
-    @Resource
-    private RedisTemplate<String, Object> redisTemplate;
-
 
     @Override
     public SpaceLinkInfoVo getInvitationInfo(String spaceId, Long creator) {
@@ -133,6 +114,7 @@ public class InvitationServiceImpl extends ServiceImpl<InvitationMapper, Invitat
         // get the link creator's personal invitation code
         String inviteCode = userServiceFacade.getUserInvitationCode(creatorUserId).getCode();
         infoVo.setInviteCode(inviteCode);
+        infoVo.setSeatAvailable(iSpaceService.getSpaceSeatAvailableStatus(spaceId));
         return infoVo;
     }
 
@@ -169,6 +151,12 @@ public class InvitationServiceImpl extends ServiceImpl<InvitationMapper, Invitat
     }
 
     @Override
+    public InvitationEntity getByMemberIdAndSpaceIdAndNodeId(Long memberId, String spaceId,
+                                                             String nodeId) {
+        return invitationMapper.selectByMemberIdAndSpaceIdAndNodeId(memberId, spaceId, nodeId);
+    }
+
+    @Override
     public String getMemberInvitationTokenByNodeId(Long memberId, String spaceId, String nodeId) {
         // whether members can invite other users
         SpaceGlobalFeature feature = iSpaceService.getSpaceGlobalFeature(spaceId);
@@ -176,7 +164,7 @@ public class InvitationServiceImpl extends ServiceImpl<InvitationMapper, Invitat
         // check if node exists and doesn't span spaces
         iNodeService.checkNodeIfExist(spaceId, nodeId);
         // teamId must be root teamId, so there is no need to query by teamId
-        InvitationEntity entity = invitationMapper.selectByMemberIdAndSpaceIdAndNodeId(memberId, spaceId, nodeId);
+        InvitationEntity entity = getByMemberIdAndSpaceIdAndNodeId(memberId, spaceId, nodeId);
         if (entity == null) {
             return this.createMemberInvitationTokenByNodeId(memberId, spaceId, nodeId);
         }
@@ -203,12 +191,14 @@ public class InvitationServiceImpl extends ServiceImpl<InvitationMapper, Invitat
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public InvitationUserDTO invitedUserJoinSpaceByToken(Long userId, String token) {
         InvitationEntity entity = invitationMapper.selectByInviteToken(token);
         // 1. if the information of the link does not exist or the status is 0, it is determined to be
         // invalid.
         ExceptionUtil.isFalse(entity == null || !entity.getStatus(), INVITE_EXPIRE);
         String spaceId = entity.getSpaceId();
+        iSpaceService.checkSeatOverLimit(spaceId);
         SpaceGlobalFeature feature = iSpaceService.getSpaceGlobalFeature(spaceId);
         // 2. member invitation expired
         ExceptionUtil.isTrue(Boolean.TRUE.equals(feature.getInvitable()), INVITE_EXPIRE);

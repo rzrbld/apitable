@@ -16,12 +16,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { Button, LinkButton } from '@apitable/components';
-import { CollaCommandName, ExecuteResult, IApi, Selectors, Strings, t } from '@apitable/core';
 import { useClickAway, useUpdateEffect } from 'ahooks';
 import cls from 'classnames';
 import dayjs from 'dayjs';
 import { get, pick } from 'lodash';
+import * as React from 'react';
+import { useCallback, useContext, useRef, useState } from 'react';
+import { Descendant } from 'slate';
+import { Button, LinkButton } from '@apitable/components';
+import { CollaCommandName, ExecuteResult, IApi, Selectors, Strings, t } from '@apitable/core';
 import { ComponentDisplay, ScreenSize } from 'pc/components/common/component_display';
 import { Message } from 'pc/components/common/message';
 import SlateEditor from 'pc/components/draft_editor/slate_editor';
@@ -32,26 +35,24 @@ import { usePlatform } from 'pc/hooks/use_platform';
 import { resourceService } from 'pc/resource_service';
 import { store } from 'pc/store';
 import { COMMENT_SUBMIT_BUTTON, EXPAND_RECORD_COMMENT_WRAPPER } from 'pc/utils/test_id_constant';
-import * as React from 'react';
-import { useCallback, useContext, useRef, useState } from 'react';
-import { useSelector } from 'react-redux';
-import { Descendant } from 'slate';
 import { ActivityContext } from '../activity_context';
 import { IActivityPaneProps } from '../interface';
 import { ReplyComment } from '../reply_comment';
 import styles from './style.module.less';
 
+import {useAppSelector} from "pc/store/react-redux";
+
 const MAX_COMMENT_LENGTH = 1000;
 
-export const CommentEditor: React.FC<React.PropsWithChildren<IActivityPaneProps>> = props => {
+export const CommentEditor: React.FC<React.PropsWithChildren<IActivityPaneProps>> = (props) => {
   const { datasheetId, expandRecordId, viewId } = props;
-  const unitId = useSelector(state => state.user.info?.unitId)!;
-  const curViewId = useSelector(state => viewId || state.pageParams.viewId);
-  const spaceInfo = useSelector(state => state.space.curSpaceInfo);
+  const unitId = useAppSelector((state) => state.user.info?.unitId)!;
+  const curViewId = useAppSelector((state) => viewId || state.pageParams.viewId);
+  const spaceInfo = useAppSelector((state) => state.space.curSpaceInfo);
   const editRef = useRef<any>(null);
   const borderRef = useRef<HTMLDivElement>(null);
   const commentEditRef = useRef<HTMLDivElement>(null);
-  const mirrorId = useSelector(state => state.pageParams.datasheetId === datasheetId && state.pageParams.mirrorId);
+  const mirrorId = useAppSelector((state) => state.pageParams.datasheetId === datasheetId && state.pageParams.mirrorId);
 
   const { replyText, setReplyText, focus: focusStatus, setFocus, setReplyUnitId } = useContext(ActivityContext);
 
@@ -79,7 +80,7 @@ export const CommentEditor: React.FC<React.PropsWithChildren<IActivityPaneProps>
       return;
     }
     const recordTitle = getFirstColumnValue();
-
+    
     verificationPermission({
       isNotify: true,
       nodeId: mirrorId || datasheetId,
@@ -89,13 +90,14 @@ export const CommentEditor: React.FC<React.PropsWithChildren<IActivityPaneProps>
         {
           recordIds: [expandRecordId],
           unitIds: unitIds,
-          recordTitle: recordTitle,
+          recordTitle,
         },
       ],
       type: IApi.MindType.Comment,
       extra: {
+        recordTitle,
         content: serialize(content, spaceInfo, true).join(''),
-        createdAt: dayjs(Date.now()).format('YYYY-MM-DD HH:mm'),
+        createdAt: dayjs.tz(Date.now()).format('YYYY-MM-DD HH:mm'),
       },
     });
   }
@@ -118,7 +120,7 @@ export const CommentEditor: React.FC<React.PropsWithChildren<IActivityPaneProps>
   }
 
   const isCommentEmpty = useCallback(() => {
-    const _text = serialize((content as unknown) as ITextNode).join('');
+    const _text = serialize(content as unknown as ITextNode).join('');
     const _content = checkPlainText(_text);
     return !_content;
   }, [content]);
@@ -167,7 +169,7 @@ export const CommentEditor: React.FC<React.PropsWithChildren<IActivityPaneProps>
     (event: MouseEvent | TouchEvent) => {
       // Spotlight comments when clicking reply
       const replyClass = get(event, 'target.className');
-      if (replyClass && typeof replyClass === 'string' && replyClass.includes('replyIcon')) {
+      if (replyClass && typeof replyClass === 'string' && (replyClass as string).includes('replyIcon')) {
         editRef.current?.focus(true);
         return;
       }

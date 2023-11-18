@@ -16,6 +16,10 @@ export interface IUtcOption {
   value: string;
 }
 
+export const covertDayjsFormat2DateFnsFormat = (format: string) => {
+  return format.replace('YYYY', 'yyyy').replace('DD', 'dd');
+};
+
 export const isValidTimezone = (timezone: string) => {
   return momentTimezone.tz.zone(timezone) != null;
 };
@@ -23,11 +27,11 @@ export const isValidTimezone = (timezone: string) => {
 export const getTimeZone = () => {
   // https://github.com/iamkun/dayjs/blob/dev/src/plugin/timezone/index.js#L143
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  return isValidTimezone(timeZone) ? timeZone : 'Asia/Shanghai';
+  return isValidTimezone(timeZone) ? timeZone : '';
 };
 
 export const getTimeZoneOffsetByUtc = (utc: string) => {
-  const currentTimeZoneData = TIMEZONES.find((tz: ITimeZone) => tz.utc.includes(utc));
+  const currentTimeZoneData = TIMEZONES.find(tz => tz.utc.includes(utc));
   return currentTimeZoneData?.offset;
 };
 
@@ -43,7 +47,7 @@ export const getTimeZoneAbbrByUtc = (utc: string) => {
 export const getUtcOptionList = () => {
   let list: IUtcOption[] = [];
 
-  for(let i = 0; i < TIMEZONES.length; i++) {
+  for (let i = 0; i < TIMEZONES.length; i++) {
     const { abbr, offset, utc, isdst } = TIMEZONES[i]!;
     if (isdst) continue;
     list = list.concat(utc.filter((tz: string) => !tz.includes('Etc/GMT')).map((tz: string) => {
@@ -62,9 +66,21 @@ export const getUtcOptionList = () => {
 export const getClientTimeZone = () => {
   // https://github.com/iamkun/dayjs/blob/dev/src/plugin/timezone/index.js#L143
   const clientTimeZone = getTimeZone();
-  const currentTimeZoneData = TIMEZONES.find((tz: ITimeZone) => tz.utc.includes(clientTimeZone))!;
+  const currentTimeZoneData = TIMEZONES.find(tz => tz.utc.includes(clientTimeZone));
+  if (!currentTimeZoneData) {
+    return '';
+  }
   const { offset } = currentTimeZoneData;
   return `UTC${offset > 0 ? '+' : ''}${offset}(${clientTimeZone})`;
+};
+
+export const formatTimeZone =(timeZone: string) => {
+  const currentTimeZoneData = TIMEZONES.find(tz => tz.utc.includes(timeZone));
+  if (!currentTimeZoneData) {
+    return '';
+  }
+  const { offset } = currentTimeZoneData;
+  return `UTC${offset > 0 ? '+' : ''}${offset}(${timeZone})`;
 };
 
 // https://github.com/dmfilipenko/timezones.json/blob/master/timezones.json
@@ -221,10 +237,9 @@ export const TIMEZONES = [
     value: 'Central Standard Time',
     abbr: 'CDT',
     offset: -5,
-    isdst: true,
+    // isdst: true,
     text: '(UTC-06:00) Central Time (US & Canada)',
     utc: [
-      'America/Chicago',
       'America/Indiana/Knox',
       'America/Indiana/Tell_City',
       'America/Matamoros',
@@ -287,7 +302,7 @@ export const TIMEZONES = [
     value: 'Eastern Standard Time',
     abbr: 'EST',
     offset: -5,
-    isdst: false,
+    isdst: true,
     text: '(UTC-05:00) Eastern Time (US & Canada)',
     utc: [
       'America/Detroit',
@@ -312,7 +327,7 @@ export const TIMEZONES = [
     value: 'Eastern Daylight Time',
     abbr: 'EDT',
     offset: -4,
-    isdst: true,
+    isdst: false,
     text: '(UTC-04:00) Eastern Daylight Time (US & Canada)',
     utc: [
       'America/Detroit',
@@ -1283,6 +1298,16 @@ export const TIMEZONES = [
     text: '(UTC+08:00) Irkutsk',
     utc: [
       'Asia/Irkutsk'
+    ]
+  },
+  {
+    value: 'Central Standard Time',
+    abbr: 'CDT',
+    offset: 8,
+    isdst: false,
+    text: '(UTC-06:00) Central Time (US & Canada)',
+    utc: [
+      'America/Chicago'
     ]
   },
   {

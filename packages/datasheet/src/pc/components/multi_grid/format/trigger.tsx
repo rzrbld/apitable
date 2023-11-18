@@ -17,11 +17,11 @@
  */
 
 import { useClickAway } from 'ahooks';
-import { ComponentDisplay, ScreenSize } from 'pc/components/common/component_display';
-import { Popup } from 'pc/components/common/mobile/popup';
 import Trigger, { TriggerProps as RcTriggerProps } from 'rc-trigger';
 import * as React from 'react';
 import { memo, useRef } from 'react';
+import { ComponentDisplay, ScreenSize } from 'pc/components/common/component_display';
+import { Popup } from 'pc/components/common/mobile/popup';
 
 interface ITriggerProps extends Partial<RcTriggerProps> {
   trigger: React.ReactNode;
@@ -30,10 +30,11 @@ interface ITriggerProps extends Partial<RcTriggerProps> {
   action?: string[];
   popupVisibleCheck?: (value: boolean) => boolean;
   setShowPopup(value: boolean): void;
+  popupStyle?: React.CSSProperties;
 }
 
 export const MyTrigger: React.FC<React.PropsWithChildren<ITriggerProps>> = memo((props: ITriggerProps) => {
-  const { showPopup, setShowPopup, trigger, popup, popupVisibleCheck, action = ['click'], ...rest } = props;
+  const { showPopup, setShowPopup, trigger, popup, popupVisibleCheck, action = ['click'], popupStyle, ...rest } = props;
   const triggerSelfRef = useRef<any>(null);
   const triggerRef = useRef(null);
   const ref = useRef(null);
@@ -74,8 +75,9 @@ export const MyTrigger: React.FC<React.PropsWithChildren<ITriggerProps>> = memo(
             useCssTransform: true,
           }}
           popupStyle={{
-            width: 320,
+            width: 288,
             // zIndex: 101,
+            ...popupStyle,
           }}
           ref={triggerSelfRef}
           {...rest}

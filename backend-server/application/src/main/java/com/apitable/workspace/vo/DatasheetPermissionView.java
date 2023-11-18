@@ -37,8 +37,8 @@ public class DatasheetPermissionView {
     @Schema(description = "Node ID", example = "dstGxznHFXf9pvF1LZ")
     private String nodeId;
 
-    @Schema(description = "DatasheetID（Node ID / Source Datasheet Node ID / null）", example =
-        "dstGxznHFXf9pvF1LZ")
+    @Schema(description = "DatasheetID（Node ID / Source Datasheet Node ID / null）",
+        example = "dstGxznHFXf9pvF1LZ")
     private String datasheetId;
 
     @Schema(description = "Whether the node is a star")
@@ -206,6 +206,14 @@ public class DatasheetPermissionView {
     @Schema(description = "Delete Row", example = "true")
     @JsonSerialize(nullsUsing = NullBooleanSerializer.class)
     private Boolean rowRemovable;
+
+    @Schema(description = "Archive Row", example = "true")
+    @JsonSerialize(nullsUsing = NullBooleanSerializer.class)
+    private Boolean rowArchivable;
+
+    @Schema(description = "Unarchive Row", example = "true")
+    @JsonSerialize(nullsUsing = NullBooleanSerializer.class)
+    private Boolean rowUnarchivable;
 
     @Schema(description = "Edit Cell", example = "true")
     @JsonSerialize(nullsUsing = NullBooleanSerializer.class)

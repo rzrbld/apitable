@@ -1,5 +1,5 @@
 import * as React from 'react';
-import ReactDOM from 'react-dom';
+import { createRoot } from 'react-dom/client';
 import { Provider } from 'react-redux';
 import { store } from 'pc/store';
 import { KeyCode } from 'pc/utils';
@@ -14,10 +14,13 @@ export const expandRecordPicker = (props: IRecordPickerProps) => {
   const container = document.createElement('div');
   container.classList.add(EXPAND_RECORD_PICKER);
   document.body.appendChild(container);
+  const root = createRoot(container);
 
   const onClose = () => {
-    ReactDOM.unmountComponentAtNode(container);
-    container.parentElement?.removeChild(container);
+    root.unmount();
+    if (container.parentNode) {
+      container.parentNode.removeChild(container);
+    }
     _onClose?.();
   };
 
@@ -40,14 +43,12 @@ export const expandRecordPicker = (props: IRecordPickerProps) => {
     datasheetId,
     isSingle,
     onClose,
-    onSave
+    onSave,
   };
 
-  ReactDOM.render((
+  root.render(
     <Provider store={store}>
-      <RecordPicker
-        {...pickerProps}
-      >
+      <RecordPicker {...pickerProps}>
         <div
           ref={focusHolderRef}
           tabIndex={-1}
@@ -56,8 +57,6 @@ export const expandRecordPicker = (props: IRecordPickerProps) => {
           }}
         />
       </RecordPicker>
-    </Provider>
-  ),
-  container,
+    </Provider>,
   );
 };

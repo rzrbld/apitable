@@ -16,21 +16,22 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { Selectors } from '@apitable/core';
 import classNames from 'classnames';
-import { setColor } from 'pc/components/multi_grid/format';
 import RcTrigger from 'rc-trigger';
 import { forwardRef, useImperativeHandle, useState } from 'react';
 import * as React from 'react';
 import ReactDOM from 'react-dom';
-import { useSelector } from 'react-redux';
+import { Selectors } from '@apitable/core';
+import { setColor } from 'pc/components/multi_grid/format';
 import { stopPropagation } from '../../../utils/dom';
 import { ComponentDisplay } from '../component_display';
 import { ScreenSize } from '../component_display/enum';
 import { ColorPickerMobile } from './color_picker_mobile';
 import { ColorPickerPane } from './color_picker_pane';
-import styles from './style.module.less';
 import { IColorPicker } from './interface';
+import styles from './style.module.less';
+
+import {useAppSelector} from "pc/store/react-redux";
 
 export interface IColorPickerRef {
   open(): void;
@@ -47,8 +48,8 @@ const ColorPickerBase: React.ForwardRefRenderFunction<IColorPickerRef, IColorPic
   const [adjustX, setAdjustX] = useState(false);
   const [arrowOffsetY, setArrowOffsetY] = useState(0);
   const [visible, setVisible] = useState(false);
-  const cacheTheme = useSelector(Selectors.getTheme);
-  const fieldEditable = useSelector(state => Selectors.getPermissions(state).manageable);
+  const cacheTheme = useAppSelector(Selectors.getTheme);
+  const fieldEditable = useAppSelector((state) => Selectors.getPermissions(state).manageable);
   const optionColor = setColor(option.color, cacheTheme);
 
   useImperativeHandle(
@@ -89,8 +90,9 @@ const ColorPickerBase: React.ForwardRefRenderFunction<IColorPickerRef, IColorPic
     setVisible(false);
   };
 
-  const TriggerComponent = triggerComponent ||
-    <div className={styles.trigger} style={{ background: optionColor }} onClick={expandColorPickerPanel} />;
+  const TriggerComponent = triggerComponent || (
+    <div className={styles.trigger} style={{ background: optionColor }} onClick={expandColorPickerPanel} />
+  );
 
   const offsetY = arrowOffsetY && (arrowOffsetY > 0 ? arrowOffsetY + 25 : arrowOffsetY + 5 - MARGIN_TOP);
 
@@ -118,24 +120,23 @@ const ColorPickerBase: React.ForwardRefRenderFunction<IColorPickerRef, IColorPic
   return (
     <>
       <ComponentDisplay minWidthCompatible={ScreenSize.md}>
-        {
-          visible && mask &&
+        {visible &&
+          mask &&
           ReactDOM.createPortal(
             <div
               className={styles.mask}
               onMouseDown={stopPropagation}
-              onClick={e => {
+              onClick={(e) => {
                 stopPropagation(e);
                 onClose();
               }}
             />,
             document.body,
-          )
-        }
+          )}
         <RcTrigger
           popup={PopupComponent}
           destroyPopupOnHide
-          action={['click']}
+          action="click"
           popupAlign={{
             points: ['tl', 'bl'],
             offset: [-PICKER_PANE_WIDTH - 10, -computedPaneHeight / 2 - 10],
@@ -148,7 +149,7 @@ const ColorPickerBase: React.ForwardRefRenderFunction<IColorPickerRef, IColorPic
             position: 'absolute',
           }}
           popupVisible={disabled ? false : visible}
-          onPopupVisibleChange={visible => setVisible(visible)}
+          onPopupVisibleChange={(_visible) => setVisible(_visible)}
           zIndex={1100}
         >
           {TriggerComponent}

@@ -16,18 +16,17 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { AutomationActionEntity } from '../entities/automation.action.entity';
 import { EntityRepository, In, Repository } from 'typeorm';
-import { generateRandomString } from '@apitable/core';
-import { ActionCreateRo } from '../ros/action.create.ro';
 import { RobotActionBaseInfoDto, RobotActionInfoDto, RobotRelDto } from '../dtos/action.dto';
+import { AutomationActionEntity } from '../entities/automation.action.entity';
+import { ActionCreateRo } from '../ros/action.create.ro';
 
 @EntityRepository(AutomationActionEntity)
 export class AutomationActionRepository extends Repository<AutomationActionEntity> {
 
-  createAction(action: ActionCreateRo, userId: string) {
+  createAction(actionId: string, action: ActionCreateRo, userId: string) {
     const newAction = this.create({
-      actionId: `aac${generateRandomString(15)}`,
+      actionId,
       actionTypeId: action.actionTypeId,
       robotId: action.robotId,
       input: action.input,
@@ -63,7 +62,7 @@ export class AutomationActionRepository extends Repository<AutomationActionEntit
   }
 
   async deleteActionByActionId(userId: string, actionId: string) {
-    return await this.update( {
+    return await this.update({
       actionId,
     }, {
       updatedBy: userId,
@@ -80,7 +79,7 @@ export class AutomationActionRepository extends Repository<AutomationActionEntit
     return this.update({ actionId }, { actionTypeId, input: undefined, updatedBy: userId });
   }
 
-  public async selectActionInfosByRobotId(robotId: string): Promise<RobotActionInfoDto[]>{
+  public async selectActionInfosByRobotId(robotId: string): Promise<RobotActionInfoDto[]> {
     return await this.find({
       select: ['actionId', 'actionTypeId', 'prevActionId', 'input'],
       where: {
@@ -90,7 +89,7 @@ export class AutomationActionRepository extends Repository<AutomationActionEntit
     }) as RobotActionInfoDto[];
   }
 
-  public async selectActionBaseInfosByRobotIds(robotIds: string[]): Promise<RobotActionBaseInfoDto[]>{
+  public async selectActionBaseInfosByRobotIds(robotIds: string[]): Promise<RobotActionBaseInfoDto[]> {
     return await this.find({
       select: ['actionId', 'actionTypeId', 'prevActionId', 'robotId'],
       where: {
@@ -98,5 +97,13 @@ export class AutomationActionRepository extends Repository<AutomationActionEntit
         robotId: In(robotIds),
       }
     }) as RobotActionBaseInfoDto[];
+  }
+
+  public async selectCountByRobotId(robotId: string): Promise<number> {
+    return await this.createQueryBuilder()
+      .where('robot_id = :robotId', { robotId })
+      .andWhere('is_deleted = 0')
+      .andWhere('prev_action_id is not null')
+      .getCount();
   }
 }

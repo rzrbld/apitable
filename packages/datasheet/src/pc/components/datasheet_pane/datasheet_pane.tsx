@@ -16,31 +16,42 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { Skeleton } from '@apitable/components';
-import {
-  ConfigConstant, Events, Player, PREVIEW_DATASHEET_ID, ResourceType, Selectors, StatusCode, StoreActions, Strings, SystemConfig, t
-} from '@apitable/core';
 import { useToggle } from 'ahooks';
 import classNames from 'classnames';
-// @ts-ignore
-import { WeixinShareWrapper } from 'enterprise';
 import { get } from 'lodash';
 import { ShortcutActionManager, ShortcutActionName } from 'modules/shared/shortcut_key';
 import dynamic from 'next/dynamic';
+import * as React from 'react';
+import { FC, useCallback, useContext, useEffect, useMemo } from 'react';
+import AutoSizer from 'react-virtualized-auto-sizer';
+import { Skeleton } from '@apitable/components';
+import {
+  ConfigConstant,
+  Events,
+  Player,
+  PREVIEW_DATASHEET_BACKUP,
+  PREVIEW_DATASHEET_ID,
+  ResourceType,
+  Selectors,
+  StatusCode,
+  StoreActions,
+  Strings,
+  SystemConfig,
+  t,
+} from '@apitable/core';
 import { ApiPanel } from 'pc/components/api_panel';
-import { VikaSplitPanel } from 'pc/components/common';
+import { ArchivedRecords } from 'pc/components/archive_record';
+import { Message, VikaSplitPanel } from 'pc/components/common';
 import { TimeMachine } from 'pc/components/time_machine';
 import { useMountWidgetPanelShortKeys } from 'pc/components/widget/hooks';
-import { SideBarClickType, SideBarType, useSideBar } from 'pc/context';
+import { SideBarClickType, SideBarContext, SideBarType, useSideBar } from 'pc/context';
 import { useResponsive } from 'pc/hooks';
 import { useAppDispatch } from 'pc/hooks/use_app_dispatch';
 import { store } from 'pc/store';
 import { exportDatasheetBase } from 'pc/utils';
+import { getEnvVariables } from 'pc/utils/env';
 import { getStorage, setStorage, StorageMethod, StorageName } from 'pc/utils/storage/storage';
-import * as React from 'react';
-import { FC, useCallback, useEffect, useMemo } from 'react';
-import { useSelector } from 'react-redux';
-import AutoSizer from 'react-virtualized-auto-sizer';
+import styles from './style.module.less';
 import { ComponentDisplay, ScreenSize } from '../common/component_display';
 import { DevToolsPanel } from '../development/dev_tools_panel';
 import { closeAllExpandRecord } from '../expand_record';
@@ -52,15 +63,18 @@ import { SuspensionPanel } from '../suspension_panel';
 import { TabBar } from '../tab_bar';
 import { ViewContainer } from '../view_container';
 import { WidgetPanel } from '../widget';
-import styles from './style.module.less';
+// @ts-ignore
+import { WeixinShareWrapper, createBackupSnapshot } from 'enterprise';
+
+import {useAppSelector} from "pc/store/react-redux";
 
 const RobotPanel = dynamic(() => import('pc/components/robot/robot_panel/robot_panel'), {
   ssr: false,
   loading: () => (
     <div className={styles.loading}>
-      <Skeleton count={1} width='38%' />
+      <Skeleton count={1} width="38%" />
       <Skeleton count={2} />
-      <Skeleton count={1} width='61%' />
+      <Skeleton count={1} width="61%" />
     </div>
   ),
 });
@@ -79,11 +93,12 @@ interface IDatasheetMain {
 }
 
 const DatasheetMain = (props: IDatasheetMain) => {
-  const {
-    loading, datasheetErrorCode, isNoPermission, shareId, datasheetId,
-    preview, testFunctions, handleExitTest, mirrorId, embedId
-  } = props;
-  const embedInfo = useSelector(state => Selectors.getEmbedInfo(state));
+  const { loading, datasheetErrorCode, isNoPermission, shareId, datasheetId, preview, testFunctions, handleExitTest, mirrorId, embedId } = props;
+  const embedInfo = useAppSelector((state) => Selectors.getEmbedInfo(state));
+  const previewDstType = useAppSelector((state) => {
+    const datasheet = Selectors.getDatasheet(state);
+    return datasheet && datasheet?.type;
+  });
 
   const isShowViewbar = embedId ? get(embedInfo, 'viewControl.tabBar', true) : true;
 
@@ -104,9 +119,11 @@ const DatasheetMain = (props: IDatasheetMain) => {
           <>
             {!mirrorId && (
               <>
-                {isShowViewbar && <ComponentDisplay minWidthCompatible={ScreenSize.md}>
-                  <TabBar loading={loading}/>
-                </ComponentDisplay>}
+                {isShowViewbar && (
+                  <ComponentDisplay minWidthCompatible={ScreenSize.md}>
+                    <TabBar loading={loading} />
+                  </ComponentDisplay>
+                )}
                 <ComponentDisplay maxWidthCompatible={ScreenSize.md}>
                   <MobileToolBar loading={loading} />
                 </ComponentDisplay>
@@ -122,14 +139,16 @@ const DatasheetMain = (props: IDatasheetMain) => {
         )}
       </div>
       <SuspensionPanel shareId={shareId} datasheetId={datasheetId} />
-      {(preview || testFunctions) && (
+      {(preview || testFunctions) && previewDstType !== PREVIEW_DATASHEET_BACKUP && (
         <div className={styles.previewing}>
           <div className={styles.previewTip}>
             {preview ? t(Strings.preview_time_machine, { version: preview }) : t(Strings.experience_test_function, { testFunctions })}
             {testFunctions && <a onClick={handleExitTest}>{t(Strings.exist_experience)}</a>}
-            {preview &&
-              <span style={{ marginLeft: 14, cursor: 'pointer', textDecoration: 'underline' }}
-                onClick={exportPreviewCsv}>{t(Strings.export_current_preview_view_data)}</span>}
+            {preview && (
+              <span style={{ marginLeft: 14, cursor: 'pointer', textDecoration: 'underline' }} onClick={exportPreviewCsv}>
+                {t(Strings.export_current_preview_view_data)}
+              </span>
+            )}
           </div>
         </div>
       )}
@@ -142,49 +161,55 @@ const DefaultPanelWidth = {
   DevTool: 320,
   TimeMachine: 320,
   Api: '50%',
-  Robot: 320,
+  Robot: 360,
   SideRecord: 450,
 } as const;
 
 const DISABLED_CLOSE_SIDEBAR_WIDTH = 1920;
 
-const DataSheetPaneBase: FC<React.PropsWithChildren<{ panelLeft?: JSX.Element }>> = props => {
-  const { shareId, datasheetId, templateId, mirrorId, embedId } = useSelector(state => {return state.pageParams;});
-  const isLogin = useSelector(state => state.user.isLogin);
+const DataSheetPaneBase: FC<React.PropsWithChildren<{ panelLeft?: JSX.Element }>> = (props) => {
+  const { shareId, datasheetId, templateId, mirrorId, embedId } = useAppSelector((state) => {
+    return state.pageParams;
+  });
+  const isLogin = useAppSelector((state) => state.user.isLogin);
 
   const isShareMode = shareId || templateId || (embedId && !isLogin);
   const { isMobile } = useResponsive();
-  const rightPanelWidth = useSelector(state => state.rightPane.width);
-  const datasheetErrorCode = useSelector(state => Selectors.getDatasheetErrorCode(state));
-  const loading = useSelector(state => {
+  const rightPanelWidth = useAppSelector((state) => state.rightPane.width);
+  const datasheetErrorCode = useAppSelector((state) => Selectors.getDatasheetErrorCode(state));
+  const loading = useAppSelector((state) => {
     const datasheet = Selectors.getDatasheet(state);
     return Boolean(!datasheet || datasheet.isPartOfData || datasheet.sourceId);
   });
-  const preview = useSelector(state => {
+  const preview = useAppSelector((state) => {
     const datasheet = Selectors.getDatasheet(state);
     return datasheet && datasheet.preview;
   });
-  const activeDatasheetId = useSelector(Selectors.getActiveDatasheetId);
+  const activeDatasheetId = useAppSelector(Selectors.getActiveDatasheetId);
   const dispatch = useAppDispatch();
   const testFunctions = useMemo(() => {
     const funcs = getStorage(StorageName.TestFunctions) || {};
     return Object.keys(funcs)
-      .filter(k => ![SystemConfig.test_function.render_prompt.feature_key, 'canvas'].includes(k))
-      .map(k => funcs[k])
+      .filter((k) => ![SystemConfig.test_function.render_prompt.feature_key, 'canvas'].includes(k))
+      .map((k) => funcs[k])
       .join(' , ');
   }, []);
 
-  const widgetPanelStatus = useSelector(state => {
+  const widgetPanelStatus = useAppSelector((state) => {
     const { mirrorId, datasheetId } = state.pageParams;
     const resourceType = mirrorId ? ResourceType.Mirror : ResourceType.Datasheet;
     const resourceId = mirrorId || datasheetId || '';
     return Selectors.getResourceWidgetPanelStatus(state, resourceId, resourceType);
   })!;
-  const isApiPanelOpen = useSelector(state => state.space.isApiPanelOpen);
-  const isSideRecordOpen = useSelector(state => state.space.isSideRecordOpen);
-  const isTimeMachinePanelOpen = useSelector(state => {
+  const isApiPanelOpen = useAppSelector((state) => state.space.isApiPanelOpen);
+  const isSideRecordOpen = useAppSelector((state) => state.space.isSideRecordOpen);
+  const isTimeMachinePanelOpen = useAppSelector((state) => {
     const clientState = Selectors.getDatasheetClient(state, datasheetId);
     return clientState && clientState.isTimeMachinePanelOpen;
+  });
+  const isArchivedRecordsPanelOpen = useAppSelector((state) => {
+    const clientState = Selectors.getDatasheetClient(state, datasheetId);
+    return clientState && clientState.isArchivedRecordsPanelOpen;
   });
 
   useMountWidgetPanelShortKeys();
@@ -199,6 +224,22 @@ const DataSheetPaneBase: FC<React.PropsWithChildren<{ panelLeft?: JSX.Element }>
     },
     [dispatch, activeDatasheetId],
   );
+
+  const { setNewTdbId } = useContext(SideBarContext);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const _createBackupSnapshot = async () => {
+    const res = await createBackupSnapshot(datasheetId!);
+    if (res.data.success) {
+      setNewTdbId?.(res?.data?.data?.tbdId || '');
+      Message.success({
+        content: t(Strings.backup_create_success),
+      });
+    } else {
+      Message.error({
+        content: res.data.message,
+      });
+    }
+  };
   const { onSetSideBarVisibleByOhter, onSetPanelVisible, toggleType, clickType, sideBarVisible } = useSideBar();
 
   // TODO: Unified control logic for right sidebar expand/collapse states
@@ -230,6 +271,14 @@ const DataSheetPaneBase: FC<React.PropsWithChildren<{ panelLeft?: JSX.Element }>
   useEffect(() => {
     ShortcutActionManager.bind(ShortcutActionName.ToggleTimeMachinePanel, toggleTimeMachineOpen);
   }, [toggleTimeMachineOpen]);
+
+  useEffect(() => {
+    if (Boolean(createBackupSnapshot) && !getEnvVariables().IS_APITABLE) {
+      ShortcutActionManager.bind(ShortcutActionName.CreateBackup, () => {
+        _createBackupSnapshot();
+      });
+    }
+  }, [_createBackupSnapshot]);
 
   useEffect(() => {
     if (!activeDatasheetId) {
@@ -330,6 +379,9 @@ const DataSheetPaneBase: FC<React.PropsWithChildren<{ panelLeft?: JSX.Element }>
     if (isTimeMachinePanelOpen) {
       return DefaultPanelWidth.TimeMachine;
     }
+    if (isArchivedRecordsPanelOpen) {
+      return DefaultPanelWidth.TimeMachine;
+    }
     if (isApiPanelOpen) {
       return DefaultPanelWidth.Api;
     }
@@ -407,8 +459,8 @@ const DataSheetPaneBase: FC<React.PropsWithChildren<{ panelLeft?: JSX.Element }>
                 {isTimeMachinePanelOpen && <TimeMachine onClose={toggleTimeMachineOpen} />}
               </div>
             }
-            primary='second'
-            split='vertical'
+            primary="second"
+            split="vertical"
             minSize={isSideRecordOpen ? 450 : 320}
             maxSize={width / 2}
             onChange={paneSizeChange}
@@ -416,7 +468,7 @@ const DataSheetPaneBase: FC<React.PropsWithChildren<{ panelLeft?: JSX.Element }>
             style={isShareMode ? shareStyle : {}}
             allowResize={isApiPanelOpen ? false : Boolean(panelSize)}
             pane1Style={{ overflow: 'hidden' }}
-            className='contentSplitPanel'
+            className="contentSplitPanel"
           />
         ) : (
           datasheetMain
@@ -425,17 +477,7 @@ const DataSheetPaneBase: FC<React.PropsWithChildren<{ panelLeft?: JSX.Element }>
     </AutoSizer>
   );
 
-  return (
-    <>
-      {
-        WeixinShareWrapper ? (
-          <WeixinShareWrapper>
-            {childComponent}
-          </WeixinShareWrapper>
-        ) : childComponent
-      }
-    </>
-  );
+  return <>{WeixinShareWrapper ? <WeixinShareWrapper>{childComponent}</WeixinShareWrapper> : childComponent}</>;
 };
 
 export const DataSheetPane = React.memo(DataSheetPaneBase);

@@ -20,12 +20,15 @@ package com.apitable.user.service;
 
 import com.apitable.user.dto.UserInPausedDto;
 import com.apitable.user.dto.UserLangDTO;
+import com.apitable.user.dto.UserSensitiveDTO;
 import com.apitable.user.entity.UserEntity;
 import com.apitable.user.ro.UserOpRo;
 import com.apitable.user.vo.UserInfoVo;
+import com.apitable.user.vo.UserSimpleVO;
 import com.baomidou.mybatisplus.extension.service.IService;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 /**
  * User table service class.
@@ -376,4 +379,21 @@ public interface IUserService extends IService<UserEntity> {
      * Among them, the account has applied for cancellation for more than limit Days
      */
     void closePausedUser(int limitDays);
+
+    /**
+     * get user email and mobile phone.
+     *
+     * @param userIds user id list
+     * @return UserSensitiveDTO
+     */
+    List<UserSensitiveDTO> getUserSensitiveInfoByIds(List<Long> userIds);
+
+    /**
+     * get user simple info.
+     *
+     * @param userIds user id list
+     * @param spaceId user's space id
+     * @return a map with userId as key
+     */
+    Map<Long, UserSimpleVO> getUserSimpleInfoMap(String spaceId, List<Long> userIds);
 }

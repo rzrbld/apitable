@@ -17,38 +17,83 @@
  */
 
 import {
-  CollaCommandName, Field, FieldType, IAttachmentValue, IComments, IField, IFieldMap, IFieldUpdatedMap, IJOTAction, IMeta, INodePermissions,
-  IObjectDeleteAction, IObjectInsertAction, IObjectReplaceAction, IOperation, IRecord, IRecordAlarm, IRecordCellValue, IRecordMap, IRecordMeta, IReduxState,
-  IRemoteChangeset, isSameSet, IViewProperty, jot, OTActionName, ViewType,
+  CollaCommandName,
+  Field,
+  FieldType,
+  IAttachmentValue,
+  IComments,
+  IField,
+  IFieldMap,
+  IFieldUpdatedMap,
+  IJOTAction,
+  IMeta,
+  INodePermissions,
+  IObjectDeleteAction,
+  IObjectInsertAction,
+  IObjectReplaceAction,
+  IOperation,
+  IRecord,
+  IRecordAlarm,
+  IRecordCellValue,
+  IRecordMap,
+  IRecordMeta,
+  IReduxState,
+  IRemoteChangeset,
+  isSameSet,
+  IViewProperty,
+  jot,
+  OTActionName,
+  ViewType,
 } from '@apitable/core';
 import { Span } from '@metinseylan/nestjs-opentelemetry';
 import { Injectable } from '@nestjs/common';
 import * as Sentry from '@sentry/node';
-import { DatasheetRecordAlarmBaseService } from 'database/alarm/datasheet.record.alarm.base.service';
-import { EffectConstantName, ICommonData, IFieldData, IRestoreRecordInfo } from 'database/ot/interfaces/ot.interface';
+import {
+  DatasheetRecordAlarmBaseService,
+} from 'database/alarm/datasheet.record.alarm.base.service';
+import { DatasheetEntity } from 'database/datasheet/entities/datasheet.entity';
+import { DatasheetMetaEntity } from 'database/datasheet/entities/datasheet.meta.entity';
+import {
+  DatasheetRecordEntity,
+} from 'database/datasheet/entities/datasheet.record.entity';
+import { RecordCommentEntity } from 'database/datasheet/entities/record.comment.entity';
+import { DatasheetMetaService } from 'database/datasheet/services/datasheet.meta.service';
+import {
+  DatasheetRecordService,
+} from 'database/datasheet/services/datasheet.record.service';
+import { DatasheetService } from 'database/datasheet/services/datasheet.service';
+import { RecordCommentService } from 'database/datasheet/services/record.comment.service';
+import {
+  EffectConstantName,
+  ICommonData,
+  IFieldData,
+  IRestoreRecordInfo,
+} from 'database/ot/interfaces/ot.interface';
 import produce from 'immer';
 import { chunk, intersection, isEmpty, pick, update } from 'lodash';
 import { InjectLogger } from 'shared/common';
 import { SourceTypeEnum } from 'shared/enums/changeset.source.type.enum';
-import { CommonException, DatasheetException, OtException, PermissionException, ServerException } from 'shared/exception';
+import {
+  CommonException,
+  DatasheetException,
+  OtException,
+  PermissionException,
+  ServerException,
+} from 'shared/exception';
 import { ExceptionUtil } from 'shared/exception/exception.util';
 import { IdWorker } from 'shared/helpers';
 import { IAuthHeader, IOpAttach, NodePermission } from 'shared/interfaces';
 import { RestService } from 'shared/services/rest/rest.service';
 import { EntityManager } from 'typeorm';
 import { Logger } from 'winston';
-import { DatasheetChangesetEntity } from '../../datasheet/entities/datasheet.changeset.entity';
+import {
+  DatasheetChangesetEntity,
+} from '../../datasheet/entities/datasheet.changeset.entity';
 import { WidgetEntity } from '../../widget/entities/widget.entity';
 import { WidgetService } from '../../widget/services/widget.service';
-import { DatasheetEntity } from 'database/datasheet/entities/datasheet.entity';
-import { DatasheetMetaEntity } from 'database/datasheet/entities/datasheet.meta.entity';
-import { DatasheetRecordEntity } from 'database/datasheet/entities/datasheet.record.entity';
-import { RecordCommentEntity } from 'database/datasheet/entities/record.comment.entity';
-import { DatasheetMetaService } from 'database/datasheet/services/datasheet.meta.service';
-import { DatasheetRecordService } from 'database/datasheet/services/datasheet.record.service';
-import { DatasheetService } from 'database/datasheet/services/datasheet.service';
-import { RecordCommentService } from 'database/datasheet/services/record.comment.service';
-import { DatasheetRecordSubscriptionBaseService } from 'database/subscription/datasheet.record.subscription.base.service';
+import {
+  DatasheetRecordArchiveEntity,
+} from '../../datasheet/entities/datasheet.record.archive.entity';
 
 @Injectable()
 export class DatasheetOtService {
@@ -62,8 +107,8 @@ export class DatasheetOtService {
     // private readonly envConfigService: EnvConfigService,
     private readonly recordAlarmService: DatasheetRecordAlarmBaseService,
     private readonly datasheetService: DatasheetService,
-    private readonly recordSubscriptionService: DatasheetRecordSubscriptionBaseService,
-  ) {}
+  ) {
+  }
 
   private static isAttachField(cellValue: any): boolean {
     return !!(cellValue && Array.isArray(cellValue) && cellValue[0]?.mimeType && cellValue[0]?.token);
@@ -112,7 +157,9 @@ export class DatasheetOtService {
     return {
       metaActions: [],
       toCreateRecord: new Map<string, IRecordCellValue>(),
+      toUnarchiveRecord: new Map<string, IRecordCellValue>(),
       toDeleteRecordIds: [],
+      toArchiveRecordIds: [],
       cleanFieldMap: new Map<string, FieldType>(),
       cleanRecordCellMap: new Map<string, IFieldData[]>(),
       replaceCellMap: new Map<string, IFieldData[]>(),
@@ -148,7 +195,7 @@ export class DatasheetOtService {
       toCreateRecordSubscriptions: [], // unitId - recordId
       toCancelRecordSubscriptions: [], // unitId - recordId
       creatorAutoSubscribedRecordIds: [], // creator auto subscribed recordIds
-      spaceId: ''
+      spaceId: '',
     };
   }
 
@@ -185,7 +232,7 @@ export class DatasheetOtService {
       const mainDstPermission = condition ? permission : await getNodeRole(_condition, auth);
       resultSet.mainLinkDstPermissionMap.set(_condition, mainDstPermission);
     }
-    const metaActions: IJOTAction[] = []
+    const metaActions: IJOTAction[] = [];
     for (const cur of operation) {
       // There are many logs during big data operation, commenting out this log is ok
       if (this.logger.isDebugEnabled()) {
@@ -212,7 +259,7 @@ export class DatasheetOtService {
       let afterAddGanttViewCountInSpace = spaceUsages.ganttViewNums;
       let afterAddCalendarCountInSpace = spaceUsages.calendarViewNums;
 
-      (resultSet.addViews as { type: ViewType }[]).forEach(view => {
+      (resultSet.addViews as { type: ViewType }[]).forEach((view) => {
         if (view.type === ViewType.Gantt) {
           afterAddGanttViewCountInSpace++;
           return;
@@ -267,12 +314,14 @@ export class DatasheetOtService {
       }
     }
 
-    if (resultSet.toCreateRecord.size) {
+    if (resultSet.toCreateRecord.size || resultSet.toUnarchiveRecord.size) {
       const currentRecordCountInDst = await this.metaService.getRowsNumByDstId(datasheetId);
       const spaceUsages = await this.restService.getSpaceUsage(spaceId);
       const subscribeInfo = await this.restService.getSpaceSubscription(spaceId);
-      const afterCreateCountInDst = Number(currentRecordCountInDst) + Number(resultSet.toCreateRecord.size);
-      const afterCreateCountInSpace = Number(spaceUsages.recordNums) + Number(resultSet.toCreateRecord.size);
+      const afterCreateCountInDst = Number(currentRecordCountInDst) + Number(resultSet.toCreateRecord.size)
+        + Number(resultSet.toUnarchiveRecord.size);
+      const afterCreateCountInSpace = Number(spaceUsages.recordNums) + Number(resultSet.toCreateRecord.size)
+        + Number(resultSet.toUnarchiveRecord.size);
 
       if (subscribeInfo.maxRowsPerSheet >= 0 && afterCreateCountInDst > subscribeInfo.maxRowsPerSheet) {
         const datasheetEntity = await this.datasheetService.getDatasheet(datasheetId);
@@ -354,6 +403,17 @@ export class DatasheetOtService {
       }
     }
 
+    if (resultSet.toArchiveRecordIds.length) {
+      const currentArchivedRecordCountInDst = await this.recordService.getArchivedRecordCount(datasheetId);
+      const subscribeInfo = await this.restService.getSpaceSubscription(spaceId);
+      const afterArchiveCountInDst = Number(currentArchivedRecordCountInDst) + Number(resultSet.toArchiveRecordIds.length);
+
+      if (subscribeInfo.maxArchivedRowsPerSheet >= 0 && afterArchiveCountInDst > subscribeInfo.maxArchivedRowsPerSheet) {
+        throw new ServerException(DatasheetException.getRECORD_ARCHIVE_LIMIT_PER_DATASHEETMsg(subscribeInfo.maxArchivedRowsPerSheet,
+          afterArchiveCountInDst));
+      }
+    }
+
     if (resultSet.replaceCellMap.size) {
       const fieldMap = resultSet.temporaryFieldMap;
 
@@ -429,13 +489,13 @@ export class DatasheetOtService {
               throw new ServerException(PermissionException.OPERATION_DENIED);
             }
             break;
-          // Select, paste and fill in link reference and respective undo operations, validate if current column is link field
+          // Select, paste and fill in link reference and respective undo operations, validate if current column is two-way link field or oneway link
           default:
             // Take changeset with priority, avoid pushed after OP is merged, then load database metadata
             if (resultSet.toCreateForeignDatasheetIdMap.has(fieldId) || resultSet.toDeleteForeignDatasheetIdMap.has(fieldId)) {
               break;
             }
-            if (meta?.fieldMap[fieldId]!.type !== FieldType.Link) {
+            if (meta?.fieldMap[fieldId]!.type !== FieldType.Link && meta?.fieldMap[fieldId]!.type !== FieldType.OneWayLink) {
               throw new ServerException(PermissionException.OPERATION_DENIED);
             }
         }
@@ -456,12 +516,12 @@ export class DatasheetOtService {
         } else {
           const meta = await this.getMetaDataByCache(datasheetId, effectMap);
           const field = meta?.fieldMap[relatedLinkFieldId];
-          if (field?.type !== FieldType.Link) {
+          if (field?.type !== FieldType.Link && field?.type !== FieldType.OneWayLink) {
             throw new ServerException(PermissionException.OPERATION_DENIED);
           }
           foreignDatasheetId = field.property.foreignDatasheetId;
         }
-        const foreignPermission = await getNodeRole(foreignDatasheetId, auth) as NodePermission;
+        const foreignPermission = (await getNodeRole(foreignDatasheetId, auth)) as NodePermission;
         if (!foreignPermission.readable) {
           throw new ServerException(PermissionException.OPERATION_DENIED);
         }
@@ -491,7 +551,7 @@ export class DatasheetOtService {
   collectByAddField(cmd: string, action: IObjectInsertAction, permission: NodePermission, resultSet: { [key: string]: any }) {
     const oiData = action.oi as IField;
     resultSet.temporaryFieldMap[oiData.id] = oiData;
-    if (oiData.type === FieldType.Link) {
+    if (oiData.type === FieldType.Link || oiData.type === FieldType.OneWayLink) {
       const mainDstId = resultSet.linkActionMainDstId;
 
       if (!mainDstId) {
@@ -568,9 +628,9 @@ export class DatasheetOtService {
       if (resultSet.linkActionMainDstId !== resultSet.datasheetId) {
         // Since the database deleted link field, link field of linked datasheet is changed to text field,
         // don't check permission
-        if (odData.type == FieldType.Link && odData.property.foreignDatasheetId === resultSet.linkActionMainDstId && oiData.type == FieldType.Text) {
+        if ((odData.type == FieldType.Link || odData.type == FieldType.OneWayLink) && odData.property.foreignDatasheetId === resultSet.linkActionMainDstId && oiData.type == FieldType.Text) {
           skip = true;
-        } else if (oiData.type == FieldType.Link && oiData.property.foreignDatasheetId === resultSet.linkActionMainDstId && cmd.startsWith('UNDO:')) {
+        } else if ((oiData.type == FieldType.Link || oiData.type == FieldType.OneWayLink) && oiData.property.foreignDatasheetId === resultSet.linkActionMainDstId && cmd.startsWith('UNDO:')) {
           // Since the database undo deleting link field, original link field of linked datasheet changes back to link field,
           // don't check permission
           skip = true;
@@ -584,6 +644,7 @@ export class DatasheetOtService {
       resultSet.temporaryFieldMap[oiData.id] = oiData;
       // Deleted field type
       switch (odData.type) {
+        case FieldType.OneWayLink:
         case FieldType.Link:
           const { foreignDatasheetId } = odData.property;
           resultSet.toDeleteForeignDatasheetIdMap.set(odData.id, foreignDatasheetId);
@@ -603,6 +664,7 @@ export class DatasheetOtService {
       }
       // Modified field type
       switch (oiData.type) {
+        case FieldType.OneWayLink:
         case FieldType.Link:
           const { foreignDatasheetId } = oiData.property;
           resultSet.toCreateForeignDatasheetIdMap.set(oiData.id, foreignDatasheetId);
@@ -649,6 +711,16 @@ export class DatasheetOtService {
         resultSet.toCreateForeignDatasheetIdMap.set(oiData.id, oiForeignDatasheetId);
         resultSet.toDeleteForeignDatasheetIdMap.set(odData.id, odForeignDatasheetId);
       }
+      // Replace OneWayLink datasheet
+      if (oiData.type === FieldType.OneWayLink && odData.type === FieldType.OneWayLink) {
+        const oiForeignDatasheetId = oiData.property.foreignDatasheetId;
+        const odForeignDatasheetId = odData.property.foreignDatasheetId;
+        if (oiForeignDatasheetId === odForeignDatasheetId) {
+          return;
+        }
+        resultSet.toCreateForeignDatasheetIdMap.set(oiData.id, oiForeignDatasheetId);
+        resultSet.toDeleteForeignDatasheetIdMap.set(odData.id, odForeignDatasheetId);
+      }
       // Replace datasheet query
       if (oiData.type === FieldType.LookUp && odData.type === FieldType.LookUp) {
         let skipFieldPermission = false;
@@ -661,8 +733,8 @@ export class DatasheetOtService {
           skipFieldPermission = true;
           const oiReferFieldIds: string[] = [];
           const odReferFieldIds: string[] = [];
-          oiData.property.filterInfo?.conditions.forEach(condition => oiReferFieldIds.push(condition.fieldId));
-          odData.property.filterInfo?.conditions.forEach(condition => odReferFieldIds.push(condition.fieldId));
+          oiData.property.filterInfo?.conditions.forEach((condition) => oiReferFieldIds.push(condition.fieldId));
+          odData.property.filterInfo?.conditions.forEach((condition) => odReferFieldIds.push(condition.fieldId));
           // If referenced fields of filter condition are the same, no need to compute resource change
           if (isSameSet(oiReferFieldIds, odReferFieldIds)) {
             return;
@@ -690,7 +762,7 @@ export class DatasheetOtService {
    */
   collectByDeleteField(action: IObjectDeleteAction, permission: NodePermission, resultSet: { [key: string]: any }) {
     const odData = action.od as IField;
-    if (odData.type === FieldType.Link) {
+    if (odData.type === FieldType.Link || odData.type === FieldType.OneWayLink) {
       const mainDstId = resultSet.linkActionMainDstId;
 
       if (!mainDstId) {
@@ -964,7 +1036,7 @@ export class DatasheetOtService {
     // Recover whole widget panel
     const panel = action['li'];
     const widgets: any[] = panel.widgets;
-    const ids = widgets.map(item => item.id);
+    const ids = widgets.map((item) => item.id);
     resultSet.addWidgetIds.push(...ids);
   }
 
@@ -978,7 +1050,7 @@ export class DatasheetOtService {
     // Delete whole widget panel
     const panel = action['ld'];
     const widgets: any[] = panel.widgets;
-    const ids = widgets.map(item => item.id);
+    const ids = widgets.map((item) => item.id);
     resultSet.deleteWidgetIds.push(...ids);
   }
 
@@ -1027,9 +1099,6 @@ export class DatasheetOtService {
       if ('ld' in action) {
         this.collectByDeleteWidgetOrWidgetPanels(action, resultSet);
       }
-      if ('li' in action) {
-        this.collectByAddWidgetIds(action, resultSet);
-      }
     }
   }
 
@@ -1039,7 +1108,36 @@ export class DatasheetOtService {
   collectByOperateForRow(cmd: string, action: IJOTAction, permission: NodePermission, resultSet: { [key: string]: any }) {
     const recordId = action.p[1] as string;
     const autoSubscriptionFields = this.getAutoSubscriptionFields(resultSet.temporaryFieldMap);
-    if ('oi' in action) {
+
+    if ('oi' in action && (cmd === 'UnarchiveRecords')) {
+      if (!permission.rowUnarchivable) {
+        throw new ServerException(PermissionException.OPERATION_DENIED);
+      }
+      // Create record (copy record)
+      // Get oi, if multiple records then get 'data', otherwise get original value
+      const oiData = action.oi;
+      if (!oiData) {
+        // Malformed action, oi can not be null or undefined
+        throw new ServerException(CommonException.SERVER_ERROR);
+      }
+      let recordData = 'data' in oiData ? oiData.data : oiData;
+      recordData = { ...recordData };
+      // Filter null cells
+      Object.keys(recordData).forEach((fieldId) => {
+        if (recordData[fieldId] == null) {
+          delete recordData[fieldId];
+          return;
+        }
+        // check permission
+        this.checkCellValPermission(cmd, fieldId, permission, resultSet);
+      });
+      // Recover record after deleting record, clear record deletion collection
+      if (resultSet.toArchiveRecordIds.includes(recordId)) {
+        resultSet.toArchiveRecordIds.splice(resultSet.toArchiveRecordIds.indexOf(recordId), 1);
+        return;
+      }
+      resultSet.toUnarchiveRecord.set(recordId, recordData);
+    } else if ('oi' in action) {
       if (!permission.rowCreatable) {
         throw new ServerException(PermissionException.OPERATION_DENIED);
       }
@@ -1054,7 +1152,7 @@ export class DatasheetOtService {
       let recordData = 'data' in oiData ? oiData.data : oiData;
       recordData = { ...recordData };
       // Filter null cells
-      Object.keys(recordData).forEach(fieldId => {
+      Object.keys(recordData).forEach((fieldId) => {
         if (recordData[fieldId] == null) {
           delete recordData[fieldId];
           return;
@@ -1070,7 +1168,19 @@ export class DatasheetOtService {
       resultSet.toCreateRecord.set(recordId, recordData);
       this.collectRecordSubscriptions(autoSubscriptionFields, recordId, recordData, undefined, resultSet);
     }
-    if ('od' in action) {
+
+    if ('od' in action && (cmd === 'ArchiveRecords')) {
+      if (!permission.rowArchivable) {
+        throw new ServerException(PermissionException.OPERATION_DENIED);
+      }
+      if (resultSet.cleanRecordCellMap.has(recordId)) {
+        resultSet.cleanRecordCellMap.delete(recordId);
+      }
+      if (resultSet.replaceCellMap.has(recordId)) {
+        resultSet.replaceCellMap.delete(recordId);
+      }
+      resultSet.toArchiveRecordIds.push(recordId);
+    } else if ('od' in action) {
       if (!permission.rowRemovable) {
         throw new ServerException(PermissionException.OPERATION_DENIED);
       }
@@ -1143,11 +1253,11 @@ export class DatasheetOtService {
       // oi exists means writing data
       const data = action.oi;
       const fieldData: any[] = resultSet.cleanRecordCellMap.get(recordId);
-      if (fieldData && fieldData.find(cur => cur['fieldId'] === fieldId)) {
+      if (fieldData && fieldData.find((cur) => cur['fieldId'] === fieldId)) {
         // writing cell data, ignoring former cell clearing operations.
         resultSet.cleanRecordCellMap.set(
           recordId,
-          fieldData.filter(cur => {
+          fieldData.filter((cur) => {
             return cur['fieldId'] !== fieldId;
           }),
         );
@@ -1163,11 +1273,11 @@ export class DatasheetOtService {
       DatasheetOtService.setMapValIfExist(resultSet.replaceCellMap, recordId, { fieldId, data });
     } else if ('od' in action) {
       const fieldData: any[] = resultSet.replaceCellMap.get(recordId);
-      if (fieldData && fieldData.find(cur => cur['fieldId'] === fieldId)) {
+      if (fieldData && fieldData.find((cur) => cur['fieldId'] === fieldId)) {
         // If cell is cleared after cell change, just clear the cell
         resultSet.replaceCellMap.set(
           recordId,
-          fieldData.filter(cur => {
+          fieldData.filter((cur) => {
             return cur['fieldId'] !== fieldId;
           }),
         );
@@ -1248,7 +1358,7 @@ export class DatasheetOtService {
     // ===== Comment collection operation END ====
   }
 
-  transaction = async(manager: EntityManager, effectMap: Map<string, any>, commonData: ICommonData, resultSet: { [key: string]: any }) => {
+  transaction = async (manager: EntityManager, effectMap: Map<string, any>, commonData: ICommonData, resultSet: { [key: string]: any }) => {
     const beginTime = +new Date();
     this.logger.info(`[${commonData.dstId}] ====> transaction start......`);
     // ======== Fix comment time BEGIN ========
@@ -1258,6 +1368,10 @@ export class DatasheetOtService {
     // ======== Batch delete record BEGIN ========
     await this.handleBatchDeleteRecord(manager, commonData, resultSet);
     // ======== Batch delete record END ========
+
+    // ======= Batch archive record BEGIN ========
+    await this.handleBatchArchiveRecord(manager, commonData, resultSet);
+    // ======= Batch archive record END ========
 
     // ======== Batch delete widget BEGIN ========
     await this.handleBatchDeleteWidget(manager, commonData, resultSet);
@@ -1274,6 +1388,10 @@ export class DatasheetOtService {
     // ======== Batch create record BEGIN ========
     await this.handleBatchCreateRecord(manager, commonData, effectMap, resultSet);
     // ======== Batch create record END ========
+
+    // ======== Batch unarchive record BEGIN ========
+    await this.handleBatchUnarchiveRecord(manager, commonData, resultSet);
+    // ======== Batch unarchive record END ========
 
     // ======== Batch update cell BEGIN ========
     await this.handleBatchUpdateCell(manager, commonData, effectMap, false, resultSet);
@@ -1294,10 +1412,6 @@ export class DatasheetOtService {
     // ======== Create/delete datetime alarm BEGIN ========
     await this.recordAlarmService.handleRecordAlarms(manager, commonData, resultSet);
     // ======== Create/delete datetime alarm END ========
-
-    // ======== Create/cancel auto subscriptions BEGIN ========
-    await this.recordSubscriptionService.handleRecordAutoSubscriptions(manager, commonData, resultSet);
-    // ======== Create/delete auto subscriptions END   ========
 
     // Update database parallelly
     await Promise.all([
@@ -1412,7 +1526,7 @@ export class DatasheetOtService {
       for (const fieldId in recordData) {
         if (recordData[fieldId] && DatasheetOtService.isAttachField(recordData[fieldId])) {
           ExceptionUtil.isTrue(overLimit, OtException.SPACE_CAPACITY_OVER_LIMIT);
-          (recordData[fieldId] as IAttachmentValue[]).map(item => {
+          (recordData[fieldId] as IAttachmentValue[]).map((item) => {
             addToken.push({ token: item.token, name: item.name });
           });
         }
@@ -1423,7 +1537,7 @@ export class DatasheetOtService {
       const recordData = 'data' in action.od ? action.od.data : action.od;
       for (const fieldId in recordData) {
         if (recordData[fieldId] && DatasheetOtService.isAttachField(recordData[fieldId])) {
-          (recordData[fieldId] as IAttachmentValue[]).map(item => {
+          (recordData[fieldId] as IAttachmentValue[]).map((item) => {
             removeToken.push({ token: item.token, name: item.name });
           });
         }
@@ -1440,20 +1554,19 @@ export class DatasheetOtService {
     const { userId, dstId, revision } = commonData;
     const remoteChangeset = effectMap.get(EffectConstantName.RemoteChangeset);
     const recordIds = [...resultSet.toCorrectComment.keys()];
-    const deletedRecordMap = await this.recordService.getRecordsByDstIdAndRecordIds(dstId, recordIds, true);
+    const isRecordDeleted = await this.recordService.isRecordsDeleted(dstId, recordIds);
+    if (isRecordDeleted) {
+      throw new ServerException(OtException.REVISION_ERROR);
+    }
     const operationChangeset: any[] = [];
     const recordCommentEntities: any[] = [];
     const beginTime = +new Date();
     this.logger.info(`[${dstId}] ====> Start batch creating record comment......`);
     for (const [recordId, comments] of resultSet.toCorrectComment.entries()) {
-      const deleteRecord = deletedRecordMap[recordId];
-      if (deleteRecord) {
-        throw new ServerException(OtException.REVISION_ERROR);
-      }
       for (const { index, comment } of comments) {
         const serverDate = new Date();
         if (comment?.commentMsg?.reply) {
-          update(comment, 'commentMsg.reply', value => pick(value, 'commentId'));
+          update(comment, 'commentMsg.reply', (value) => pick(value, 'commentId'));
         }
         recordCommentEntities.push({
           id: IdWorker.nextId().toString(),
@@ -1496,6 +1609,73 @@ export class DatasheetOtService {
     this.logger.info(`[${dstId}] ====> Finished batch creating record comment......duration: ${endTime - beginTime}ms`);
   }
 
+  private async handleBatchArchiveRecord(manager: EntityManager, commonData: ICommonData, resultSet: { [key: string]: any }) {
+    if (resultSet.toArchiveRecordIds.length === 0) {
+      return;
+    }
+    const { userId, dstId, revision } = commonData;
+    if (this.logger.isDebugEnabled()) {
+      this.logger.debug(`[${dstId}] archive record`);
+    }
+    const recordUpdateProp = {
+      revisionHistory: () => `CONCAT_WS(',', revision_history, ${revision})`,
+      revision,
+      updatedBy: userId,
+    };
+
+    const saveArchiveRecordEntities: any[] = [];
+    const beginTime = +new Date();
+    this.logger.info(`[${dstId}] ====> Start batch archive record......`);
+
+    for (const recordId of resultSet.toArchiveRecordIds) {
+      saveArchiveRecordEntities.push({
+        id: IdWorker.nextId().toString(),
+        dstId,
+        recordId,
+        isArchived: true,
+        archivedBy: userId,
+        createdBy: userId,
+        updatedBy: userId,
+      });
+    }
+
+    if (saveArchiveRecordEntities.length > 0) {
+      if (this.logger.isDebugEnabled()) {
+        this.logger.debug(`[${dstId}] Batch archive record`);
+      }
+
+      const updateChunkList = chunk(resultSet.toArchiveRecordIds, 3000);
+      for (const entities of updateChunkList) {
+        await manager
+          .createQueryBuilder()
+          .update(DatasheetRecordEntity)
+          .set(recordUpdateProp)
+          .where('dst_id = :dstId', { dstId })
+          .andWhere('record_id IN(:...ids)', { ids: entities })
+          .execute();
+      }
+      const chunkList = chunk(saveArchiveRecordEntities, 3000);
+      for (const entities of chunkList) {
+        await manager
+          .createQueryBuilder()
+          .insert()
+          .into(DatasheetRecordArchiveEntity)
+          .values(entities)
+          .orUpdate({
+            conflict_target: ['dstId', 'recordId'],
+            columns: ['is_archived', 'archived_by', 'archived_at', 'updated_by'],
+            overwrite: ['is_archived', 'archived_by', 'archived_at', 'updated_by'],
+          })
+          // If not set to false, SELECT will be executed after insertion,
+          // efficiency will be seriously impacted.
+          .updateEntity(false)
+          .execute();
+      }
+    }
+    const endTime = +new Date();
+    this.logger.info(`[${dstId}] ====> Finished batch archive record......duration: ${endTime - beginTime}ms`);
+  }
+
   /**
    * Batch delete record
    *
@@ -1523,13 +1703,18 @@ export class DatasheetOtService {
     };
     // Check if operator has editable permission for all fields, if so, clear data
     const allFieldCanEdit = commonData.permission.fieldPermissionMap
-      ? !Object.values(commonData.permission.fieldPermissionMap).find(val => !val.permission.editable)
+      ? !Object.values(commonData.permission.fieldPermissionMap).find((val) => !val.permission.editable)
       : true;
     if (allFieldCanEdit) {
       values = { data: {}, ...baseProps };
     } else {
       values = { ...baseProps };
     }
+    const archivedValues = {
+      isDeleted: true,
+      updatedBy: userId,
+    };
+
     // Batch operation, split in chunks if exceeds 1000 records
     const gap = 1000;
     if (resultSet.toDeleteRecordIds.length > gap) {
@@ -1543,12 +1728,28 @@ export class DatasheetOtService {
           .where('dst_id = :dstId', { dstId })
           .andWhere('record_id IN(:...ids)', { ids: deletedRecordIds })
           .execute();
+
+        await manager
+          .createQueryBuilder()
+          .update(DatasheetRecordArchiveEntity)
+          .set(archivedValues)
+          .where('dst_id = :dstId', { dstId })
+          .andWhere('record_id IN(:...ids)', { ids: deletedRecordIds })
+          .execute();
       }
     } else {
       await manager
         .createQueryBuilder()
         .update(DatasheetRecordEntity)
         .set(values)
+        .where('dst_id = :dstId', { dstId })
+        .andWhere('record_id IN(:...ids)', { ids: resultSet.toDeleteRecordIds })
+        .execute();
+
+      await manager
+        .createQueryBuilder()
+        .update(DatasheetRecordArchiveEntity)
+        .set(archivedValues)
         .where('dst_id = :dstId', { dstId })
         .andWhere('record_id IN(:...ids)', { ids: resultSet.toDeleteRecordIds })
         .execute();
@@ -1638,7 +1839,7 @@ export class DatasheetOtService {
     }
 
     const { userId, uuid, dstId, revision } = commonData;
-    const prevRecordMap = await this.recordService.getRecordsByDstIdAndRecordIds(dstId, [...recordFieldMap.keys()]);
+    const prevRecordMap = await this.recordService.getBasicRecordsByRecordIds(dstId, [...recordFieldMap.keys()]);
     const recordMetaMap = effectMap.get(EffectConstantName.RecordMetaMap);
     const recordMapActions: IJOTAction[] = [];
     const updatedAt = Date.now();
@@ -1656,7 +1857,7 @@ export class DatasheetOtService {
       const oldRecordMeta: IRecordMeta = recordMetaMap[recordId] || oldRecord?.recordMeta || {};
       const fieldUpdatedMap: IFieldUpdatedMap = oldRecordMeta.fieldUpdatedMap || {};
       // Field IDs that need clean-up
-      const toCleanFieldIds = [...resultSet.cleanFieldMap.keys()].filter(fieldId => {
+      const toCleanFieldIds = [...resultSet.cleanFieldMap.keys()].filter((fieldId) => {
         return resultSet.cleanFieldMap.get(fieldId) !== FieldType.LastModifiedBy;
       });
 
@@ -1674,7 +1875,7 @@ export class DatasheetOtService {
       });
 
       // Construct latest recordMeta
-      const newRecordMeta: IRecordMeta = produce(oldRecordMeta, draft => {
+      const newRecordMeta: IRecordMeta = produce(oldRecordMeta, (draft) => {
         if (!Object.keys(fieldUpdatedMap).length) {
           delete draft.fieldUpdatedMap;
         } else {
@@ -1737,7 +1938,7 @@ export class DatasheetOtService {
         const recordAction = DatasheetOtService.generateJotAction(
           OTActionName.ObjectInsert,
           ['recordMap', recordId, 'recordMeta', 'fieldUpdatedMap'],
-          {},
+          newRecordMeta.fieldUpdatedMap,
         );
         recordMapActions.push(recordAction);
       } else {
@@ -1797,11 +1998,11 @@ export class DatasheetOtService {
     }
 
     // Query if is deleted formerly, avoid redundant insertion
-    const deletedRecordMap = await this.recordService.getRecordsByDstIdAndRecordIds(dstId, recordIds, true);
+    const deletedRecordMap = await this.recordService.getBasicRecordsByRecordIds(dstId, recordIds, true);
     const deletedRecordIds = Object.keys(deletedRecordMap);
     const meta = await this.getMetaDataByCache(dstId, effectMap);
     const fieldList: IField[] = Object.values(meta.fieldMap);
-    const autoNumberFields = fieldList.filter(field => field.type === FieldType.AutoNumber);
+    const autoNumberFields = fieldList.filter((field) => field.type === FieldType.AutoNumber);
     const createdAt = Date.now();
     const updatedAt = createdAt;
     const recordMetaMap = effectMap.get(EffectConstantName.RecordMetaMap);
@@ -1833,7 +2034,7 @@ export class DatasheetOtService {
         }
 
         if (recordData) {
-          Object.keys(recordData).forEach(fieldId => {
+          Object.keys(recordData).forEach((fieldId) => {
             fieldUpdatedMap[fieldId] = fieldUpdatedMap[fieldId]
               ? {
                 ...fieldUpdatedMap[fieldId],
@@ -1869,14 +2070,14 @@ export class DatasheetOtService {
 
         // Field IDs that need initialization, record its modified time and modifier
         if (updateFieldIds.length) {
-          updateFieldIds.forEach(fieldId => {
+          updateFieldIds.forEach((fieldId) => {
             fieldUpdatedMap[fieldId] = { at: updatedAt, by: uuid };
           });
         }
 
         // Process AutoNumber field type, store in fieldUpdateMap
         if (autoNumberFields.length > 0) {
-          autoNumberFields.forEach(field => {
+          autoNumberFields.forEach((field) => {
             const fieldId = field.id;
             const nextId = field.property.nextId + recordIndex || 1;
             fieldUpdatedMap[fieldId] = { autoNumber: nextId };
@@ -1969,7 +2170,7 @@ export class DatasheetOtService {
           .execute();
       }
       // As all change in middle layer need to be synced to client, here effect change is performed => meta
-      const createdByFields = (fieldList as IField[]).filter(fld => fld.type === FieldType.CreatedBy || fld.type === FieldType.LastModifiedBy);
+      const createdByFields = (fieldList as IField[]).filter((fld) => fld.type === FieldType.CreatedBy || fld.type === FieldType.LastModifiedBy);
       const processFields = [...createdByFields, ...autoNumberFields];
       // Construct actions<setFieldAttr> that are about to be synced to client
       const fieldAttrActions = await this.getMetaActionByFieldType({ uuid, fields: processFields, nextId: recordIndex }, effectMap);
@@ -1991,6 +2192,16 @@ export class DatasheetOtService {
             revision,
             isDeleted: false,
             recordMeta: recordInfo.recordMeta,
+            updatedBy: userId,
+          })
+          .where('dst_id = :dstId', { dstId })
+          .andWhere('record_id = :recordId', { recordId })
+          .execute();
+        await manager
+          .createQueryBuilder()
+          .update(DatasheetRecordArchiveEntity)
+          .set({
+            isDeleted: false,
             updatedBy: userId,
           })
           .where('dst_id = :dstId', { dstId })
@@ -2023,7 +2234,7 @@ export class DatasheetOtService {
     for (const [recordId, commentIds] of resultSet.toDeleteCommentIds.entries()) {
       const { comments } = await this.recordCommentService.getComments(dstId, recordId);
       const deleteCommentId = commentIds[0];
-      if (!comments.find(item => item.commentId === deleteCommentId)) {
+      if (!comments.find((item) => item.commentId === deleteCommentId)) {
         throw new ServerException(OtException.REVISION_ERROR);
       }
       await manager
@@ -2040,6 +2251,58 @@ export class DatasheetOtService {
     }
     const endTime = +new Date();
     this.logger.info(`[${dstId}] ====> Finished batch deleting record comments......duration: ${endTime - beginTime}ms`);
+  }
+
+  private async handleBatchUnarchiveRecord(
+    manager: EntityManager,
+    commonData: ICommonData,
+    // effectMap: Map<string, any>,
+    resultSet: { [key: string]: any },
+  ) {
+    if (!resultSet.toUnarchiveRecord.size) {
+      return;
+    }
+
+    const { userId, dstId, revision } = commonData;
+    if (this.logger.isDebugEnabled()) {
+      this.logger.debug(`[${dstId}] Soft unarchive record`);
+    }
+    const beginTime = +new Date();
+    this.logger.info(`[${dstId}] ====> Start batch unarchiving record......`);
+    const values = {
+      isArchived: false,
+      updatedBy: userId,
+    };
+
+    const recordUpdateProp = {
+      revisionHistory: () => `CONCAT_WS(',', revision_history, ${revision})`,
+      revision,
+      updatedBy: userId,
+    };
+    const gap = 1000;
+    const times = Math.ceil(resultSet.toUnarchiveRecord.size / gap);
+    const toUnarchiveRecordIds = Array.from(resultSet.toUnarchiveRecord.keys());
+    for (let i = 0; i < times; i++) {
+      const unarchivedRecordIds = toUnarchiveRecordIds.slice(i * gap, (i + 1) * gap);
+
+      await manager
+        .createQueryBuilder()
+        .update(DatasheetRecordArchiveEntity)
+        .set(values)
+        .where('dst_id = :dstId', { dstId })
+        .andWhere('record_id IN(:...ids)', { ids: unarchivedRecordIds })
+        .execute();
+
+      await manager
+        .createQueryBuilder()
+        .update(DatasheetRecordEntity)
+        .set(recordUpdateProp)
+        .where('dst_id = :dstId', { dstId })
+        .andWhere('record_id IN(:...ids)', { ids: unarchivedRecordIds })
+        .execute();
+    }
+    const endTime = +new Date();
+    this.logger.info(`[${dstId}] ====> Finished batch unarchiving record......duration: ${endTime - beginTime}ms`);
   }
 
   private async handleCommentEmoji(manager: EntityManager, commonData: ICommonData, resultSet: { [key: string]: any }) {
@@ -2141,7 +2404,7 @@ export class DatasheetOtService {
 
     for (const [viewIdx, fields] of resultSet.initFieldMap) {
       // Determine self-increment order according to current view
-      const recordIds = meta.views[viewIdx]!.rows.map(row => row.recordId);
+      const recordIds = meta.views[viewIdx]!.rows.map((row) => row.recordId);
 
       // No records in current view, only initialize nextId
       if (!recordIds.length) {
@@ -2151,13 +2414,13 @@ export class DatasheetOtService {
       }
 
       // The view contains records
-      const prevRecordMap: IRecordMap = await this.recordService.getRecordsByDstIdAndRecordIds(dstId, recordIds);
+      const prevRecordMap: IRecordMap = await this.recordService.getBasicRecordsByRecordIds(dstId, recordIds);
       const recordMetaMap: Map<string, IRecordMeta> = effectMap.get(EffectConstantName.RecordMetaMap);
       const recordIdMap = new Map<string, number>();
       let nextId = 1;
 
       // Need to sort according to current view
-      recordIds.forEach(recordId => recordIdMap.set(recordId, nextId++));
+      recordIds.forEach((recordId) => recordIdMap.set(recordId, nextId++));
 
       // forEach can not be used here, or await calls inside will not take effect
       for (const record of Object.values(prevRecordMap)) {
@@ -2245,7 +2508,7 @@ export class DatasheetOtService {
       this.logger.debug(`[${dstId}] Modify datasheet Meta`);
     }
 
-    if (meta.views.find(view => view == null)) {
+    if (meta.views.find((view) => view == null)) {
       // After successfully applying OP, check views, if null exists then report error
       throw new ServerException(OtException.APPLY_META_ERROR);
     }
@@ -2356,7 +2619,7 @@ export class DatasheetOtService {
       switch (type) {
         case FieldType.AutoNumber: {
           const nextId = (!property.nextId ? data.nextId : property.nextId + data.nextId!) || 1;
-          const newField = produce(field, draft => {
+          const newField = produce(field, (draft) => {
             draft.property.nextId = nextId;
             return draft;
           });
@@ -2369,7 +2632,7 @@ export class DatasheetOtService {
           if (property.uuids.includes(uuid!)) {
             break;
           }
-          const newField = produce(field, draft => {
+          const newField = produce(field, (draft) => {
             draft.property.uuids.push(uuid!);
             return draft;
           });
@@ -2415,8 +2678,7 @@ export class DatasheetOtService {
    * @return boolean - True if fieldType is either Member or CreatedBy, false otherwise
    */
   private subscriptionSupportedFieldType(fieldType: number): boolean {
-    return fieldType === FieldType.Member
-    || fieldType === FieldType.CreatedBy;
+    return fieldType === FieldType.Member || fieldType === FieldType.CreatedBy;
   }
 
   /**
@@ -2428,9 +2690,8 @@ export class DatasheetOtService {
    */
   private getAutoSubscriptionFields(fieldMap: IFieldMap) {
     const autoSubscriptionFields: IField[] = [];
-    Object.values(fieldMap).forEach(field => {
-      if (this.subscriptionSupportedFieldType(field.type)
-      && (field.property?.subscription)) {
+    Object.values(fieldMap).forEach((field) => {
+      if (this.subscriptionSupportedFieldType(field.type) && field.property?.subscription) {
         autoSubscriptionFields.push(field);
       }
     });
@@ -2450,14 +2711,13 @@ export class DatasheetOtService {
    * @param odData - Desired object data
    * @param resultSet - Set to collect the results of the subscription and unsubscription operations
    */
-  private collectRecordSubscriptions(autoSubscriptionFields: IField[], recordId: string, oiData: any, odData: any 
-    , resultSet: any) {
+  private collectRecordSubscriptions(autoSubscriptionFields: IField[], recordId: string, oiData: any, odData: any, resultSet: any) {
     if (autoSubscriptionFields.length > 0) {
-      autoSubscriptionFields.forEach(field => {
+      autoSubscriptionFields.forEach((field) => {
         if (field.type === FieldType.Member) {
           // get oiUserIds if oiData and oiData[field.id] exists, otherwise get empty array
-          const oiUnitIds = oiData?oiData[field.id]??[]:[];
-          const odUnitIds = odData?odData[field.id]??[]:[];
+          const oiUnitIds = oiData ? oiData[field.id] ?? [] : [];
+          const odUnitIds = odData ? odData[field.id] ?? [] : [];
           if (oiUnitIds.length === 0 && odUnitIds.length === 0) {
             return;
           }
@@ -2475,7 +2735,6 @@ export class DatasheetOtService {
           }
         }
       });
-    } 
+    }
   }
-
 }

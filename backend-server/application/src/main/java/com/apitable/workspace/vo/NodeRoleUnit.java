@@ -50,15 +50,15 @@ public class NodeRoleUnit {
     @Schema(description = "The number of members of the department. It is returned when the type "
         + "is department", example = "3")
     @JsonSerialize(nullsUsing = NullNumberSerializer.class)
-    private Integer memberCount;
+    private Long memberCount;
 
-    @Schema(description = "Head portrait, returned when the type is member", example = "http"
-        + "://www.apitable.com/image.png")
+    @Schema(description = "Head portrait, returned when the type is member",
+        example = "http://www.apitable.com/image.png")
     @JsonSerialize(nullsUsing = NullStringSerializer.class, using = ImageSerializer.class)
     private String avatar;
 
-    @Schema(description = "Department, returned when the type is member", example = "Operation "
-        + "Department | Product Department | R&D Department")
+    @Schema(description = "Department, returned when the type is member",
+        example = "Operation Department | Product Department | R&D Department")
     private String teams;
 
     @Schema(description = "Role", example = "manager")

@@ -20,6 +20,7 @@ package com.apitable.workspace.service.impl;
 
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
+import com.apitable.automation.service.IAutomationRobotService;
 import com.apitable.base.enums.DatabaseException;
 import com.apitable.control.infrastructure.ControlRoleDict;
 import com.apitable.control.infrastructure.ControlTemplate;
@@ -30,6 +31,7 @@ import com.apitable.control.service.IControlService;
 import com.apitable.core.util.ExceptionUtil;
 import com.apitable.interfaces.billing.facade.EntitlementServiceFacade;
 import com.apitable.interfaces.billing.model.SubscriptionInfo;
+import com.apitable.interfaces.document.facade.DocumentServiceFacade;
 import com.apitable.shared.clock.spring.ClockManager;
 import com.apitable.shared.component.TaskManager;
 import com.apitable.shared.config.properties.LimitProperties;
@@ -75,6 +77,12 @@ public class NodeRubbishServiceImpl implements INodeRubbishService {
     private IDatasheetService iDatasheetService;
 
     @Resource
+    private IAutomationRobotService iAutomationRobotService;
+
+    @Resource
+    private DocumentServiceFacade documentServiceFacade;
+
+    @Resource
     private ISpaceAssetService iSpaceAssetService;
 
     @Resource
@@ -91,6 +99,7 @@ public class NodeRubbishServiceImpl implements INodeRubbishService {
 
     @Resource
     private LimitProperties limitProperties;
+
 
     @Override
     public List<RubbishNodeVo> getRubbishNodeList(String spaceId, Long memberId, Integer size, String lastNodeId, Boolean isOverLimit) {
@@ -155,6 +164,8 @@ public class NodeRubbishServiceImpl implements INodeRubbishService {
         if (CollUtil.isNotEmpty(subNodeIds)) {
             // recovery datasheet
             iDatasheetService.updateIsDeletedStatus(userId, subNodeIds, false);
+            iAutomationRobotService.updateIsDeletedByResourceIds(userId, subNodeIds, false);
+            documentServiceFacade.recover(userId, subNodeIds);
             // Restore the spatial attachment resources of the node
             iSpaceAssetService.updateIsDeletedByNodeIds(subNodeIds, false);
             // Only child nodes are restored, and the original node is handed over to the method of restoring node information.

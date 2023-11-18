@@ -54,13 +54,15 @@ public class SpaceSubscribeVo {
     @Schema(description = "plan name", example = "bronze_no_billing_period")
     private String plan;
 
-    @Schema(description = "added plan names", type = "List", example = "[\"space_capacity_50G_v1\",\"api_usage_20000_v1\"]")
+    @Schema(description = "added plan names", type = "List",
+        example = "[\"space_capacity_50G_v1\",\"api_usage_20000_v1\"]")
     @JsonSerialize(nullsUsing = NullArraySerializer.class)
     private List<String> addOnPlans;
 
     private Long expireAt;
 
-    @Schema(description = "subscription expiration time. if free, it is null.", example = "2019-01-01")
+    @Schema(description = "subscription expiration time. if free, it is null.",
+        example = "2019-01-01")
     @JsonFormat(pattern = DatePattern.NORM_DATE_PATTERN)
     @JsonSerialize(using = LocalDateSerializer.class)
     private LocalDate deadline;
@@ -161,11 +163,13 @@ public class SpaceSubscribeVo {
     @JsonSerialize(nullsUsing = NullBooleanSerializer.class)
     private Boolean blackSpace;
 
-    @Schema(description = "Security Settings - ordinary members perform the invite operation", example = "false")
+    @Schema(description = "Security Settings - ordinary members perform the invite operation",
+        example = "false")
     @JsonSerialize(nullsUsing = NullBooleanSerializer.class)
     private Boolean securitySettingInviteMember;
 
-    @Schema(description = "Security Settings - off station users apply to join the space", example = "false")
+    @Schema(description = "Security Settings - off station users apply to join the space",
+        example = "false")
     @JsonSerialize(nullsUsing = NullBooleanSerializer.class)
     private Boolean securitySettingApplyJoinSpace;
 
@@ -177,15 +181,18 @@ public class SpaceSubscribeVo {
     @JsonSerialize(nullsUsing = NullBooleanSerializer.class)
     private Boolean securitySettingExport;
 
-    @Schema(description = "Security Settings - read only users download attachments", example = "false")
+    @Schema(description = "Security Settings - read only users download attachments",
+        example = "false")
     @JsonSerialize(nullsUsing = NullBooleanSerializer.class)
     private Boolean securitySettingDownloadFile;
 
-    @Schema(description = "Security Settings - read only users copy data off site", example = "false")
+    @Schema(description = "Security Settings - read only users copy data off site",
+        example = "false")
     @JsonSerialize(nullsUsing = NullBooleanSerializer.class)
     private Boolean securitySettingCopyCellData;
 
-    @Schema(description = "Security Settings - display member's mobile phone number", example = "false")
+    @Schema(description = "Security Settings - display member's mobile phone number",
+        example = "false")
     @JsonSerialize(nullsUsing = NullBooleanSerializer.class)
     private Boolean securitySettingMobile;
 
@@ -193,7 +200,20 @@ public class SpaceSubscribeVo {
     @JsonSerialize(nullsUsing = NullNumberSerializer.class)
     private Long maxAuditQueryDays;
 
-    @Schema(description = "complimentary unexpired capacity(unit：byte)", type = "java.lang.String", example = "1024")
+    @Schema(description = "the maximum credit number for ai query(unit: int)", example = "1000")
+    @JsonSerialize(nullsUsing = NullNumberSerializer.class)
+    private Long maxMessageCredits;
+
+    @Schema(description = "the maximum automation count (unit: int)", example = "100")
+    @JsonSerialize(nullsUsing = NullNumberSerializer.class)
+    private Long maxAutomationRunNums;
+
+    @Schema(description = "the maximum Widget count (unit: int)", example = "30")
+    @JsonSerialize(nullsUsing = NullNumberSerializer.class)
+    private Long maxWidgetNums;
+
+    @Schema(description = "complimentary unexpired capacity(unit：byte)", type = "java.lang.String",
+        example = "1024")
     @JsonSerialize(nullsUsing = NullNumberSerializer.class)
     private Long unExpireGiftCapacity;
 
@@ -205,7 +225,8 @@ public class SpaceSubscribeVo {
     @JsonSerialize(nullsUsing = NullBooleanSerializer.class)
     private Boolean securitySettingAddressListIsolation;
 
-    @Schema(description = "Security Settings - prohibit members manage files in the root directory", example = "false")
+    @Schema(description = "Security Settings - prohibit members manage files in the root directory",
+        example = "false")
     @JsonSerialize(nullsUsing = NullBooleanSerializer.class)
     private Boolean securitySettingCatalogManagement;
 

@@ -75,11 +75,14 @@ export interface Tips {
     api_param_phone_field_type_error:                     APIAddRowFailedWrongLengthOfValueClass;
     api_param_rating_field_type_error:                    APIAddRowFailedWrongLengthOfValueClass;
     api_param_record_not_exists:                          APIAddRowFailedWrongLengthOfValueClass;
+    api_param_record_archived:                            APIAddRowFailedWrongLengthOfValueClass;
     api_param_robot_btn_type_error:                       APIAddRowFailedWrongLengthOfValueClass;
     api_param_select_field_value_type_error:              APIAddRowFailedWrongLengthOfValueClass;
     api_param_share_btn_type_error:                       APIAddRowFailedWrongLengthOfValueClass;
     api_param_singletext_field_type_error:                APIAddRowFailedWrongLengthOfValueClass;
+    api_param_sort_missing_field:                         APIAddRowFailedWrongLengthOfValueClass;
     api_param_sort_field_not_exists:                      APIAddRowFailedWrongLengthOfValueClass;
+    api_param_filter_field_not_exists:                    APIAddRowFailedWrongLengthOfValueClass;
     api_param_tabbar_type_error:                          APIAddRowFailedWrongLengthOfValueClass;
     api_param_text_field_type_error:                      APIAddRowFailedWrongLengthOfValueClass;
     api_param_theme_type_error:                           APIAddRowFailedWrongLengthOfValueClass;
@@ -119,7 +122,15 @@ export interface Tips {
     api_params_link_field_recordids_empty_error:          APIAddRowFailedWrongLengthOfValueClass;
     api_params_link_field_recordids_not_exists:           APIAddRowFailedWrongLengthOfValueClass;
     api_params_link_field_records_max_count_error:        APIAddRowFailedWrongLengthOfValueClass;
+    api_params_lookup_related_link_field_not_exists:      APIAddRowFailedWrongLengthOfValueClass;
+    api_params_lookup_related_field_not_link:             APIAddRowFailedWrongLengthOfValueClass;
+    api_params_lookup_target_field_not_exists:            APIAddRowFailedWrongLengthOfValueClass;
+    api_params_lookup_sort_field_not_exists:              APIAddRowFailedWrongLengthOfValueClass;
+    api_params_lookup_field_can_not_sort:                 APIAddRowFailedWrongLengthOfValueClass;
+    api_params_lookup_filter_field_not_exists:            APIAddRowFailedWrongLengthOfValueClass;
+    api_params_lookup_filter_field_invalid_operation:     APIAddRowFailedWrongLengthOfValueClass;
     api_params_lookup_can_not_operate:                    APIAddRowFailedWrongLengthOfValueClass;
+    api_params_workdoc_can_not_operate:                   APIAddRowFailedWrongLengthOfValueClass;
     api_params_max_count_error:                           APIAddRowFailedWrongLengthOfValueClass;
     api_params_max_error:                                 APIAddRowFailedWrongLengthOfValueClass;
     api_params_max_length_error:                          APIAddRowFailedWrongLengthOfValueClass;
@@ -138,6 +149,7 @@ export interface Tips {
     api_params_recordids_empty_error:                     APIAddRowFailedWrongLengthOfValueClass;
     api_params_records_empty_error:                       APIAddRowFailedWrongLengthOfValueClass;
     api_params_records_max_count_error:                   APIAddRowFailedWrongLengthOfValueClass;
+    api_params_tablebundle_max_count_error:               APIAddRowFailedWrongLengthOfValueClass;
     api_params_tree_select_can_not_operate:               APIAddRowFailedWrongLengthOfValueClass;
     api_params_updated_time_can_not_operate:              APIAddRowFailedWrongLengthOfValueClass;
     api_params_updatedby_can_not_operate:                 APIAddRowFailedWrongLengthOfValueClass;
@@ -162,6 +174,25 @@ export interface Tips {
     api_view_filter_operator_value_error:                 APIAddRowFailedWrongLengthOfValueClass;
     api_view_rules_empty_error:                           APIAddRowFailedWrongLengthOfValueClass;
     api_view_type_error:                                  APIAddRowFailedWrongLengthOfValueClass;
+    api_org_enterprise_limit:                             APIAddRowFailedWrongLengthOfValueClass;
+    api_org_permission_team_deny:                         APIAddRowFailedWrongLengthOfValueClass;
+    api_org_permission_member_deny:                       APIAddRowFailedWrongLengthOfValueClass;
+    api_org_team_name_unique_error:                       APIAddRowFailedWrongLengthOfValueClass;
+    api_org_team_delete_error:                            APIAddRowFailedWrongLengthOfValueClass;
+    api_org_permission_role_deny:                         APIAddRowFailedWrongLengthOfValueClass;
+    api_org_role_name_unique_error:                       APIAddRowFailedWrongLengthOfValueClass;
+    api_org_role_delete_error:                            APIAddRowFailedWrongLengthOfValueClass;
+    api_org_member_team_error:                            APIAddRowFailedWrongLengthOfValueClass;
+    api_org_update_deny_for_social_space:                 APIAddRowFailedWrongLengthOfValueClass;
+    api_org_member_role_error:                            APIAddRowFailedWrongLengthOfValueClass;
+    api_org_member_delete_primary_admin_error:            APIAddRowFailedWrongLengthOfValueClass;
+    api_param_unit_name_required:                         APIAddRowFailedWrongLengthOfValueClass;
+    api_param_sequence_type_error:                        APIAddRowFailedWrongLengthOfValueClass;
+    api_param_parent_unit_not_exists:                     APIAddRowFailedWrongLengthOfValueClass;
+    api_param_unit_id_required:                           APIAddRowFailedWrongLengthOfValueClass;
+    api_param_widget_id_not_exists:                       APIAddRowFailedWrongLengthOfValueClass;
+    api_params_widget_package_id_error:                   APIAddRowFailedWrongLengthOfValueClass;
+    api_widget_number_limit:                              APIAddRowFailedWrongLengthOfValueClass;
 }
 
 export interface APIAddRowFailedWrongLengthOfValueClass {

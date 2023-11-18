@@ -82,7 +82,12 @@ public enum FieldType {
 
     LAST_MODIFIED_BY(24),
 
-    CASCADER(25);
+    CASCADER(25),
+
+    ONE_WAY_LINK(26),
+
+    WORK_DOC(27),
+    ;
 
     private final int fieldType;
 

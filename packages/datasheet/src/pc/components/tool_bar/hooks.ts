@@ -18,8 +18,9 @@
 
 import { Selectors, StoreActions, ToolBarMenuCardOpenState } from '@apitable/core';
 import { useAppDispatch } from 'pc/hooks/use_app_dispatch';
-import { useSelector } from 'react-redux';
 import { ToolHandleType } from './interface';
+
+import {useAppSelector} from "pc/store/react-redux";
 
 export const ToolbarMap = {
   [ToolBarMenuCardOpenState.RowHeight]: ToolHandleType.ChangeRowHeight,
@@ -52,7 +53,7 @@ export const ToolbarReMap = {
 
 export function useToolbarMenuCardOpen(type: ToolHandleType) {
   const dispatch = useAppDispatch();
-  const toolbarMenuCardState = useSelector(state => Selectors.getToolbarMenuCardState(state));
+  const toolbarMenuCardState = useAppSelector((state) => Selectors.getToolbarMenuCardState(state));
   const toolHandleType = ToolbarMap[toolbarMenuCardState];
 
   const setToolbarMenuCardOpen = (open: boolean) => {
@@ -72,11 +73,10 @@ export function useToolbarMenuCardOpen(type: ToolHandleType) {
 }
 
 export const useDisabledOperateWithMirror = () => {
-  return useSelector(state => {
+  return useAppSelector((state) => {
     const mirrorId = state.pageParams.mirrorId;
-    const spaceManualSaveViewIsOpen = state.labs.includes('view_manual_save') ||
-      Boolean(state.share.featureViewManualSave) ||
-      Boolean(state.embedInfo?.viewManualSave);
+    const spaceManualSaveViewIsOpen =
+      state.labs.includes('view_manual_save') || Boolean(state.share.featureViewManualSave) || Boolean(state.embedInfo?.viewManualSave);
     if (!mirrorId) {
       return false;
     }

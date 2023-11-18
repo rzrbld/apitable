@@ -16,26 +16,28 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { integrateCdnHost, Settings, Strings, t } from '@apitable/core';
-import { Button, useThemeColors, ThemeName } from '@apitable/components';
-import { CheckOutlined } from '@apitable/icons';
 import classNames from 'classnames';
 import { difference } from 'lodash';
 import Image from 'next/image';
-import { Tooltip } from 'pc/components/common';
 import * as React from 'react';
 import { useState } from 'react';
+import { Button, useThemeColors, ThemeName } from '@apitable/components';
+import { integrateCdnHost, Settings, Strings, t } from '@apitable/core';
+import { CheckOutlined } from '@apitable/icons';
+// eslint-disable-next-line no-restricted-imports
+import { Tooltip } from 'pc/components/common';
 import NotDataImgDark from 'static/icon/datasheet/empty_state_dark.png';
 import NotDataImgLight from 'static/icon/datasheet/empty_state_light.png';
 import { INodeInstalledWidget } from '../interface';
 import styles from './style.module.less';
-import { useSelector } from 'react-redux';
+
+import {useAppSelector} from "pc/store/react-redux";
 
 interface IWidgetPreviewProps {
   onChange(result: { datasheetId?: string; viewId?: string; widgetIds?: string[] }): void;
   installedWidgets: INodeInstalledWidget[];
 }
-export const WidgetPreview: React.FC<React.PropsWithChildren<IWidgetPreviewProps>> = props => {
+export const WidgetPreview: React.FC<React.PropsWithChildren<IWidgetPreviewProps>> = (props) => {
   const { onChange, installedWidgets } = props;
   const [selectedWidgetIds, setSelectedWidgetIds] = useState<string[]>([]);
   const colors = useThemeColors();
@@ -46,7 +48,7 @@ export const WidgetPreview: React.FC<React.PropsWithChildren<IWidgetPreviewProps
       setSelectedWidgetIds([...selectedWidgetIds, id]);
     }
   };
-  const themeName = useSelector(state => state.theme);
+  const themeName = useAppSelector((state) => state.theme);
   const templateEmptyPng = themeName === ThemeName.Light ? NotDataImgLight : NotDataImgDark;
   return (
     <div className={styles.widgetList}>
@@ -54,7 +56,7 @@ export const WidgetPreview: React.FC<React.PropsWithChildren<IWidgetPreviewProps
       <div className={styles.widgetListWrap}>
         <div className={styles.scroll}>
           {installedWidgets.length ? (
-            installedWidgets.map(item => {
+            installedWidgets.map((item) => {
               return (
                 <div
                   key={item.widgetId}
@@ -75,11 +77,7 @@ export const WidgetPreview: React.FC<React.PropsWithChildren<IWidgetPreviewProps
                     <div className={styles.widgetIconBox}>
                       <Image src={item.widgetPackageIcon} alt="" width={16} height={16} />
                     </div>
-                    <img
-                      src={item.widgetPackageCover || integrateCdnHost(Settings.widget_default_cover_img.value)}
-                      alt=""
-                      width={'100%'}
-                    />
+                    <img src={item.widgetPackageCover || integrateCdnHost(Settings.widget_default_cover_img.value)} alt="" width={'100%'} />
                   </div>
                   <div className={styles.checked}>
                     <CheckOutlined color={colors.defaultBg} size={16} />

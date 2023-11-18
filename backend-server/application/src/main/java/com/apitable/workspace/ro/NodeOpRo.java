@@ -22,6 +22,7 @@ import cn.hutool.core.util.StrUtil;
 import com.apitable.shared.sysconfig.i18n.I18nStringsUtil;
 import com.apitable.workspace.enums.NodeType;
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.util.List;
 import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotBlank;
@@ -42,7 +43,7 @@ import lombok.NoArgsConstructor;
 @Schema(description = "Node Request Parameters")
 public class NodeOpRo {
 
-    @Schema(description = "Parent Node Id", example = "nod10", required = true)
+    @Schema(description = "Parent Node Id", example = "nod10", requiredMode = Schema.RequiredMode.REQUIRED)
     @NotBlank(message = "The parent node ID cannot be empty")
     private String parentId;
 
@@ -50,11 +51,10 @@ public class NodeOpRo {
     @Size(max = 100, message = "The name length cannot exceed 100 bits")
     private String nodeName;
 
-    @Schema(description = "Type. 1: folder; 2: DataSheet; 3: Form; 4: Dashboard; 5: Mirror",
-        example = "1", required = true)
+    @Schema(description = "Type. 1: folder; 2: DataSheet; 3: Form; 4: Dashboard; 5: Mirror, 10: Automation", example = "1", requiredMode = Schema.RequiredMode.REQUIRED)
     @NotNull(message = "Type cannot be empty")
     @Min(value = 1, message = "Error in type")
-    @Max(value = 5, message = "Error in type")
+    @Max(value = 10, message = "Error in type")
     private Integer type;
 
     @Schema(description = "The previous node of the target position moves to the first position "
@@ -63,6 +63,7 @@ public class NodeOpRo {
 
     @Schema(description = "Other information")
     private NodeRelRo extra;
+
     @Schema(description = "Whether to detect duplicate node names", example = "true")
     private Boolean checkDuplicateName;
 
@@ -79,11 +80,26 @@ public class NodeOpRo {
             case DATASHEET:
             case FORM: // The name of the magic form is transmitted from the front end
             case DASHBOARD:
-            case MIRROR: // The image name is transmitted from the front end
+            case MIRROR:
+            case AI_CHAT_BOT:
+            case AUTOMATION:
+                // The image name is transmitted from the front end
                 // default_create_'key' Configure in the strings table
                 return I18nStringsUtil.t("default_create_" + nodeType.name().toLowerCase());
             default:
                 return I18nStringsUtil.t("default_create_file");
         }
+    }
+
+    /**
+     * create an AI ChatBot object param.
+     */
+    @Data
+    @Builder(toBuilder = true)
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class AiChatBotCreateParam {
+
+        private List<AiDatasheetNodeSettingParam> datasheet;
     }
 }

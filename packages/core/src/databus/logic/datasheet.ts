@@ -33,10 +33,10 @@ import {
   IMoveView,
   ISetRecordOptions
 } from 'commands';
-import { IRecordMap, IReduxState, IServerDatasheetPack, ISnapshot, IViewProperty, Selectors } from 'exports/store';
+import { IRecordMap, IReduxState, IServerDatasheetPack, ISnapshot, IViewProperty, Selectors, StoreActions } from 'exports/store';
 import { Store } from 'redux';
 import { IField, ResourceType } from 'types';
-import { Field } from '.';
+import { Field } from './field';
 import { IDataSaver, ILoadDatasheetPackOptions, ISaveOpsOptions, IStoreOptions } from '../providers';
 import { IResource } from './resource.interface';
 import { IAddRecordsOptions, IViewOptions, View } from './view';
@@ -117,6 +117,9 @@ export class Datasheet implements IResource {
    * @deprecated This method is not intended for public use.
    */
   public async doCommand<R>(command: ICollaCommandOptions, saveOptions: ISaveOptions): Promise<ICommandExecutionResult<R>> {
+    if (saveOptions['prependOps'] && saveOptions['prependOps'].length > 0) {
+      this.store.dispatch(StoreActions.applyJOTOperations(saveOptions['prependOps'], this.type, this.id));
+    }
     const result = this._commandManager.execute<R>(command);
     if (result.result === ExecuteResult.Success) {
       const saveResult = await this.saver.saveOps(result.resourceOpsCollects, {
@@ -151,6 +154,18 @@ export class Datasheet implements IResource {
       },
       saveOptions,
     );
+  }
+
+  /**
+   * render the cell value
+   *
+   * @param fieldId datasheet field id
+   * @param recordId datasheet record id
+   *
+   * @return cell stringify value
+   */
+  public cellValue(fieldId: string, recordId: string): string {
+    return Selectors.getStringifyCellValue(this.store.getState(), this.snapshot, recordId, fieldId);
   }
 
   /**

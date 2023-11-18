@@ -16,25 +16,35 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { ITheme, Select, useTheme } from '@apitable/components';
+import { ITheme, DropdownSelect as Select, useTheme } from '@apitable/components';
 import { FieldType, IField } from '@apitable/core';
 import {
-  UserOutlined, AttachmentOutlined,
+  UserOutlined,
+  AttachmentOutlined,
   AutonumberOutlined,
-  CalendarOutlined, CheckboxOutlined,
+  CalendarOutlined,
+  CheckboxOutlined,
   UserAddOutlined,
   TimeOutlined,
   CurrencyUsdOutlined,
   EmailOutlined,
-  NumberOutlined, FormulaOutlined,
-  UserEditOutlined, HistoryFilled,
-  LinktableOutlined,
+  NumberOutlined,
+  FormulaOutlined,
+  UserEditOutlined,
+  HistoryFilled,
+  TwoWayLinkOutlined,
+  OneWayLinkOutlined,
   LongtextOutlined,
-  LookupOutlined, SelectMultipleOutlined, PercentOutlined,
+  LookupOutlined,
+  SelectMultipleOutlined,
+  PercentOutlined,
   TelephoneOutlined,
-  StarOutlined, SelectSingleOutlined, TextOutlined,
+  StarOutlined,
+  SelectSingleOutlined,
+  TextOutlined,
   LinkOutlined,
-  LockFilled, CascadeOutlined,
+  LockFilled,
+  CascadeOutlined,
 } from '@apitable/icons';
 
 const FieldIconMap = {
@@ -45,7 +55,8 @@ const FieldIconMap = {
   [FieldType.MultiSelect]: SelectMultipleOutlined,
   [FieldType.DateTime]: CalendarOutlined,
   [FieldType.Attachment]: AttachmentOutlined,
-  [FieldType.Link]: LinktableOutlined,
+  [FieldType.Link]: TwoWayLinkOutlined,
+  [FieldType.OneWayLink]: OneWayLinkOutlined,
   [FieldType.URL]: LinkOutlined,
   [FieldType.Email]: EmailOutlined,
   [FieldType.Phone]: TelephoneOutlined,
@@ -66,8 +77,7 @@ const FieldIconMap = {
 };
 
 const transformOptions = (fields: IField[], theme: ITheme) => {
-
-  return fields.map(field => {
+  return fields.map((field) => {
     const res = {
       label: field.name,
       value: field.id,
@@ -76,7 +86,7 @@ const transformOptions = (fields: IField[], theme: ITheme) => {
     return {
       ...res,
       disabled: field.type === FieldType.DeniedField,
-      prefixIcon: <FieldIcon color={theme.palette.text.third} />,
+      prefixIcon: <FieldIcon color={theme.color.fc3} />,
     };
   });
 };
@@ -84,13 +94,15 @@ const transformOptions = (fields: IField[], theme: ITheme) => {
 interface IFieldSelectProps {
   fields: IField[];
   value: string;
+  disabled?: boolean;
   onChange?: (value: any) => void;
 }
-export const FieldSelect = ({ fields, value, onChange }: IFieldSelectProps) => {
+export const FieldSelect = ({ disabled, fields, value, onChange }: IFieldSelectProps) => {
   const theme = useTheme();
   const options = transformOptions(fields, theme);
-  return <>
+  return (
     <Select
+      disabled={disabled}
       options={options}
       value={value}
       onSelected={(option) => {
@@ -105,5 +117,5 @@ export const FieldSelect = ({ fields, value, onChange }: IFieldSelectProps) => {
       dropdownMatchSelectWidth
       openSearch={options.length > 7}
     />
-  </>;
+  );
 };

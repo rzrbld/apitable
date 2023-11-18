@@ -44,8 +44,8 @@ public interface PlayerNotificationMapper extends BaseMapper<PlayerNotificationE
      * @return NotificationModelDto List
      */
     List<NotificationModelDTO> selectPlayerNotificationPage(
-            @Param("notificationPageRo") NotificationPageRo notificationPageRo, @Param("toUser") Long toUser,
-            @Param("totalCount") Integer totalCount);
+        @Param("notificationPageRo") NotificationPageRo notificationPageRo,
+        @Param("toUser") Long toUser, @Param("totalCount") Integer totalCount);
 
     /**
      * Batch insert
@@ -140,7 +140,7 @@ public interface PlayerNotificationMapper extends BaseMapper<PlayerNotificationE
      * @param toUser user id
      * @return List<NotificationModelDto>
      */
-    List<NotificationModelDTO> selectDtoByTypeAndIsRead(@Param("toUser") Long toUser, @Param("isRead") Integer isRead);
+    List<NotificationModelDTO> selectDtoByTypeAndIsRead(@Param("toUser") Long toUser, @Param("isRead") Boolean isRead);
 
     /**
      * Batch delete by condition

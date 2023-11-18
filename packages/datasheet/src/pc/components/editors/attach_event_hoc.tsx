@@ -16,20 +16,22 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { DATASHEET_ID, ICell, Selectors, StoreActions, Strings, t } from '@apitable/core';
 import { useUpdateEffect } from 'ahooks';
+import * as React from 'react';
+import { useEffect, useRef } from 'react';
+import { shallowEqual, useDispatch } from 'react-redux';
+import { batchActions } from 'redux-batched-actions';
+import { DATASHEET_ID, ICell, Selectors, StoreActions, Strings, t } from '@apitable/core';
 import { Message } from 'pc/components/common/message';
 import { useMemorizePreviousValue } from 'pc/hooks';
 import { store } from 'pc/store';
 import { CELL_CLASS, FIELD_HEAD_CLASS, isTouchDevice, OPACITY_LINE_CLASS, OPERATE_HEAD_CLASS } from 'pc/utils';
 import { getClickCellId, getElementDataset, getParentNodeByClass } from 'pc/utils/dom';
-import * as React from 'react';
-import { useEffect, useRef } from 'react';
-import { shallowEqual, useDispatch, useSelector } from 'react-redux';
-import { batchActions } from 'redux-batched-actions';
 import { expandRecordIdNavigate } from '../expand_record';
 import { useAttachEvent } from '../konva_grid';
 import { IContainerEdit } from './interface';
+
+import {useAppSelector} from "pc/store/react-redux";
 
 interface IScrollToItem {
   align?: 'auto' | 'smart' | 'center' | 'end' | 'start';
@@ -47,7 +49,7 @@ export interface IEditorContainerOwnProps {
 const GRID_VIEWS_ID = 'gridViews';
 
 export const attachEventHoc = (WrapperComponent: any) => {
-  const AttachEvent: React.FC<React.PropsWithChildren<IEditorContainerOwnProps>> = props => {
+  const AttachEvent: React.FC<React.PropsWithChildren<IEditorContainerOwnProps>> = (props) => {
     const dispatch = useDispatch();
     const { scrollToItem } = props;
     const containerRef = useRef<IContainerEdit | null>(null);
@@ -66,7 +68,7 @@ export const attachEventHoc = (WrapperComponent: any) => {
       isSearching,
       fieldRanges,
       fieldIndexMap,
-    } = useSelector(state => {
+    } = useAppSelector((state) => {
       return {
         selection: Selectors.getSelection(state),
         activeCell: Selectors.getActiveCell(state),
@@ -85,7 +87,7 @@ export const attachEventHoc = (WrapperComponent: any) => {
       };
     }, shallowEqual);
 
-    const isSideRecordOpen = useSelector(state => state.space.isSideRecordOpen);
+    const isSideRecordOpen = useAppSelector((state) => state.space.isSideRecordOpen);
 
     const { handleForCell, handleForFillBar, handleForHeader, handleForOperateColumn, handleForOtherArea } = useAttachEvent({
       datasheetId,
@@ -145,7 +147,7 @@ export const attachEventHoc = (WrapperComponent: any) => {
         return;
       }
 
-      const isEditColumnExit = columns.some(item => {
+      const isEditColumnExit = columns.some((item) => {
         return item.fieldId === isEditCell.fieldId;
       });
 

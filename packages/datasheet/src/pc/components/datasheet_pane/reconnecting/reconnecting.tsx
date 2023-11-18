@@ -16,17 +16,18 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import * as React from 'react';
 import { Modal } from 'antd';
-import { useSelector } from 'react-redux';
+import * as React from 'react';
 import { useThemeColors } from '@apitable/components';
-import styles from './styles.module.less';
 import { t, Strings } from '@apitable/core';
 import { WarnCircleFilled } from '@apitable/icons';
+import styles from './styles.module.less';
+
+import {useAppSelector} from "pc/store/react-redux";
 
 export const Reconnecting: React.FC<React.PropsWithChildren<unknown>> = () => {
   const colors = useThemeColors();
-  const reconnecting = useSelector(state => {
+  const reconnecting = useAppSelector((state) => {
     return state.space.reconnecting;
   });
   return (
@@ -42,7 +43,11 @@ export const Reconnecting: React.FC<React.PropsWithChildren<unknown>> = () => {
         pointerEvents: 'none',
       }}
       footer={null}
-      title={<><WarnCircleFilled color={colors.warningColor} /> {t(Strings.disconnect_from_the_server)}</>}
+      title={
+        <>
+          <WarnCircleFilled color={colors.warningColor} /> {t(Strings.disconnect_from_the_server)}
+        </>
+      }
     >
       {t(Strings.try_my_best_effort_to_reconnect)}
     </Modal>

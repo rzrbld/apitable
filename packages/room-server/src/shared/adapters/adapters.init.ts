@@ -25,31 +25,51 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import * as Sentry from '@sentry/node';
 import * as Tracing from '@sentry/tracing';
 import { Client } from '@sentry/types';
-import { disableHSTS, enableAutomationWorker, enableScheduler, enableSocket, enableSwagger, isDevMode, PROJECT_DIR } from 'app.environment';
-import { FlowWorker } from 'automation/workers';
+import { disableHSTS, enableHocuspocus, enableSocket, enableSwagger, isDevMode, PROJECT_DIR } from 'app.environment';
 import { DatabaseModule } from 'database/database.module';
-import { DatasheetMetaService } from 'database/datasheet/services/datasheet.meta.service';
-import { DatasheetService } from 'database/datasheet/services/datasheet.service';
 import { DeveloperService } from 'developer/services/developer.service';
 import { FastifyInstance } from 'fastify';
 import helmet from 'fastify-helmet';
 import fastifyMultipart from 'fastify-multipart';
 import {
-  CheckboxFieldPropertyDto, CurrencyFieldPropertyDto, DateTimeFieldPropertyDto, FormulaFieldPropertyDto, LinkFieldPropertyDto, LookupFieldPropertyDto,
-  MemberFieldPropertyDto, NumberFieldPropertyDto, RatingFieldPropertyDto, SelectFieldPropertyDto, SingleTextPropertyDto, UserPropertyDto,
+  CheckboxFieldPropertyDto,
+  CurrencyFieldPropertyDto,
+  DateTimeFieldPropertyDto,
+  FormulaFieldPropertyDto,
+  LinkFieldPropertyDto,
+  LookupFieldPropertyDto,
+  MemberFieldPropertyDto,
+  NumberFieldPropertyDto,
+  RatingFieldPropertyDto,
+  SelectFieldPropertyDto,
+  SingleTextPropertyDto,
+  UserPropertyDto,
 } from 'fusion/dtos/field.property.dto';
 import { protobufPackage } from 'grpc/generated/serving/SocketServingService';
 import { HelmetOptions } from 'helmet';
 import { NodeRepository } from 'node/repositories/node.repository';
 import path, { join } from 'path';
 import { APPLICATION_NAME, BootstrapConstants } from 'shared/common/constants/bootstrap.constants';
-import { SocketConstants } from 'shared/common/constants/socket.module.constants';
+import { GatewayConstants, SocketConstants } from 'shared/common/constants/socket.module.constants';
 import { RedisIoAdapter } from 'socket/adapter/redis/redis-io.adapter';
 import { SocketIoService } from 'socket/services/socket-io/socket-io.service';
+import { HocuspocusBaseService } from 'workdoc/services/hocuspocus.base.service';
 import {
-  AUTHORIZATION_PREFIX, DATASHEET_ENRICH_SELECT_FIELD, DATASHEET_HTTP_DECORATE, DATASHEET_LINKED, DATASHEET_MEMBER_FIELD,
-  DATASHEET_META_HTTP_DECORATE, GRPC_MAX_PACKAGE_SIZE, NODE_INFO, REQUEST_AT, REQUEST_HOOK_FOLDER, REQUEST_HOOK_PRE_NODE, REQUEST_ID, SERVER_TIME,
-  SPACE_ID_HTTP_DECORATE, SwaggerConstants, USER_HTTP_DECORATE,
+  AUTHORIZATION_PREFIX,
+  DATASHEET_ENRICH_SELECT_FIELD,
+  DATASHEET_LINKED,
+  DATASHEET_MEMBER_FIELD,
+  DATASHEET_META_HTTP_DECORATE,
+  GRPC_MAX_PACKAGE_SIZE,
+  NODE_INFO,
+  REQUEST_AT,
+  REQUEST_HOOK_FOLDER,
+  REQUEST_HOOK_PRE_NODE,
+  REQUEST_ID,
+  SERVER_TIME,
+  SPACE_ID_HTTP_DECORATE,
+  SwaggerConstants,
+  USER_HTTP_DECORATE,
 } from '../common';
 import { FusionApiVersion } from '../enums';
 
@@ -86,10 +106,10 @@ export const initSwagger = (app: INestApplication) => {
   }
 };
 
-export const initFastify = async (): Promise<FastifyAdapter> => {
+export const initFastify = async(): Promise<FastifyAdapter> => {
   const fastifyAdapter = new FastifyAdapter({ logger: isDevMode, bodyLimit: GRPC_MAX_PACKAGE_SIZE });
-  await fastifyAdapter.register(fastifyMultipart);
-  // registe helmet in fastify to avoid conflict with swagger
+  await fastifyAdapter.register(fastifyMultipart as any);
+  // register helmet in fastify to avoid conflict with swagger
   let helmetOptions: HelmetOptions = {
     // update script-src to be compatible with swagger
     contentSecurityPolicy: {
@@ -109,9 +129,9 @@ export const initFastify = async (): Promise<FastifyAdapter> => {
     },
   };
   if (disableHSTS) {
-    helmetOptions = { ...helmetOptions, hsts: false };
+    helmetOptions = { ...helmetOptions, hsts: false } as any;
   }
-  await fastifyAdapter.register(helmet, helmetOptions);
+  await fastifyAdapter.register(helmet as any, helmetOptions);
 
   return fastifyAdapter;
 };
@@ -128,12 +148,13 @@ export const initHttpHook = (app: INestApplication) => {
   fastify.decorateRequest(REQUEST_ID, null);
   fastify.decorateRequest(REQUEST_AT, null);
 
-  fastify.addHook('preHandler', async request => {
+  fastify.addHook('preHandler', async(request) => {
     request[REQUEST_AT] = Date.now();
     request[REQUEST_ID] = generateRandomString();
-    if (request.headers.authorization) {
+    if (request.headers.authorization && request.headers.authorization.startsWith(AUTHORIZATION_PREFIX)) {
       const developerService = app.select(DatabaseModule).get(DeveloperService);
-      request[USER_HTTP_DECORATE] = await developerService.getUserInfoByApiKey(request.headers.authorization.substr(AUTHORIZATION_PREFIX.length));
+      const apiKey = request.headers.authorization.slice(AUTHORIZATION_PREFIX.length);
+      request[USER_HTTP_DECORATE] = await developerService.getUserInfoByApiKey(apiKey);
     }
     if ((request.params as any)['spaceId']) {
       request[SPACE_ID_HTTP_DECORATE] = (request.params as any)['spaceId'];
@@ -146,32 +167,15 @@ export const initHttpHook = (app: INestApplication) => {
         request[SPACE_ID_HTTP_DECORATE] = nodeInfo.spaceId;
       }
     }
-    // datasheetId param should be defined in the fusion api controller by query parameter(datasheets/:datasheetId)
-    if ((request.params as any)['datasheetId']) {
-      const datasheetService = app.select(DatabaseModule).get(DatasheetService);
-      const datasheet = await datasheetService.getDatasheet((request.params as any)['datasheetId']);
-      if (datasheet) {
-        // TODO: should be optimized
-        request[DATASHEET_HTTP_DECORATE] = datasheet;
-        request[SPACE_ID_HTTP_DECORATE] = datasheet.spaceId;
-        const metaService = app.select(DatabaseModule).get(DatasheetMetaService);
-        request[DATASHEET_META_HTTP_DECORATE] = await metaService.getMetaDataByDstId((request.params as any)['datasheetId']);
-        request[DATASHEET_LINKED] = {};
-        request[DATASHEET_ENRICH_SELECT_FIELD] = {};
-        request[DATASHEET_MEMBER_FIELD] = new Set();
-      }
-    }
     if (request.body && request.body['folderId']) {
       const nodeRepository = app.select(DatabaseModule).get(NodeRepository);
       const folderId = request.body['folderId'];
-      const folder = await nodeRepository.getNodeInfo(folderId);
-      request[REQUEST_HOOK_FOLDER] = folder;
+      request[REQUEST_HOOK_FOLDER] = await nodeRepository.getNodeInfo(folderId);
     }
     if (request.body && request.body['preNodeId']) {
       const nodeRepository = app.select(DatabaseModule).get(NodeRepository);
       const preNodeId = request.body['preNodeId'];
-      const preNode = await nodeRepository.getNodeInfo(preNodeId);
-      request[REQUEST_HOOK_PRE_NODE] = preNode;
+      request[REQUEST_HOOK_PRE_NODE] = await nodeRepository.getNodeInfo(preNodeId);
     }
     return;
   });
@@ -198,7 +202,7 @@ export const initSentry = (_app: INestApplication) => {
       new Sentry.Integrations.Http({ tracing: true }),
       new Tracing.Integrations.Mysql(),
       new Sentry.Integrations.OnUncaughtException({
-        onFatalError: err => {
+        onFatalError: (err) => {
           if (err.name === 'SentryError') {
             console.log(err);
           } else {
@@ -227,10 +231,7 @@ export const initRoomGrpc = (logger: LoggerService, app: INestApplication) => {
       // 100M
       maxSendMessageLength: GRPC_MAX_PACKAGE_SIZE,
       maxReceiveMessageLength: GRPC_MAX_PACKAGE_SIZE,
-      protoPath: [
-        join(PROJECT_DIR, 'grpc/generated/serving/RoomServingService.proto'),
-        join(PROJECT_DIR, 'grpc/generated/common/Core.proto')
-      ],
+      protoPath: [join(PROJECT_DIR, 'grpc/generated/serving/RoomServingService.proto'), join(PROJECT_DIR, 'grpc/generated/common/Core.proto')],
       loader: {
         json: true,
       },
@@ -279,9 +280,11 @@ export const initRedisIoAdapter = (app: INestApplication) => {
   return app;
 };
 
-export const initAutomationWorker =  (app: INestApplication) => {
-  if(enableScheduler || enableAutomationWorker) {
-    const flowWorker = app.get(FlowWorker);
-    flowWorker.start();
+export const initHocuspocus = (app: INestApplication) => {
+  if (!enableHocuspocus) {
+    return;
   }
-}
+  const hocuspocusBaseService = app.get(HocuspocusBaseService);
+  const server = hocuspocusBaseService.init(GatewayConstants.DOCUMENT_PORT);
+  server.listen();
+};

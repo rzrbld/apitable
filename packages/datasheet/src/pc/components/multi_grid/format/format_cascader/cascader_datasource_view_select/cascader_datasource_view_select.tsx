@@ -1,11 +1,12 @@
+// eslint-disable-next-line no-restricted-imports
 import { IOption, Select, useThemeColors } from '@apitable/components';
 import { IReduxState, Selectors, Strings, t } from '@apitable/core';
 import { GridOutlined } from '@apitable/icons';
-import { useSelector } from 'react-redux';
 
 import { IFormatCascaderProps } from '../format_cascader_select';
-
 import styles from './styles.module.less';
+
+import {useAppSelector} from "pc/store/react-redux";
 
 export const CascaderDatasourceViewSelect = ({
   currentField,
@@ -17,7 +18,7 @@ export const CascaderDatasourceViewSelect = ({
 
   const colors = useThemeColors();
 
-  const linkedDatasheet = useSelector((state: IReduxState) => (propLinkedDatasheetId ? Selectors.getDatasheet(state, propLinkedDatasheetId) : null));
+  const linkedDatasheet = useAppSelector((state: IReduxState) => (propLinkedDatasheetId ? Selectors.getDatasheet(state, propLinkedDatasheetId) : null));
 
   const onSelectDatasourceView = (option: IOption) => {
     setCurrentField({

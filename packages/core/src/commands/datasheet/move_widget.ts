@@ -18,7 +18,7 @@
 
 import { ResourceType } from 'types';
 import { ExecuteResult, ICollaCommandDef, ICollaCommandExecuteContext } from '../../command_manager';
-import { DatasheetActions } from '../../model/datasheet';
+import { DatasheetActions } from '../../commands_actions/datasheet';
 import { CollaCommandName } from '..';
 import { getResourceWidgetPanels } from '../../exports/store/selectors';
 import { IWidgetInPanel } from '../../exports/store';
@@ -35,7 +35,7 @@ export const moveWidget: ICollaCommandDef<IMoveWidget> = {
   undoable: false,
 
   execute(context: ICollaCommandExecuteContext, options: IMoveWidget) {
-    const { model: state } = context;
+    const { state: state } = context;
     const { layout, panelId, resourceType, resourceId } = options;
     const widgetPanels = getResourceWidgetPanels(state, resourceId, resourceType);
 

@@ -16,14 +16,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { Strings, t } from '@apitable/core';
-import { uploadAttachToS3, UploadType } from '@apitable/widget-sdk';
 import { Spin } from 'antd';
 import classnames from 'classnames';
 import Image from 'next/image';
-import { ICropShape, ICustomTip, ImageCropUpload, IPreviewShape, ISelectInfo, Message } from 'pc/components/common';
 import * as React from 'react';
 import { useState } from 'react';
+import { Strings, t } from '@apitable/core';
+import { uploadAttachToS3, UploadType } from '@apitable/widget-sdk';
+import { ICropShape, ICustomTip, ImageCropUpload, IPreviewShape, ISelectInfo, Message } from 'pc/components/common';
 import EmptyState from 'static/icon/datasheet/emptystates.png';
 import styles from './style.module.less';
 
@@ -33,7 +33,7 @@ export enum IFileType {
 }
 
 interface IImgBaseUploader {
-  formId: string;
+  nodeId: string;
   visible: boolean;
   imgUrl: string | undefined;
   fileLimit?: number;
@@ -45,9 +45,9 @@ interface IImgBaseUploader {
   onChange: (file: any, type: IFileType) => void;
 }
 
-export const ImgBaseUploader: React.FC<React.PropsWithChildren<IImgBaseUploader>> = props => {
+export const ImgBaseUploader: React.FC<React.PropsWithChildren<IImgBaseUploader>> = (props) => {
   const {
-    formId,
+    nodeId,
     visible,
     imgUrl,
     cropShape,
@@ -61,9 +61,9 @@ export const ImgBaseUploader: React.FC<React.PropsWithChildren<IImgBaseUploader>
   const [coverLoading, setCoverLoading] = useState(false);
 
   const uploadCoverImg = (file: File) => {
-    if (!formId) return false;
+    if (!nodeId) return false;
     setCoverLoading(true);
-    uploadFile(file, formId);
+    uploadFile(file, nodeId);
     return false;
   };
 
@@ -72,7 +72,7 @@ export const ImgBaseUploader: React.FC<React.PropsWithChildren<IImgBaseUploader>
       file: file,
       fileType: UploadType.CoverImage,
       nodeId,
-    }).then(res => {
+    }).then((res) => {
       const { success, data } = res.data;
       if (success) {
         onChange(data, IFileType.Custom);
@@ -94,13 +94,16 @@ export const ImgBaseUploader: React.FC<React.PropsWithChildren<IImgBaseUploader>
     }
   };
 
-  const previewImgConfig = previewShape === IPreviewShape.Square ? {
-    width: 200,
-    height: 200,
-  } : {
-    width: 210,
-    height: 70,
-  };
+  const previewImgConfig =
+    previewShape === IPreviewShape.Square
+      ? {
+        width: 200,
+        height: 200,
+      }
+      : {
+        width: 210,
+        height: 70,
+      };
 
   return (
     <div className={styles.uploadContainer}>
@@ -128,7 +131,7 @@ export const ImgBaseUploader: React.FC<React.PropsWithChildren<IImgBaseUploader>
         customTips={customTips}
         officialImgs={officialImgs}
         cancel={() => setVisible(false)}
-        confirm={data => uploadConfirm(data)}
+        confirm={(data) => uploadConfirm(data)}
         fileLimit={fileLimit}
       />
     </div>

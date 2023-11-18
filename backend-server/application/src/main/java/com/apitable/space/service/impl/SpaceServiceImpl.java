@@ -39,11 +39,18 @@ import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.apitable.asset.service.IAssetService;
+import com.apitable.automation.service.impl.AutomationRobotServiceImpl;
 import com.apitable.base.enums.DatabaseException;
+import com.apitable.core.exception.BusinessException;
 import com.apitable.core.util.ExceptionUtil;
 import com.apitable.core.util.SpringContextHolder;
 import com.apitable.core.util.SqlTool;
+import com.apitable.interfaces.ai.facade.AiServiceFacade;
+import com.apitable.interfaces.ai.model.ChartTimeDimension;
+import com.apitable.interfaces.ai.model.CreditInfo;
+import com.apitable.interfaces.ai.model.CreditTransactionChartData;
 import com.apitable.interfaces.billing.facade.EntitlementServiceFacade;
+import com.apitable.interfaces.billing.model.DefaultSubscriptionInfo;
 import com.apitable.interfaces.billing.model.SubscriptionFeature;
 import com.apitable.interfaces.billing.model.SubscriptionInfo;
 import com.apitable.interfaces.social.facade.SocialServiceFacade;
@@ -61,6 +68,7 @@ import com.apitable.organization.service.ITeamMemberRelService;
 import com.apitable.organization.service.ITeamService;
 import com.apitable.organization.service.IUnitService;
 import com.apitable.shared.cache.bean.UserSpaceDto;
+import com.apitable.shared.cache.service.CommonCacheService;
 import com.apitable.shared.cache.service.SpaceCapacityCacheService;
 import com.apitable.shared.cache.service.UserActiveSpaceCacheService;
 import com.apitable.shared.cache.service.UserSpaceCacheService;
@@ -77,6 +85,7 @@ import com.apitable.shared.config.properties.LimitProperties;
 import com.apitable.shared.constants.AuditConstants;
 import com.apitable.shared.constants.MailPropConstants;
 import com.apitable.shared.context.SessionContext;
+import com.apitable.shared.exception.LimitException;
 import com.apitable.shared.holder.NotificationRenderFieldHolder;
 import com.apitable.shared.listener.event.AuditSpaceEvent;
 import com.apitable.shared.listener.event.AuditSpaceEvent.AuditSpaceArg;
@@ -99,12 +108,15 @@ import com.apitable.space.enums.SpaceException;
 import com.apitable.space.enums.SpaceResourceGroupCode;
 import com.apitable.space.mapper.SpaceMapper;
 import com.apitable.space.mapper.SpaceMemberRoleRelMapper;
+import com.apitable.space.model.CreditUsages;
+import com.apitable.space.model.Space;
 import com.apitable.space.ro.SpaceUpdateOpRo;
 import com.apitable.space.service.IInvitationService;
 import com.apitable.space.service.ISpaceInviteLinkService;
 import com.apitable.space.service.ISpaceRoleService;
 import com.apitable.space.service.ISpaceService;
 import com.apitable.space.service.IStaticsService;
+import com.apitable.space.vo.SeatUsage;
 import com.apitable.space.vo.SpaceGlobalFeature;
 import com.apitable.space.vo.SpaceInfoVO;
 import com.apitable.space.vo.SpaceSocialConfig;
@@ -114,14 +126,17 @@ import com.apitable.space.vo.UserSpaceVo;
 import com.apitable.template.service.ITemplateService;
 import com.apitable.user.entity.UserEntity;
 import com.apitable.user.service.IUserService;
+import com.apitable.widget.mapper.WidgetMapper;
 import com.apitable.workspace.dto.CreateNodeDto;
 import com.apitable.workspace.dto.NodeCopyOptions;
 import com.apitable.workspace.enums.IdRulePrefixEnum;
 import com.apitable.workspace.enums.NodeType;
+import com.apitable.workspace.enums.PermissionException;
 import com.apitable.workspace.service.INodeService;
 import com.apitable.workspace.service.INodeShareSettingService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.baomidou.mybatisplus.extension.toolkit.SqlHelper;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -133,6 +148,7 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import javax.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -210,6 +226,9 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, SpaceEntity>
     private SocialServiceFacade socialServiceFacade;
 
     @Resource
+    private AiServiceFacade aiServiceFacade;
+
+    @Resource
     private INodeShareSettingService iNodeShareSettingService;
 
     @Resource
@@ -217,6 +236,23 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, SpaceEntity>
 
     @Resource
     private IInvitationService iInvitationService;
+
+    @Resource
+    private WidgetMapper widgetMapper;
+
+    @Resource
+    private AutomationRobotServiceImpl automationRobotService;
+
+    @Value("${BILLING_APITABLE_ENABLED:false}")
+    private Boolean billingApitableEnabled;
+
+    @Value("${SKIP_USAGE_VERIFICATION:false}")
+    private Boolean skipUsageVerification;
+
+    @Override
+    public SpaceEntity getEntityBySpaceId(String spaceId) {
+        return baseMapper.selectBySpaceId(spaceId);
+    }
 
     @Override
     public SpaceEntity getBySpaceId(final String spaceId) {
@@ -243,7 +279,7 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, SpaceEntity>
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public String createSpace(final UserEntity user, final String spaceName) {
+    public Space createSpace(final UserEntity user, final String spaceName) {
         Long userId = user.getId();
         // Check whether the user reaches the upper limit
         boolean limit = this.checkSpaceNumber(userId);
@@ -297,7 +333,7 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, SpaceEntity>
             iNodeService.copyNodeToSpace(userId, spaceId, rootNodeId,
                 templateNodeId, NodeCopyOptions.create());
         }
-        return spaceId;
+        return new Space(spaceId, rootNodeId);
     }
 
     /**
@@ -462,12 +498,6 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, SpaceEntity>
         memberMapper.cancelPreDelBySpaceId(spaceId);
     }
 
-    /**
-     * Quit Space.
-     *
-     * @param spaceId  space id
-     * @param memberId memberId
-     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void quit(final String spaceId, final Long memberId) {
@@ -531,6 +561,109 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, SpaceEntity>
         return resultList;
     }
 
+    @Override
+    public CreditInfo getCredit(String spaceId) {
+        SubscriptionInfo subscriptionInfo = new DefaultSubscriptionInfo();
+        if (StrUtil.isNotBlank(spaceId)) {
+            subscriptionInfo =
+                entitlementServiceFacade.getSpaceSubscription(spaceId);
+        }
+        return new CreditInfo(subscriptionInfo.getConfig().isAllowCreditOverLimit(),
+            subscriptionInfo.getFeature().getMessageCreditNums().getValue(),
+            aiServiceFacade.getUsedCreditCount(spaceId));
+    }
+
+    @Override
+    public CreditUsages getCreditUsagesChart(
+        String spaceId, ChartTimeDimension chartTimeDimension) {
+        List<CreditTransactionChartData> dataCollection =
+            aiServiceFacade.loadCreditTransactionChartData(spaceId, chartTimeDimension);
+        return CreditUsages.of(dataCollection);
+    }
+
+    @Override
+    public SeatUsage getSeatUsage(String spaceId) {
+        long memberCount =
+            iMemberService.getTotalActiveMemberCountBySpaceId(spaceId);
+        long chatBotCount = iStaticsService.getTotalChatbotNodesfromCache(spaceId);
+        return new SeatUsage(chatBotCount, memberCount);
+    }
+
+    @Override
+    public void checkSeatOverLimit(String spaceId) {
+        // get subscription max seat nums
+        SubscriptionInfo subscriptionInfo =
+            entitlementServiceFacade.getSpaceSubscription(spaceId);
+        // only free space has validation, or paid space in apitable mode can skip validation.
+        if (!subscriptionInfo.isFree() && billingApitableEnabled) {
+            return;
+        }
+        SeatUsage seatUsage = getSeatUsage(spaceId);
+        long maxSeatNums = subscriptionInfo.getFeature().getSeat().getValue();
+        if (maxSeatNums != -1 && (seatUsage.getTotal() >= maxSeatNums)) {
+            throw new BusinessException(LimitException.SEATS_OVER_LIMIT);
+        }
+    }
+
+    @Override
+    public void checkSeatOverLimit(String spaceId, long addedSeatNums) {
+        // get subscription max seat nums
+        SubscriptionInfo subscriptionInfo =
+            entitlementServiceFacade.getSpaceSubscription(spaceId);
+        if (!subscriptionInfo.isFree() && billingApitableEnabled) {
+            return;
+        }
+        SeatUsage seatUsage = getSeatUsage(spaceId);
+        long maxSeatNums = subscriptionInfo.getFeature().getSeat().getValue();
+        if (maxSeatNums != -1 && (seatUsage.getTotal() + addedSeatNums > maxSeatNums)) {
+            throw new BusinessException(LimitException.SEATS_OVER_LIMIT);
+        }
+    }
+
+    @Override
+    public boolean checkSeatOverLimitAndSendNotify(Long userId, String spaceId, long addedSeatNums, boolean isAllMember, boolean sendNotify) {
+        // get subscription max seat nums
+        SubscriptionInfo subscriptionInfo =
+                entitlementServiceFacade.getSpaceSubscription(spaceId);
+        if (!subscriptionInfo.isFree() && billingApitableEnabled) {
+            // apitable billing mode, paid space，skip validation
+            return true;
+        }
+        long maxSeatNums = subscriptionInfo.getFeature().getSeat().getValue();
+        SeatUsage seatUsage = getSeatUsageForIM(spaceId);
+        long totalSeatNums = seatUsage.getTotal() + addedSeatNums;
+        if (isAllMember){
+            totalSeatNums = addedSeatNums;
+        }
+        if (maxSeatNums != -1 && (totalSeatNums > maxSeatNums)) {
+            if (sendNotify){
+                // Send space station notifications
+                try {
+                    String spaceName = getNameBySpaceId(spaceId);
+                    long finalTotalSeatNums = totalSeatNums;
+                    TaskManager.me().execute(() -> NotificationManager.me()
+                            .playerNotify(NotificationTemplateId.SPACE_REFRESH_CONTACT_SEATS_LIMIT,
+                                    ListUtil.toList(userId), 0L, spaceId,
+                                    Dict.create().set("spaceName", spaceName).set("specification", maxSeatNums).set("usage", finalTotalSeatNums)));
+                } catch (Exception e) {
+                    log.error("send space station notifications error", e);
+                }
+            }
+            log.warn("seats over limit");
+            return false;
+        }
+        return true;
+    }
+
+
+    @Override
+    public SeatUsage getSeatUsageForIM(String spaceId) {
+        long memberCount =
+                iMemberService.getTotalMemberCountBySpaceId(spaceId);
+        long chatBotCount = iStaticsService.getTotalChatbotNodesfromCache(spaceId);
+        return new SeatUsage(chatBotCount, memberCount);
+    }
+
     /**
      * Get Space Info.
      *
@@ -540,28 +673,45 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, SpaceEntity>
     @Override
     public SpaceInfoVO getSpaceInfo(final String spaceId) {
         SpaceEntity entity = getBySpaceId(spaceId);
-        // numbers statistics
-        long memberNumber =
-            iMemberService.getTotalActiveMemberCountBySpaceId(spaceId);
+        SpaceInfoVO spaceInfoVO = this.transform(entity);
+        if (Boolean.TRUE.equals(skipUsageVerification)) {
+            spaceInfoVO.setSocial(new SpaceSocialConfig());
+            spaceInfoVO.setSeatUsage(new SeatUsage());
+            return spaceInfoVO;
+        }
+        SeatUsage seatUsage = getSeatUsage(spaceId);
+        spaceInfoVO.setSeatUsage(seatUsage);
+        spaceInfoVO.setSeats(seatUsage.getMemberCount());
+        // widget statistics
+        long widgetCount = widgetMapper.selectCountBySpaceId(spaceId);
+        spaceInfoVO.setWidgetNums(widgetCount);
+        // robot runs statistics
+        long automationRunsNums = automationRobotService.getRobotRunsCountBySpaceId(spaceId);
+        spaceInfoVO.setAutomationRunsNums(automationRunsNums);
         // teams statistics
         long teamCount = iStaticsService.getTeamTotalCountBySpaceId(spaceId);
+        spaceInfoVO.setDeptNumber(teamCount);
         // admin statistics
         long adminCount = iStaticsService.getAdminTotalCountBySpaceId(spaceId);
+        spaceInfoVO.setAdminNums(adminCount);
         // record statistics
         long recordCount =
             iStaticsService.getDatasheetRecordTotalCountBySpaceId(spaceId);
+        spaceInfoVO.setRecordNums(recordCount);
         // used space statistics
         long capacityUsedSize =
             spaceCapacityCacheService.getSpaceCapacity(spaceId);
+        spaceInfoVO.setCapacityUsedSizes(capacityUsedSize);
         // API usage statistics
         long apiUsage = iStaticsService.getCurrentMonthApiUsage(spaceId);
+        spaceInfoVO.setApiRequestCountUsage(apiUsage);
         // file control amount
         ControlStaticsDTO controlStaticsDTO =
             iStaticsService.getFieldRoleTotalCountBySpaceId(spaceId);
-        long nodeRoleNums = controlStaticsDTO != null
-            ? controlStaticsDTO.getNodeRoleCount() : 0L;
-        long fieldRoleNums = controlStaticsDTO != null
-            ? controlStaticsDTO.getFieldRoleCount() : 0L;
+        if (controlStaticsDTO != null) {
+            spaceInfoVO.setNodeRoleNums(controlStaticsDTO.getNodeRoleCount());
+            spaceInfoVO.setFieldRoleNums(controlStaticsDTO.getFieldRoleCount());
+        }
         // node statistics
         List<NodeTypeStaticsDTO> nodeTypeStaticDtos =
             iStaticsService.getNodeTypeStaticsBySpaceId(spaceId);
@@ -569,44 +719,33 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, SpaceEntity>
             .filter(condition -> NodeType.toEnum(condition.getType())
                 .isFileNode()).mapToLong(NodeTypeStaticsDTO::getTotal)
             .sum();
+        spaceInfoVO.setSheetNums(sheetNums);
         long mirrorNums = nodeTypeStaticDtos.stream()
             .filter(condition ->
                 NodeType.MIRROR == NodeType.toEnum(condition.getType()))
             .mapToLong(NodeTypeStaticsDTO::getTotal).sum();
-
+        spaceInfoVO.setMirrorNums(mirrorNums);
         Map<Integer, Integer> typeStaticsMap = nodeTypeStaticDtos.stream()
             .collect(Collectors.toMap(NodeTypeStaticsDTO::getType,
                 NodeTypeStaticsDTO::getTotal));
         long formViewNums =
             typeStaticsMap.containsKey(NodeType.FORM.getNodeType())
                 ? typeStaticsMap.get(NodeType.FORM.getNodeType()) : 0L;
+        spaceInfoVO.setFormViewNums(formViewNums);
         // table view statistics
         DatasheetStaticsDTO viewVO = iStaticsService.getDatasheetStaticsBySpaceId(spaceId);
-        SpaceInfoVO vo = SpaceInfoVO.builder().spaceName(entity.getName())
-            .spaceLogo(entity.getLogo()).createTime(entity.getCreatedAt())
-            .deptNumber(teamCount).seats(memberNumber).sheetNums(sheetNums)
-            .recordNums(recordCount).adminNums(adminCount)
-            .apiRequestCountUsage(apiUsage)
-            .capacityUsedSizes(capacityUsedSize).nodeRoleNums(nodeRoleNums)
-            .fieldRoleNums(fieldRoleNums).formViewNums(formViewNums)
-            .kanbanViewNums(viewVO.getKanbanViews())
-            .calendarViewNums(viewVO.getCalendarViews())
-            .galleryViewNums(viewVO.getGalleryViews())
-            .ganttViewNums(viewVO.getGanttViews()).mirrorNums(mirrorNums)
-            .build();
+        spaceInfoVO.setKanbanViewNums(viewVO.getKanbanViews());
+        spaceInfoVO.setCalendarViewNums(viewVO.getCalendarViews());
+        spaceInfoVO.setGalleryViewNums(viewVO.getGalleryViews());
+        spaceInfoVO.setGanttViewNums(viewVO.getGanttViews());
         // space attachment capacity usage information
         SpaceCapacityUsedInfo spaceCapacityUsedInfo =
             this.getSpaceCapacityUsedInfo(spaceId, capacityUsedSize);
-        vo.setCurrentBundleCapacityUsedSizes(
+        spaceInfoVO.setCurrentBundleCapacityUsedSizes(
             spaceCapacityUsedInfo.getCurrentBundleCapacityUsedSizes());
-        vo.setGiftCapacityUsedSizes(
+        spaceInfoVO.setGiftCapacityUsedSizes(
             spaceCapacityUsedInfo.getGiftCapacityUsedSizes());
-        // owner info
-        this.appendOwnerInfo(vo, entity);
-        if (ObjectUtil.isNotNull(entity.getPreDeletionTime())) {
-            vo.setDelTime(entity.getPreDeletionTime()
-                .plusDays(DELETE_SPACE_RETAIN_DAYS));
-        }
+
         // obtain third party information
         SocialConnectInfo socialConnectInfo =
             socialServiceFacade.getConnectInfo(spaceId);
@@ -621,9 +760,30 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, SpaceEntity>
                 bindInfo.setContactSyncing(socialConnectInfo.contactSyncing());
             }
         }
-        vo.setSocial(bindInfo);
+        spaceInfoVO.setSocial(bindInfo);
+        // credit
+        BigDecimal usedCredit = aiServiceFacade.getUsedCreditCount(spaceId);
+        spaceInfoVO.setUsedCredit(usedCredit);
+        // chat bot status
+        CommonCacheService cacheService = SpringContextHolder.getBean(CommonCacheService.class);
+        boolean isEnableChatbot = cacheService.checkIfSpaceEnabledChatbot(spaceId);
+        spaceInfoVO.setIsEnableChatbot(isEnableChatbot);
+        return spaceInfoVO;
+    }
 
-        return vo;
+    private SpaceInfoVO transform(SpaceEntity entity) {
+        SpaceInfoVO spaceInfoVO = SpaceInfoVO.builder()
+            .spaceName(entity.getName())
+            .spaceLogo(entity.getLogo())
+            .createTime(entity.getCreatedAt())
+            .build();
+        // owner info
+        this.appendOwnerInfo(spaceInfoVO, entity);
+        if (ObjectUtil.isNotNull(entity.getPreDeletionTime())) {
+            spaceInfoVO.setDelTime(entity.getPreDeletionTime()
+                .plusDays(DELETE_SPACE_RETAIN_DAYS));
+        }
+        return spaceInfoVO;
     }
 
     private void appendOwnerInfo(final SpaceInfoVO vo,
@@ -660,13 +820,6 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, SpaceEntity>
             creatorMember.getIsSocialNameModified() > 0);
     }
 
-    /**
-     * Get Space Capacity Used Info.
-     *
-     * @param spaceId          space id
-     * @param capacityUsedSize space capacity used sizes
-     * @return SpaceCapacityUsedInfo
-     */
     @Override
     public SpaceCapacityUsedInfo getSpaceCapacityUsedInfo(
         final String spaceId,
@@ -710,12 +863,6 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, SpaceEntity>
         return spaceCapacityUsedInfo;
     }
 
-    /**
-     * Get Internal Space Usage View.
-     *
-     * @param spaceId space id
-     * @return InternalSpaceUsageVo
-     */
     @Override
     public InternalSpaceUsageVo getInternalSpaceUsageVo(final String spaceId) {
         log.info("Get the usage information of the space {}", spaceId);
@@ -731,6 +878,8 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, SpaceEntity>
         vo.setKanbanViewNums(viewVO.getKanbanViews());
         vo.setGanttViewNums(viewVO.getGanttViews());
         vo.setCalendarViewNums(viewVO.getCalendarViews());
+        BigDecimal usedCredit = aiServiceFacade.getUsedCreditCount(spaceId);
+        vo.setUsedCredit(usedCredit);
         return vo;
     }
 
@@ -758,13 +907,6 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, SpaceEntity>
             .totalCapacity(totalCapacity).build();
     }
 
-    /**
-     * Change Main Admin.
-     *
-     * @param spaceId  space id
-     * @param memberId memberId
-     * @return UserId
-     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Long changeMainAdmin(final String spaceId, final Long memberId) {
@@ -815,8 +957,6 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, SpaceEntity>
         if (ObjectUtil.isNotNull(newMember)
             && StrUtil.isNotBlank(newMember.getEmail())) {
             Dict dict = Dict.create();
-            //TODO remove user_name at next version
-            dict.set("USER_NAME", dto.getMemberName());
             dict.set("SPACE_NAME", dto.getSpaceName());
             dict.set("MEMBER_NAME", dto.getMemberName());
             dict.set("AVATAR", constProperties.spliceAssetUrl(dto.getAvatar()));
@@ -840,59 +980,39 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, SpaceEntity>
         return userId;
     }
 
-    /**
-     * Remove Main Admin.
-     *
-     * @param spaceId space id
-     */
     @Override
     public void removeMainAdmin(final String spaceId) {
         baseMapper.removeSpaceOwnerId(spaceId, null);
     }
 
-    /**
-     * Get Space Main Admin Member Id.
-     *
-     * @param spaceId space id
-     * @return MemberId
-     */
     @Override
     public Long getSpaceMainAdminMemberId(final String spaceId) {
         return baseMapper.selectSpaceMainAdmin(spaceId);
     }
 
-    /**
-     * Get Space Main Admin User Id.
-     *
-     * @param spaceId space id
-     * @return UserId
-     */
     @Override
     public Long getSpaceMainAdminUserId(final String spaceId) {
         Long spaceMainAdminMemberId = getSpaceMainAdminMemberId(spaceId);
         return memberMapper.selectUserIdByMemberId(spaceMainAdminMemberId);
     }
 
-    /**
-     * Check Member Is Main Admin.
-     *
-     * @param spaceId  space id
-     * @param memberId memberId
-     */
     @Override
     public void checkMemberIsMainAdmin(final String spaceId,
-        final Long memberId, Consumer<Boolean> consumer) {
-        log.info("checks whether specified member is main admin");
+                                       final Long memberId, Consumer<Boolean> consumer) {
         Long owner = baseMapper.selectSpaceMainAdmin(spaceId);
         consumer.accept(owner != null && owner.equals(memberId));
     }
 
-    /**
-     * Check Members Is Main Admin.
-     *
-     * @param spaceId   space id
-     * @param memberIds memberIds
-     */
+    @Override
+    public void checkMemberIsAdmin(String spaceId, Long memberId) {
+        Long mainAdminMemberId = getSpaceMainAdminMemberId(spaceId);
+        List<Long> subAdminMemberIds = iSpaceRoleService.getSubAdminIdList(spaceId);
+        boolean exist = mainAdminMemberId.equals(memberId) || subAdminMemberIds.contains(memberId);
+        if (!exist) {
+            throw new BusinessException(PermissionException.NOT_PERMISSION_ACCESS);
+        }
+    }
+
     @Override
     public void checkMembersIsMainAdmin(final String spaceId,
                                         final List<Long> memberIds) {
@@ -902,12 +1022,6 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, SpaceEntity>
         ExceptionUtil.isFalse(haveMainAdmin, CAN_OP_MAIN_ADMIN);
     }
 
-    /**
-     * Check Member In Space.
-     *
-     * @param spaceId  space id
-     * @param memberId memberId
-     */
     @Override
     public void checkMemberInSpace(final String spaceId, final Long memberId) {
         log.info("checks whether the specified member is in space");
@@ -916,12 +1030,6 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, SpaceEntity>
         ExceptionUtil.isNotNull(member, MEMBER_NOT_IN_SPACE);
     }
 
-    /**
-     * Check Members In Space.
-     *
-     * @param spaceId   space id
-     * @param memberIds memberIds
-     */
     @Override
     public void checkMembersInSpace(final String spaceId,
                                     final List<Long> memberIds) {
@@ -931,13 +1039,6 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, SpaceEntity>
         ExceptionUtil.isTrue(count == memberIds.size(), MEMBER_NOT_IN_SPACE);
     }
 
-    /**
-     * Get User Space Resource.
-     *
-     * @param userId  userId
-     * @param spaceId space id
-     * @return UserSpaceVo
-     */
     @Override
     public UserSpaceVo getUserSpaceResource(final Long userId,
                                             final String spaceId) {
@@ -962,12 +1063,6 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, SpaceEntity>
         return userSpaceVo;
     }
 
-    /**
-     * Get Space Global Feature.
-     *
-     * @param spaceId space id
-     * @return SpaceGlobalFeature
-     */
     @Override
     public SpaceGlobalFeature getSpaceGlobalFeature(final String spaceId) {
         log.info("gets space global properties，spaceId:{}", spaceId);
@@ -977,19 +1072,12 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, SpaceEntity>
         return JSONUtil.toBean(props, SpaceGlobalFeature.class);
     }
 
-    /**
-     * Switch Space Pros.
-     *
-     * @param userId  userId
-     * @param spaceId space id
-     * @param feature feature
-     */
     @Override
     public void switchSpacePros(final Long userId, final String spaceId,
                                 final SpaceGlobalFeature feature) {
         log.info("switch space pros，userId:{},spaceId:{}", userId, spaceId);
         JSONObject json = JSONUtil.parseObj(feature);
-        if (json.size() == 0) {
+        if (json.isEmpty()) {
             return;
         }
         List<MapDTO> features = new ArrayList<>(json.size());
@@ -1014,23 +1102,12 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, SpaceEntity>
         }
     }
 
-    /**
-     * Check Can Operate Space Update.
-     *
-     * @param spaceId space id
-     */
     @Override
     public void checkCanOperateSpaceUpdate(final String spaceId) {
         boolean isBoundSocial = socialServiceFacade.checkSocialBind(spaceId);
         ExceptionUtil.isFalse(isBoundSocial, NO_ALLOW_OPERATE);
     }
 
-    /**
-     * Get Space ID By Link ID.
-     *
-     * @param linkId linkId（sharing id or template id）
-     * @return SpaceId
-     */
     @Override
     public String getSpaceIdByLinkId(final String linkId) {
         log.info("gets the space id of the association information，linkId：{}",
@@ -1044,23 +1121,11 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, SpaceEntity>
         }
     }
 
-    /**
-     * Get Name By Space ID.
-     *
-     * @param spaceId space id
-     * @return SpaceName
-     */
     @Override
     public String getNameBySpaceId(final String spaceId) {
         return baseMapper.selectSpaceNameBySpaceId(spaceId);
     }
 
-    /**
-     * Get Space Owner User ID.
-     *
-     * @param spaceId space id
-     * @return UserId
-     */
     @Override
     public Long getSpaceOwnerUserId(final String spaceId) {
         Long adminMemberId = baseMapper.selectSpaceMainAdmin(spaceId);
@@ -1070,24 +1135,12 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, SpaceEntity>
         return null;
     }
 
-    /**
-     * Is Certified.
-     *
-     * @param spaceId space id
-     * @return boolean
-     */
     @Override
     public boolean isCertified(final String spaceId) {
         SpaceGlobalFeature spaceGlobalFeature = getSpaceGlobalFeature(spaceId);
         return StrUtil.isNotBlank(spaceGlobalFeature.getCertification());
     }
 
-    /**
-     * Switch Space.
-     *
-     * @param userId  userId
-     * @param spaceId space id
-     */
     @Override
     public void switchSpace(final Long userId, final String spaceId) {
         // Prevents access to enjoined spaces
@@ -1098,11 +1151,6 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, SpaceEntity>
         userActiveSpaceCacheService.save(userId, spaceId);
     }
 
-    /**
-     * Is Space Available.
-     *
-     * @param spaceId spaceId
-     */
     @Override
     public void isSpaceAvailable(final String spaceId) {
         SpaceEntity entity = baseMapper.selectBySpaceId(spaceId);
@@ -1117,13 +1165,6 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, SpaceEntity>
         return count >= limitProperties.getSpaceMaxCount();
     }
 
-    /**
-     * Check User In Space.
-     *
-     * @param userId   user id
-     * @param spaceId  space id
-     * @param consumer callback
-     */
     @Override
     public void checkUserInSpace(final Long userId, final String spaceId,
                                  final Consumer<Boolean> consumer) {
@@ -1133,12 +1174,6 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, SpaceEntity>
         consumer.accept(exist);
     }
 
-    /**
-     * Get Space Subscription Info.
-     *
-     * @param spaceId spaceId
-     * @return SpaceSubscribeVo
-     */
     @Override
     public SpaceSubscribeVo getSpaceSubscriptionInfo(final String spaceId) {
         SubscriptionInfo subscriptionInfo =
@@ -1151,6 +1186,23 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, SpaceEntity>
             Boolean.FALSE) : Boolean.FALSE;
         result.setBlackSpace(blackSpace);
         return result;
+    }
+
+    @Override
+    public boolean getSpaceSeatAvailableStatus(String spaceId) {
+        // seat information
+        SubscriptionInfo subscriptionInfo =
+            entitlementServiceFacade.getSpaceSubscription(spaceId);
+        Long seat = subscriptionInfo.getFeature().getSeat().getValue();
+        if (seat == null || seat == 0) {
+            return false;
+        }
+        if (seat < 0) {
+            return true;
+        }
+        long activeMemberTotalCount =
+            iStaticsService.getActiveMemberTotalCountFromCache(spaceId);
+        return seat - activeMemberTotalCount > 0;
     }
 
 }

@@ -25,8 +25,6 @@ curl -s "https://get.sdkman.io" | bash
 nvm install 16.15.0 && nvm use 16.15.0 && corepack enable
 # install java development kit
 sdk env install
-# install rust toolchain
-curl -sSf https://sh.rustup.rs | sh -s -- --default-toolchain nightly --profile minimal -y && source "$HOME/.cargo/env"
 ```
 
 ### macOS
@@ -74,7 +72,7 @@ sudo apt install make
 
 ## Hangi Oluşturma Aracını kullanıyoruz?
 
-`gradle` / `npm` / `yarn` gibi diğer derleme araçlarını yönlendiren merkezi derleme aracı girişimiz olarak make kullanıyoruz.
+`gradle` / `npm` / `pnpm` gibi diğer derleme araçlarını yönlendiren merkezi derleme aracı girişimiz olarak make kullanıyoruz.
 
 Böylece sadece make komutunu girebilir ve tüm derleme komutlarını görebilirsiniz:
 

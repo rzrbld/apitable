@@ -21,13 +21,11 @@ import { createRoot } from 'react-dom/client';
 import styles from './styles.module.less';
 
 export const useShowTip = (container: HTMLElement, tipWidth: number) => {
-  const [info, setInfo] = useState(
-    {
-      top: 0,
-      title: '',
-      desc: '',
-    },
-  );
+  const [info, setInfo] = useState({
+    top: 0,
+    title: '',
+    desc: '',
+  });
 
   const { left } = useMemo(() => {
     if (!container) return { left: 0 };
@@ -60,24 +58,19 @@ export const useShowTip = (container: HTMLElement, tipWidth: number) => {
     if (info.top) {
       const div = document.createElement('div');
       div.setAttribute('class', 'vika-type-select-tip');
-      div.setAttribute('style',
-        `top:${info.top}px;left:${left}px;position:fixed;z-index:1100;`,
-      );
+      div.setAttribute('style', `top:${info.top}px;left:${left}px;position:fixed;z-index:1100;`);
       document.body.appendChild(div);
       root = createRoot(div);
       root.render(
-        (
-          <div className={styles.tip}>
-            <h3>
-              {info.title}
-            </h3>
-            <p>
-              {info.desc}
-            </p>
-          </div>
-        ),
+        <div className={styles.tip}>
+          <h3>{info.title}</h3>
+          <p>{info.desc}</p>
+        </div>,
       );
     }
+    return () => {
+      unMountDiv();
+    };
     // eslint-disable-next-line
   }, [info, left]);
 

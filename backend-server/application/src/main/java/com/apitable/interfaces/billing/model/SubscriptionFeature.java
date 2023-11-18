@@ -20,6 +20,8 @@ package com.apitable.interfaces.billing.model;
 
 import com.apitable.interfaces.billing.model.SubscriptionFeatures.ConsumeFeatures.AdminNums;
 import com.apitable.interfaces.billing.model.SubscriptionFeatures.ConsumeFeatures.ApiCallNums;
+import com.apitable.interfaces.billing.model.SubscriptionFeatures.ConsumeFeatures.ApiQps;
+import com.apitable.interfaces.billing.model.SubscriptionFeatures.ConsumeFeatures.ArchivedRowsPerSheet;
 import com.apitable.interfaces.billing.model.SubscriptionFeatures.ConsumeFeatures.CalendarViews;
 import com.apitable.interfaces.billing.model.SubscriptionFeatures.ConsumeFeatures.CapacitySize;
 import com.apitable.interfaces.billing.model.SubscriptionFeatures.ConsumeFeatures.FieldPermissionNums;
@@ -27,6 +29,9 @@ import com.apitable.interfaces.billing.model.SubscriptionFeatures.ConsumeFeature
 import com.apitable.interfaces.billing.model.SubscriptionFeatures.ConsumeFeatures.GalleryViews;
 import com.apitable.interfaces.billing.model.SubscriptionFeatures.ConsumeFeatures.GanttViews;
 import com.apitable.interfaces.billing.model.SubscriptionFeatures.ConsumeFeatures.KanbanViews;
+import com.apitable.interfaces.billing.model.SubscriptionFeatures.ConsumeFeatures.MessageCreditNums;
+import com.apitable.interfaces.billing.model.SubscriptionFeatures.ConsumeFeatures.MessageAutomationRunNums;
+import com.apitable.interfaces.billing.model.SubscriptionFeatures.ConsumeFeatures.MessageWidgetNums;
 import com.apitable.interfaces.billing.model.SubscriptionFeatures.ConsumeFeatures.MirrorNums;
 import com.apitable.interfaces.billing.model.SubscriptionFeatures.ConsumeFeatures.NodePermissionNums;
 import com.apitable.interfaces.billing.model.SubscriptionFeatures.ConsumeFeatures.RowNums;
@@ -43,6 +48,7 @@ import com.apitable.interfaces.billing.model.SubscriptionFeatures.SubscribeFeatu
 import com.apitable.interfaces.billing.model.SubscriptionFeatures.SubscribeFeatures.AllowEmbed;
 import com.apitable.interfaces.billing.model.SubscriptionFeatures.SubscribeFeatures.AllowExport;
 import com.apitable.interfaces.billing.model.SubscriptionFeatures.SubscribeFeatures.AllowInvitation;
+import com.apitable.interfaces.billing.model.SubscriptionFeatures.SubscribeFeatures.AllowOrgApi;
 import com.apitable.interfaces.billing.model.SubscriptionFeatures.SubscribeFeatures.AllowShare;
 import com.apitable.interfaces.billing.model.SubscriptionFeatures.SubscribeFeatures.ContactIsolation;
 import com.apitable.interfaces.billing.model.SubscriptionFeatures.SubscribeFeatures.ForbidCreateOnCatalog;
@@ -63,6 +69,8 @@ public interface SubscriptionFeature {
     SheetNums getSheetNums();
 
     RowsPerSheet getRowsPerSheet();
+
+    ArchivedRowsPerSheet getArchivedRowsPerSheet();
 
     RowNums getRowNums();
 
@@ -85,6 +93,8 @@ public interface SubscriptionFeature {
     FieldPermissionNums getFieldPermissionNums();
 
     NodePermissionNums getNodePermissionNums();
+
+    ApiQps getApiQps();
 
     SocialConnect getSocialConnect();
 
@@ -119,4 +129,18 @@ public interface SubscriptionFeature {
     RemainRecordActivityDays getRemainRecordActivityDays();
 
     AuditQueryDays getAuditQueryDays();
+
+    AllowOrgApi getAllowOrgApi();
+
+    default MessageCreditNums getMessageCreditNums() {
+        return new MessageCreditNums(0L);
+    }
+
+    default MessageAutomationRunNums getMessageAutomationRunNums() {
+        return new MessageAutomationRunNums(0L);
+    }
+
+    default MessageWidgetNums getMessageWidgetNums() {
+        return new MessageWidgetNums(0L);
+    }
 }

@@ -18,8 +18,9 @@
 
 import { FC } from 'react';
 import { IReduxState } from '@apitable/core';
-import { useSelector } from 'react-redux';
 import { ShareNode } from '../share_node';
+
+import {useAppSelector} from "pc/store/react-redux";
 
 export interface IShareProps {
   nodeId: string;
@@ -28,8 +29,10 @@ export interface IShareProps {
 }
 
 export const Share: FC<React.PropsWithChildren<IShareProps>> = ({ nodeId, onClose, isTriggerRender }) => {
-  const treeNodesMap = useSelector((state: IReduxState) => state.catalogTree.treeNodesMap);
-  if (!nodeId) { return null; }
+  const treeNodesMap = useAppSelector((state: IReduxState) => state.catalogTree.treeNodesMap);
+  if (!nodeId) {
+    return null;
+  }
   return (
     <ShareNode
       data={{

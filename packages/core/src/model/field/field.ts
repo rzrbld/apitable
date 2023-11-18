@@ -34,7 +34,7 @@ import { joiErrorResult } from './validate_schema';
 import { IOpenFilterValue } from 'types/open/open_filter_types';
 
 // China sensitive string comparison `collators` constructor.
-const zhIntlCollator = typeof Intl !== 'undefined' ? new Intl.Collator('zh-CN') : undefined;
+export const zhIntlCollator = typeof Intl !== 'undefined' ? new Intl.Collator('zh-CN') : undefined;
 
 /**
  * The business class should not become a complex container, it is better to be just a pipeline of data flow
@@ -432,8 +432,8 @@ export abstract class Field {
   /**
    * Check the property when creating the field
    */
-  validateAddOpenFieldProperty(addProperty: IAddOpenFieldProperty): Joi.ValidationResult {
-    return this.validateUpdateOpenProperty(addProperty);
+  validateAddOpenFieldProperty(addProperty: IAddOpenFieldProperty, isBackend: boolean = false): Joi.ValidationResult {
+    return this.validateUpdateOpenProperty(addProperty, isBackend ? { isBackend } : undefined);
   }
 
   /**

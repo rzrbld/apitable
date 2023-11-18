@@ -16,16 +16,16 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+import parser from 'html-react-parser';
+import Image from 'next/image';
+import * as React from 'react';
+import { createRoot } from 'react-dom/client';
 import { Button, colorVars } from '@apitable/components';
 import { confirm } from '@apitable/components/dist/components/modal/components/confirm';
 import { Settings, Strings, t } from '@apitable/core';
-import parser from 'html-react-parser';
-import Image from 'next/image';
 import { Popup } from 'pc/components/common/mobile/popup';
 import { navigationToUrl } from 'pc/components/route_manager/navigation_to_url';
 import { getScreen } from 'pc/hooks/use_responsive';
-import * as React from 'react';
-import { createRoot } from 'react-dom/client';
 import SuccessImg from 'static/icon/space/space_img_success.png';
 import UpgradeImg from 'static/icon/space/space_img_upgrade.png';
 import styles from './style.module.less';
@@ -35,11 +35,11 @@ export enum IDingTalkModalType {
   Subscribe = 'Subscribe',
 }
 
-export const UpgradeInFeiShuContent: React.FC<React.PropsWithChildren<{ onClick: () => void, content: string }>> = (props) => {
+export const UpgradeInFeiShuContent: React.FC<React.PropsWithChildren<{ onClick: () => void; content: string }>> = (props) => {
   return (
     <div className={styles.upgradeInDingDingContent}>
       <span className={styles.img}>
-        <Image src={UpgradeImg} width={240} height={180} />
+        <Image src={UpgradeImg} width={240} height={180} alt="" />
       </span>
 
       {/* The upgrade cannot be done on mobile, please move to PC for upgrade */}
@@ -48,9 +48,9 @@ export const UpgradeInFeiShuContent: React.FC<React.PropsWithChildren<{ onClick:
         onClick={() => {
           props.onClick();
         }}
-        color='primary'
+        color="primary"
         block
-        size='large'
+        size="large"
       >
         {t(Strings.confirm)}
       </Button>
@@ -62,7 +62,7 @@ export const UpgradeInWecomContent: React.FC<React.PropsWithChildren<{ onClick: 
   return (
     <div className={styles.upgradeInDingDingContent}>
       <span className={styles.img}>
-        <Image src={UpgradeImg} width={240} height={180} />
+        <Image src={UpgradeImg} width={240} height={180} alt="" />
       </span>
       <span className={styles.des}>{parser(t(Strings.wecom_upgrade_guidance))}</span>
       <Button
@@ -70,9 +70,9 @@ export const UpgradeInWecomContent: React.FC<React.PropsWithChildren<{ onClick: 
           props.onClick();
           window.location.href = Settings.integration_wecom_upgrade_guide_url.value;
         }}
-        color='primary'
+        color="primary"
         block
-        size='large'
+        size="large"
       >
         {t(Strings.wecom_upgrade_go)}
       </Button>
@@ -84,7 +84,7 @@ export const UpgradeInDDContent: React.FC<React.PropsWithChildren<{ onClick: () 
   return (
     <div className={styles.upgradeInDingDingContent}>
       <span className={styles.img}>
-        <Image src={UpgradeImg} width={240} height={180} />
+        <Image src={UpgradeImg} width={240} height={180} alt="" />
       </span>
       <span className={styles.des}>{parser(t(Strings.dingtalk_activity_upgrade_guidance))}</span>
       <Button
@@ -92,9 +92,9 @@ export const UpgradeInDDContent: React.FC<React.PropsWithChildren<{ onClick: () 
           navigationToUrl(Settings.integration_dingtalk_upgrade_url.value);
           props.onClick();
         }}
-        color='primary'
+        color="primary"
         block
-        size='large'
+        size="large"
       >
         {t(Strings.go_to_here_now)}
       </Button>
@@ -106,15 +106,10 @@ export const SubscribeInDDContent: React.FC<React.PropsWithChildren<{ onClick: (
   return (
     <div className={styles.upgradeInDingDingContent}>
       <span className={styles.img}>
-        <Image src={SuccessImg} width={240} height={180} />
+        <Image src={SuccessImg} width={240} height={180} alt="" />
       </span>
       <span className={styles.des}>{parser(t(Strings.subscribe_success_desc))}</span>
-      <Button
-        onClick={() => props.onClick()}
-        color='primary'
-        block
-        size='large'
-      >
+      <Button onClick={() => props.onClick()} color="primary" block size="large">
         {t(Strings.okay)}
       </Button>
     </div>
@@ -197,13 +192,7 @@ export const showPopupInDingTalk = (modalType: IDingTalkModalType) => {
   function render() {
     setTimeout(() => {
       root.render(
-        <Popup
-          title={config.title}
-          height={500}
-          style={{ backgroundColor: colorVars.defaultBg }}
-          onClose={() => destroy()}
-          open
-        >
+        <Popup title={config.title} height={500} style={{ backgroundColor: colorVars.defaultBg }} onClose={() => destroy()} open>
           {config.content}
         </Popup>,
       );

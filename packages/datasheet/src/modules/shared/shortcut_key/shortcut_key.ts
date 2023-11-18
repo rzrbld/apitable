@@ -132,7 +132,7 @@ export class ShortcutContext {
     [ContextName.modalVisible]: () => false,
     [ContextName.isQuickSearchExpanding]: () => {
       return Boolean(document.querySelectorAll(`.${EXPAND_SEARCH}`).length);
-    }
+    },
   };
 
   static bind(key: ContextName, fn: () => boolean) {
@@ -234,8 +234,7 @@ export class ShortcutActionManager {
 
   static async trigger(key: ShortcutActionName): Promise<boolean | void> {
     const fn = this.actionMap.get(key);
-    const result = fn ? await fn() : false;
-    return result;
+    return fn ? await fn() : false;
   }
 }
 
@@ -275,7 +274,7 @@ export function clear() {
   if (!cellMatrix || !fieldMap) {
     return;
   }
-  cellMatrix.forEach(cell => {
+  cellMatrix.forEach((cell) => {
     const { recordId, fieldId } = cell;
     const field = fieldMap[fieldId];
     const fieldType = fieldMap[fieldId].type;

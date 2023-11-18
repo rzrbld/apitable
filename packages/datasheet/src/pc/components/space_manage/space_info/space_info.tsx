@@ -16,25 +16,27 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+import { useMount } from 'ahooks';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { shallowEqual } from 'react-redux';
 import { useContextMenu } from '@apitable/components';
 import { Api, Events, getLanguage, IApi, IReduxState, Player, ScreenWidth, StoreActions, Strings, t } from '@apitable/core';
-import { useMount } from 'ahooks';
+// @ts-ignore
+import { isSocialPlatformEnabled, subscribeUsageCheck, SubscribeUsageTipType, triggerUsageAlert } from 'enterprise';
 import { Modal } from 'pc/components/common';
 import { ScreenSize } from 'pc/components/common/component_display/enum';
+import { ScrollBar } from 'pc/components/scroll_bar';
 import { useDispatch, useResponsive, useSideBarVisible } from 'pc/hooks';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { shallowEqual, useSelector } from 'react-redux';
 import { DelConfirmModal, DelSpaceModal, DelSuccess, RecoverSpace } from './components';
 import { SpaceContext } from './context';
 import { ISpaceLevelType, LevelType } from './interface';
 import { Lg, Md, Sm, Xs } from './layout';
 import { DELETE_SPACE_CONTEXT_MENU_ID } from './utils';
-import { ScrollBar } from 'pc/components/scroll_bar';
-// @ts-ignore
-import { SubscribeUsageTipType, triggerUsageAlert, subscribeUsageCheck, isSocialPlatformEnabled } from 'enterprise';
+
+import {useAppSelector} from "pc/store/react-redux";
 
 export const SpaceInfo = () => {
-  const { spaceInfo, spaceFeatures, subscription, spaceId } = useSelector(
+  const { spaceInfo, spaceFeatures, subscription, spaceId } = useAppSelector(
     (state: IReduxState) => ({
       spaceInfo: state.space.curSpaceInfo,
       spaceFeatures: state.space.spaceFeatures,
@@ -97,8 +99,8 @@ export const SpaceInfo = () => {
   const isMobile = screenIsAtMost(ScreenSize.md);
 
   useEffect(() => {
-    Api.getSpaceAdList().then(res => {
-      const data = res.data;
+    Api.getSpaceAdList().then((res: any) => {
+      const data = res;
       const lang = getLanguage();
       const isZh = /^zh/i.test(lang);
       if (!isZh) {
@@ -129,6 +131,7 @@ export const SpaceInfo = () => {
     }
     return Lg;
   }, [clientWidth]);
+
   const handleUpgrade = useCallback(() => {}, []);
   const { show: showContextMenu } = useContextMenu({ id: DELETE_SPACE_CONTEXT_MENU_ID });
 

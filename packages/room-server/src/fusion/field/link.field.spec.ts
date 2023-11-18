@@ -17,11 +17,11 @@
  */
 
 import { FieldType, ILinkField } from '@apitable/core';
-import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
-import { Test, TestingModule } from '@nestjs/testing';
-import { AppModule } from 'app.module';
 import { DatasheetRecordService } from 'database/datasheet/services/datasheet.record.service';
 import { LinkField } from 'fusion/field/link.field';
+import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
+import { Test, TestingModule } from '@nestjs/testing';
+import { AppModule } from '../../app.module';
 
 describe('LinkField', () => {
   let app: NestFastifyApplication;
@@ -30,7 +30,6 @@ describe('LinkField', () => {
   let recordService: any;
 
   beforeAll(async() => {
-    jest.setTimeout(60000);
     const module: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
@@ -40,7 +39,7 @@ describe('LinkField', () => {
     fieldClass = new LinkField(recordService);
     field = {
       id: 'fldpRxaCC8Mhe',
-      name: 'Magic link',
+      name: 'Two-way Link',
       type: FieldType.Link,
       property: { foreignDatasheetId: 'string' },
     };

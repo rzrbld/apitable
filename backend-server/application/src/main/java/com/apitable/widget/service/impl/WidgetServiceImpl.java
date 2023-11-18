@@ -18,6 +18,10 @@
 
 package com.apitable.widget.service.impl;
 
+import com.apitable.interfaces.billing.facade.EntitlementServiceFacade;
+import com.apitable.interfaces.billing.model.SubscriptionInfo;
+import com.apitable.shared.exception.LimitException;
+import com.apitable.workspace.enums.IdRulePrefixEnum;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -122,6 +126,9 @@ public class WidgetServiceImpl implements IWidgetService {
 
     @Resource
     private ObjectMapper objectMapper;
+
+    @Resource
+    private EntitlementServiceFacade entitlementServiceFacade;
 
     @Override
     public List<WidgetStoreListInfo> widgetStoreList(Long userId, String spaceId, WidgetStoreListRo storeListRo) {
@@ -230,11 +237,15 @@ public class WidgetServiceImpl implements IWidgetService {
     }
 
     @Override
-    public Collection<String> copyToDashboard(Long userId, String spaceId, String dashboardId, List<String> widgetIds) {
-        log.info("copy widgets to dashboard");
-        // verify the maximum number of components for a dashboard
-        int count = SqlTool.retCount(resourceMetaMapper.countDashboardWidgetNumber(dashboardId));
-        ExceptionUtil.isTrue(count + widgetIds.size() <= limitProperties.getDsbWidgetMaxCount(), WidgetException.WIDGET_NUMBER_LIMIT);
+    public Collection<String> copyWidget(Long userId, String spaceId,
+        String nodeId, List<String> widgetIds) {
+        log.info("copy widgets");
+        if (nodeId.startsWith(IdRulePrefixEnum.DASHBOARD.getIdRulePrefixEnum())) {
+            // verify the maximum number of components for a dashboard
+            int count = SqlTool.retCount(resourceMetaMapper.countDashboardWidgetNumber(nodeId));
+            ExceptionUtil.isTrue(count + widgetIds.size()
+                <= limitProperties.getDsbWidgetMaxCount(), WidgetException.WIDGET_NUMBER_LIMIT);
+        }
         // check if components exist
         int widgetCount = SqlTool.retCount(widgetMapper.selectCountBySpaceIdAndWidgetIds(spaceId, widgetIds));
         ExceptionUtil.isTrue(widgetCount == widgetIds.size(), WidgetException.WIDGET_NOT_EXIST);
@@ -246,7 +257,7 @@ public class WidgetServiceImpl implements IWidgetService {
         Map<String, String> newWidgetIdMap = new HashMap<>(widgetIds.size());
         Map<String, DatasheetWidgetDTO> newWidgetIdToDstMap = new HashMap<>(widgetIds.size());
         for (WidgetDTO dto : widgetDTOList) {
-            newNodeMap.put(dto.getNodeId(), dashboardId);
+            newNodeMap.put(dto.getNodeId(), nodeId);
             String newWidgetId = IdUtil.createWidgetId();
             newWidgetIdMap.put(dto.getWidgetId(), newWidgetId);
             DatasheetWidgetDTO datasheetWidgetDTO = new DatasheetWidgetDTO();
@@ -436,6 +447,23 @@ public class WidgetServiceImpl implements IWidgetService {
                     throw new BusinessException(TemplateException.FOLDER_DASHBOARD_LINK_FOREIGN_NODE, foreignMap);
                 }
             }
+        }
+    }
+
+    @Override
+    public void checkWidgetOverLimit(String spaceId) {
+        // get subscription max widget nums
+        SubscriptionInfo subscriptionInfo =
+                entitlementServiceFacade.getSpaceSubscription(spaceId);
+        // Only the free version requires verification
+        if (!subscriptionInfo.isFree()) {
+            return;
+        }
+        Long maxWidgerNums = subscriptionInfo.getFeature().getMessageWidgetNums().getValue();
+        // check the number of components in the space
+        Long count = widgetMapper.selectCountBySpaceId(spaceId);
+        if (maxWidgerNums != -1 && count >= maxWidgerNums) {
+            throw new BusinessException(LimitException.WIDGET_OVER_LIMIT);
         }
     }
 }

@@ -22,7 +22,7 @@ import { IReduxState, Selectors } from '../../../exports/store';
 import { ResourceType } from 'types';
 import { transformOpFields } from '../../helper';
 import { IAtomEventType } from '../interface';
-import { EventRealTypeEnums, OPEventNameEnums } from './../../const';
+import { EventRealTypeEnums, OPEventNameEnums } from './../../enum';
 import { AnyObject, IEventInstance, IOPBaseContext, IOPEvent } from './../../interface/event.interface';
 
 interface IRecordCreated {
@@ -40,9 +40,15 @@ export class OPEventRecordCreated extends IAtomEventType<IRecordCreated> {
 
   test({ action, resourceId, op }: IOPBaseContext) {
     const { pass, recordId } = testPath(action.p, ['recordMap', ':recordId'], ('oi' in action));
-    if (!pass) {
+
+    let success = pass;
+    if (op.cmd === 'UnarchiveRecords') {
+      success = false;
+    }
+
+    if (!success) {
       return {
-        pass: false,
+        pass: success,
         context: null
       };
     }

@@ -129,6 +129,7 @@ export function checkLinkConsistency(state: IReduxState, _loadedForeignDstId: st
       }
       for (const linkedRecordId of cellValue) {
         const foreignRecord = foreignRecordMap[linkedRecordId];
+
         if (!foreignRecord) {
           addRedundantRecordId(mainDstId, recordId, fieldId, linkedRecordId);
         } else if (!(foreignRecord.data[brotherFieldId!] as ILinkIds | undefined)?.includes(recordId)) {

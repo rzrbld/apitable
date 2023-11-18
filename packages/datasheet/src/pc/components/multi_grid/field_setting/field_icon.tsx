@@ -16,33 +16,35 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { FieldType } from '@apitable/core';
+import { ReactElement } from 'react';
 import { colorVars } from '@apitable/components';
+import { FieldType } from '@apitable/core';
 import {
   AttachmentOutlined,
   AutonumberOutlined,
-  UserOutlined,
+  CalendarOutlined,
   CheckboxOutlined,
-  HistoryFilled,
-  TextOutlined,
-  UserAddOutlined,
-  TimeOutlined,
-  SelectSingleOutlined,
   CurrencyUsdOutlined,
   EmailOutlined,
   FormulaOutlined,
-  PercentOutlined,
-  NumberOutlined,
-  SelectMultipleOutlined,
-  CalendarOutlined,
-  LinktableOutlined,
+  HistoryFilled,
   LinkOutlined,
-  UserEditOutlined,
   LongtextOutlined,
-  TelephoneOutlined,
   LookupOutlined,
   StarOutlined,
-  CascadeOutlined
+  CascadeOutlined, FileOutlined,
+  NumberOutlined,
+  OneWayLinkOutlined,
+  PercentOutlined,
+  SelectMultipleOutlined,
+  SelectSingleOutlined,
+  TelephoneOutlined,
+  TextOutlined,
+  TimeOutlined,
+  TwoWayLinkOutlined,
+  UserAddOutlined,
+  UserEditOutlined,
+  UserOutlined
 } from '@apitable/icons';
 
 const FieldIconMap = {
@@ -52,7 +54,8 @@ const FieldIconMap = {
   [FieldType.MultiSelect]: SelectMultipleOutlined,
   [FieldType.DateTime]: CalendarOutlined,
   [FieldType.Attachment]: AttachmentOutlined,
-  [FieldType.Link]: LinktableOutlined,
+  [FieldType.OneWayLink]: OneWayLinkOutlined,
+  [FieldType.Link]: TwoWayLinkOutlined,
   [FieldType.URL]: LinkOutlined,
   [FieldType.Email]: EmailOutlined,
   [FieldType.Phone]: TelephoneOutlined,
@@ -70,9 +73,14 @@ const FieldIconMap = {
   [FieldType.CreatedBy]: UserAddOutlined,
   [FieldType.LastModifiedBy]: UserEditOutlined,
   [FieldType.Cascader]: CascadeOutlined,
+  [FieldType.WorkDoc]: FileOutlined,
 };
 
-export const getFieldTypeIcon = (type: FieldType, fillColor: string = colorVars.thirdLevelText, width = 16, height = 16) => {
+export const getFieldTypeIconOrNull = (type: FieldType): ReactElement|null => {
+  return FieldIconMap[type];
+};
+
+export const getFieldTypeIcon = (type: FieldType, fillColor: string = colorVars.thirdLevelText, width = 16, height = 16): any => {
   const FieldIcon = FieldIconMap[type];
   if (!FieldIcon) {
     return <div />;

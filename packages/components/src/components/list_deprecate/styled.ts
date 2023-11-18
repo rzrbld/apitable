@@ -30,7 +30,7 @@ export const StyledItemContainer = styled.div.attrs(applyDefaultTheme) <IOption 
     if (props.disabled) {
       return css`
         cursor: not-allowed;
-        color: ${props => props.theme.palette.text.third};
+        color: ${props => props.theme.color.fc3};
 
         .svg {
           fill: currentColor;
@@ -144,7 +144,7 @@ export const ResultSpan = styled.span.attrs(applyDefaultTheme)`
   padding-bottom: 8px;
   height: 30px;
   line-height: 30px;
-  color: ${(props) => props.theme.palette.text.third};
+  color: ${(props) => props.theme.color.fc3};
   width: 100%;
   text-align: center;
   display: inline-block;
@@ -156,7 +156,7 @@ export const ResultSpan = styled.span.attrs(applyDefaultTheme)`
 
 export const StyledListWrapper = styled.div`
   max-height: 340px;
-  overflow-y: overlay;
+  overflow-y: auto;
   overflow-x: hidden;
   padding-left: 8px;
   padding-right: 8px;
@@ -177,27 +177,32 @@ export const FootWrapper = styled.div`
   }
 `;
 
-export const StyledListItem = styled(Typography).attrs(applyDefaultTheme)<{ disabled?: boolean }>`
+export const StyledListItem = styled(Typography).attrs(applyDefaultTheme)<{ disabled?: boolean, selected?:boolean, active?: boolean }>`
   cursor: pointer;
   display: flex;
   align-items: center;
   height: 40px;
   padding: 0 8px;
 
-  @media (any-hover: hover) {
-    ${(props) => {
-    return !props.disabled && css`
-        &:hover {
-          ${props => css`background: ${props.theme.color.bgBglessHover};`}
-          border-radius: 8px;
-        }
-        &:active {
-          ${props => css`background: ${props.theme.color.bgBglessActive};`}
-        }
-      `;
-  }}
+  ${props => !props.disabled && props.active && css`
+    background: ${props.theme.color.bgBglessHover};
+  `
+}
 
-  }
+  ${props => !props.disabled && props.selected && css`
+    background: ${props.theme.color.bgBrandLightDefault};
+  `
+}
+
+  ${props => !props.disabled && css`
+    border-radius: 8px;
+    &:hover {
+      background: ${props.theme.color.bgBglessHover};
+    }
+    &:active {
+      background: ${props.theme.color.bgBglessActive};
+    }
+  `}
 
   @media screen and(max-width: 768px) {
     height: 48px;

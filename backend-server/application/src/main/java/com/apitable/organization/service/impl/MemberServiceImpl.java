@@ -38,10 +38,14 @@ import com.apitable.base.enums.DatabaseException;
 import com.apitable.core.exception.BusinessException;
 import com.apitable.core.util.ExceptionUtil;
 import com.apitable.core.util.SqlTool;
+import com.apitable.interfaces.billing.facade.EntitlementServiceFacade;
+import com.apitable.interfaces.billing.model.SubscriptionInfo;
 import com.apitable.interfaces.social.enums.SocialNameModified;
 import com.apitable.interfaces.user.facade.InvitationServiceFacade;
 import com.apitable.interfaces.user.model.MultiInvitationMetadata;
+import com.apitable.organization.dto.MemberBaseInfoDTO;
 import com.apitable.organization.dto.MemberDTO;
+import com.apitable.organization.dto.TeamBaseInfoDTO;
 import com.apitable.organization.dto.TenantMemberDto;
 import com.apitable.organization.dto.UploadDataDTO;
 import com.apitable.organization.entity.AuditUploadParseRecordEntity;
@@ -58,6 +62,7 @@ import com.apitable.organization.mapper.MemberMapper;
 import com.apitable.organization.mapper.TeamMapper;
 import com.apitable.organization.mapper.TeamMemberRelMapper;
 import com.apitable.organization.ro.OrgUnitRo;
+import com.apitable.organization.ro.RoleMemberUnitRo;
 import com.apitable.organization.ro.TeamAddMemberRo;
 import com.apitable.organization.ro.UpdateMemberOpRo;
 import com.apitable.organization.ro.UpdateMemberRo;
@@ -85,6 +90,7 @@ import com.apitable.shared.config.properties.ConstProperties;
 import com.apitable.shared.constants.MailPropConstants;
 import com.apitable.shared.context.LoginContext;
 import com.apitable.shared.context.SessionContext;
+import com.apitable.shared.exception.LimitException;
 import com.apitable.shared.holder.NotificationRenderFieldHolder;
 import com.apitable.shared.util.CollectionUtil;
 import com.apitable.shared.util.ibatis.ExpandServiceImpl;
@@ -101,17 +107,21 @@ import com.apitable.user.dto.UserLangDTO;
 import com.apitable.user.entity.UserEntity;
 import com.apitable.user.service.IUserService;
 import com.apitable.workspace.enums.PermissionException;
+import com.apitable.workspace.vo.NodeRoleMemberVo;
 import com.baomidou.mybatisplus.core.toolkit.IdWorker;
 import com.baomidou.mybatisplus.extension.toolkit.SqlHelper;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
@@ -183,6 +193,9 @@ public class MemberServiceImpl extends ExpandServiceImpl<MemberMapper, MemberEnt
     private MemberMapper memberMapper;
 
     @Resource
+    private EntitlementServiceFacade entitlementServiceFacade;
+
+    @Resource
     private InvitationServiceFacade invitationServiceFacade;
 
     @Override
@@ -197,6 +210,11 @@ public class MemberServiceImpl extends ExpandServiceImpl<MemberMapper, MemberEnt
     @Override
     public Long getMemberIdByUserIdAndSpaceId(Long userId, String spaceId) {
         return baseMapper.selectIdByUserIdAndSpaceId(userId, spaceId);
+    }
+
+    @Override
+    public List<Long> getUserIdsByMemberIds(List<Long> memberIds) {
+        return baseMapper.selectUserIdsByMemberIds(memberIds);
     }
 
     @Override
@@ -293,7 +311,7 @@ public class MemberServiceImpl extends ExpandServiceImpl<MemberMapper, MemberEnt
 
     @Override
     public List<MemberEntity> getBySpaceIdAndEmailsIgnoreDeleted(String spaceId,
-        List<String> emails) {
+                                                                 List<String> emails) {
         return baseMapper.selectBySpaceIdAndEmailsIgnoreDeleted(spaceId, emails);
     }
 
@@ -333,6 +351,11 @@ public class MemberServiceImpl extends ExpandServiceImpl<MemberMapper, MemberEnt
         return memberEntities.stream()
             .map(MemberEntity::getSpaceId)
             .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<String> getSpaceIdByUserIdIgnoreDeleted(Long userId) {
+        return baseMapper.selectSpaceIdByUserIdIgnoreDeleted(userId);
     }
 
     @Override
@@ -404,6 +427,21 @@ public class MemberServiceImpl extends ExpandServiceImpl<MemberMapper, MemberEnt
     }
 
     @Override
+    public List<NodeRoleMemberVo> getNodeRoleMemberWithSort(Collection<Long> memberIds) {
+        if (CollUtil.isEmpty(memberIds)) {
+            return Collections.emptyList();
+        }
+        List<NodeRoleMemberVo> results = new ArrayList<>(memberIds.size());
+        for (List<Long> ids : CollUtil.split(memberIds, 1000)) {
+            List<NodeRoleMemberVo> vos = memberMapper.selectNodeRoleMemberByIds(ids);
+            // Switch to memory custom sorting
+            CollectionUtil.customSequenceSort(vos, NodeRoleMemberVo::getMemberId, ids);
+            results.addAll(vos);
+        }
+        return results;
+    }
+
+    @Override
     @Transactional(rollbackFor = Exception.class)
     public void batchCreate(String spaceId, List<MemberEntity> entities) {
         log.info("Batch create members.");
@@ -416,6 +454,7 @@ public class MemberServiceImpl extends ExpandServiceImpl<MemberMapper, MemberEnt
         for (MemberEntity member : entities) {
             UnitEntity unit = new UnitEntity();
             unit.setId(IdWorker.getId());
+            unit.setUnitId(IdUtil.fastSimpleUUID());
             unit.setSpaceId(spaceId);
             unit.setUnitType(UnitType.MEMBER.getType());
             unit.setUnitRefId(member.getId());
@@ -442,23 +481,24 @@ public class MemberServiceImpl extends ExpandServiceImpl<MemberMapper, MemberEnt
         // find email in users
         List<UserEntity> userEntities = iUserService.getByEmails(distinctEmails);
         Map<String, Long> emailUserMap = userEntities.stream()
-            .collect(Collectors.toMap(UserEntity::getEmail, UserEntity::getId));
+            .collect(Collectors.toMap(u -> u.getEmail().toLowerCase(), UserEntity::getId));
         // find email in spaces
         List<MemberEntity> memberEntities =
             getBySpaceIdAndEmailsIgnoreDeleted(spaceId, distinctEmails);
         Map<String, List<MemberEntity>> emailMemberMap = memberEntities.stream()
             .filter(m -> StrUtil.isNotBlank(m.getEmail()))
-            .collect(Collectors.groupingBy(MemberEntity::getEmail));
+            .collect(Collectors.groupingBy(m -> m.getEmail().toLowerCase()));
         // collect emails whether it can send invitation
         List<Long> shouldSendInvitationNotify = new ArrayList<>();
         List<MemberEntity> members = new ArrayList<>();
         List<MemberEntity> restoreMembers = new ArrayList<>();
-        distinctEmails.forEach(inviteEmail -> {
-            MemberEntity member = new MemberEntity();
+        distinctEmails.forEach(email -> {
+            String inviteEmail = email.toLowerCase();
             // check member if existed
             if (emailMemberMap.containsKey(inviteEmail)) {
                 // email member exist in space
-                MemberEntity existedMember = emailMemberMap.get(inviteEmail).stream().findFirst()
+                MemberEntity existedMember = emailMemberMap.get(inviteEmail).stream()
+                    .min(Comparator.comparing(MemberEntity::getIsDeleted))
                     .orElseThrow(() -> new BusinessException("invite member error"));
                 // history member can be restored
                 if (existedMember.getIsDeleted()) {
@@ -471,6 +511,7 @@ public class MemberServiceImpl extends ExpandServiceImpl<MemberMapper, MemberEnt
                 return;
             }
             // email is not exist in space
+            MemberEntity member = new MemberEntity();
             member.setId(IdWorker.getId());
             createInactiveMember(member, spaceId, inviteEmail);
             members.add(member);
@@ -520,7 +561,6 @@ public class MemberServiceImpl extends ExpandServiceImpl<MemberMapper, MemberEnt
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public void sendInviteEmail(String lang, String spaceId, Long fromMemberId, String email) {
         log.info("send Invite email");
         // Other invitation links of the mailbox corresponding to the current space are invalid
@@ -545,7 +585,7 @@ public class MemberServiceImpl extends ExpandServiceImpl<MemberMapper, MemberEnt
             // record success
             spaceInviteRecordMapper.insert(record.setSendStatus(true).setStatusDesc("Success"));
         } catch (Exception e) {
-            log.error("Send invitation email {} fail, Cause: {}", email, e);
+            log.error("Send invitation email {} fail", email, e);
             // record fail
             spaceInviteRecordMapper.insert(record.setSendStatus(false).setStatusDesc("Fail"));
             throw new BusinessException(e.getMessage());
@@ -554,7 +594,7 @@ public class MemberServiceImpl extends ExpandServiceImpl<MemberMapper, MemberEnt
 
     @Override
     public void sendUserInvitationNotifyEmail(String lang, String spaceId,
-        Long fromMemberId, String email) {
+                                              Long fromMemberId, String email) {
         try {
             log.info("Begin send user invitation notify email :{}", DateUtil.now());
             //  email HTML main body
@@ -569,22 +609,15 @@ public class MemberServiceImpl extends ExpandServiceImpl<MemberMapper, MemberEnt
 
     @Override
     public void sendUserInvitationEmail(String lang, String spaceId, Long inviter, String inviteUrl,
-        String emailAddress) {
+                                        String emailAddress) {
         String inviterName = getMemberNameById(inviter);
         String spaceName = iSpaceService.getNameBySpaceId(spaceId);
         Dict dict = Dict.create();
-        //TODO remove user_name at next version
-        dict.set("USER_NAME", inviterName);
         dict.set("SPACE_NAME", spaceName);
         dict.set("MEMBER_NAME", inviterName);
         dict.set("INVITE_URL", inviteUrl);
-        Dict mapDict = Dict.create();
-        // remove user_name at next version
-        mapDict.set("USER_NAME", inviterName);
-        mapDict.set("SPACE_NAME", spaceName);
-        mapDict.set("MEMBER_NAME", inviterName);
         NotifyMailFactory.me()
-            .sendMail(lang, MailPropConstants.SUBJECT_INVITE_NOTIFY, mapDict, dict,
+            .sendMail(lang, MailPropConstants.SUBJECT_INVITE_NOTIFY, dict, dict,
                 Collections.singletonList(emailAddress));
     }
 
@@ -657,7 +690,7 @@ public class MemberServiceImpl extends ExpandServiceImpl<MemberMapper, MemberEnt
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void updateMember(UpdateMemberRo data) {
+    public void updateMember(Long userId, UpdateMemberRo data) {
         log.info("update member");
         Long memberId = data.getMemberId();
         MemberEntity member = getById(memberId);
@@ -692,6 +725,35 @@ public class MemberServiceImpl extends ExpandServiceImpl<MemberMapper, MemberEnt
                 teamMemberRelMapper.deleteByTeamIdsAndMemberId(memberId, removeTeamList));
             ExceptionUtil.isTrue(dmrFlag, OrganizationException.UPDATE_MEMBER_ERROR);
         }
+        if (CollUtil.isNotEmpty(data.getRoleIds())) {
+            iRoleMemberService.removeByRoleMemberIds(Collections.singletonList(memberId));
+            RoleMemberUnitRo roleMember = new RoleMemberUnitRo();
+            roleMember.setId(memberId);
+            roleMember.setType(UnitType.MEMBER.getType());
+            for (Long roleId : data.getRoleIds()) {
+                iRoleMemberService.addRoleMembers(roleId, Collections.singletonList(roleMember));
+            }
+        }
+        TaskManager.me().execute(() -> {
+            if (CollUtil.isEmpty(addTeamList)) {
+                return;
+            }
+            Long rootTeamId = teamMapper.selectRootIdBySpaceId(member.getSpaceId());
+            addTeamList.remove(rootTeamId);
+            Optional<Long> first = addTeamList.stream().findFirst();
+            if (first.isPresent()) {
+                Long operatorMemberId =
+                    memberMapper.selectIdByUserIdAndSpaceId(userId, member.getSpaceId());
+                if (operatorMemberId == null || operatorMemberId.equals(memberId)) {
+                    return;
+                }
+                String teamName = teamMapper.selectTeamNameById(first.get());
+                Dict dict = Dict.create().set(TEAM_NAME, teamName)
+                    .set(TEAM_ID, first.get());
+                NotificationManager.me().playerNotify(NotificationTemplateId.ASSIGNED_TO_GROUP,
+                    ListUtil.toList(memberId), userId, member.getSpaceId(), dict);
+            }
+        });
     }
 
     @Override
@@ -727,6 +789,45 @@ public class MemberServiceImpl extends ExpandServiceImpl<MemberMapper, MemberEnt
                     CollUtil.newArrayList(value));
             }
         });
+        TaskManager.me().execute(() ->
+            this.sendAssignGroupEmail(spaceId, teamIds, memberIds, toAddMap));
+    }
+
+    private void sendAssignGroupEmail(String spaceId, List<Long> teamIds,
+                                      List<Long> memberIds, Map<Long, List<Long>> toAddMap) {
+        List<MemberBaseInfoDTO> memberBaseInfoDTOs =
+            memberMapper.selectBaseInfoDTOByIds(memberIds);
+        List<String> emails = memberBaseInfoDTOs.stream().map(MemberBaseInfoDTO::getEmail)
+            .collect(Collectors.toList());
+        if (emails.isEmpty()) {
+            return;
+        }
+        String defaultLang = LocaleContextHolder.getLocale().toLanguageTag();
+        List<UserLangDTO> emailsWithLang =
+            iUserService.getLangByEmails(defaultLang, emails);
+        Map<String, MemberBaseInfoDTO> emailTomemberMap = memberBaseInfoDTOs.stream()
+            .filter(m -> !m.getEmail().isEmpty())
+            .collect(Collectors.toMap(MemberBaseInfoDTO::getEmail, Function.identity()));
+
+        String spaceName = iSpaceService.getNameBySpaceId(spaceId);
+        List<TeamBaseInfoDTO> teams = iTeamService.getTeamBaseInfo(teamIds);
+        Map<Long, String> teamIdToNameMap = teams.stream()
+            .collect(Collectors.toMap(TeamBaseInfoDTO::getId, TeamBaseInfoDTO::getTeamName));
+        for (UserLangDTO userDto : emailsWithLang) {
+            String email = userDto.getEmail();
+            MemberBaseInfoDTO member = emailTomemberMap.get(email);
+            Long teamId = toAddMap.get(member.getId()).get(0);
+            String teamName = teamIdToNameMap.get(teamId);
+
+            Dict dict = Dict.create();
+            dict.set("SPACE_NAME", spaceName);
+            dict.set("TEAM_NAME", teamName);
+            dict.set("MEMBER_NAME", member.getMemberName());
+            dict.set("URL", constProperties.getServerDomain() + "/management");
+            NotifyMailFactory.me()
+                .sendMail(userDto.getLocale(), MailPropConstants.SUBJECT_ASSIGN_GROUP, dict, dict,
+                    Collections.singletonList(email));
+        }
     }
 
     @Override
@@ -782,7 +883,7 @@ public class MemberServiceImpl extends ExpandServiceImpl<MemberMapper, MemberEnt
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void batchDeleteMemberFromSpace(String spaceId, List<Long> memberIds,
-        boolean mailNotify) {
+                                           boolean mailNotify) {
         if (CollUtil.isEmpty(memberIds)) {
             return;
         }
@@ -883,12 +984,15 @@ public class MemberServiceImpl extends ExpandServiceImpl<MemberMapper, MemberEnt
             // obtaining statistics
             int currentMemberCount =
                 (int) SqlTool.retCount(staticsMapper.countMemberBySpaceId(spaceId));
+            SubscriptionInfo subscriptionInfo =
+                    entitlementServiceFacade.getSpaceSubscription(spaceId);
+            long maxSeatNums = subscriptionInfo.getFeature().getSeat().getValue();
             // long defaultMaxMemberCount = iSubscriptionService.getPlanSeats(spaceId);
             // Use the object to read data row by row,
             // set the number of rows in the table header,
             // and start reading data at line 4, asynchronous reading.
             UploadDataListener listener =
-                new UploadDataListener(spaceId, this, -1, currentMemberCount)
+                new UploadDataListener(spaceId, this, maxSeatNums, currentMemberCount)
                     .resources(userSpaceDto.getResourceCodes());
             EasyExcel.read(multipartFile.getInputStream(), listener).sheet().headRowNumber(3)
                 .doRead();
@@ -914,11 +1018,13 @@ public class MemberServiceImpl extends ExpandServiceImpl<MemberMapper, MemberEnt
             TaskManager.me().execute(
                 () -> this.sendInviteNotification(userId, listener.getMemberIds(), spaceId, false));
         } catch (IOException e) {
-            e.printStackTrace();
             log.error("file cannot be read", e);
             throw new BusinessException(OrganizationException.EXCEL_CAN_READ_ERROR);
+        } catch (BusinessException e) {
+            log.error("exceed over limit");
+            throw new BusinessException(LimitException.SEATS_OVER_LIMIT);
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("fail to parse file", e);
             throw new BusinessException(
                 "Failed to parse the file. Download the template and import it");
         }
@@ -933,7 +1039,7 @@ public class MemberServiceImpl extends ExpandServiceImpl<MemberMapper, MemberEnt
      * @param inviteEmails email
      */
     private void batchSendInviteEmailOnUpload(String spaceId, Long fromMemberId,
-        List<String> inviteEmails) {
+                                              List<String> inviteEmails) {
         // send invitation emails
         if (CollUtil.isEmpty(inviteEmails)) {
             return;
@@ -949,14 +1055,14 @@ public class MemberServiceImpl extends ExpandServiceImpl<MemberMapper, MemberEnt
     }
 
     /**
-     * send invitation notification emails in batches
+     * send invitation notification emails in batches.
      *
      * @param spaceId      space id
      * @param fromMemberId sender（member id）
      * @param notifyEmails email
      */
     private void batchSendInviteNotifyEmailOnUpload(String spaceId,
-        Long fromMemberId, List<String> notifyEmails) {
+                                                    Long fromMemberId, List<String> notifyEmails) {
         // send an invitation notification email
         if (CollUtil.isEmpty(notifyEmails)) {
             return;
@@ -974,7 +1080,7 @@ public class MemberServiceImpl extends ExpandServiceImpl<MemberMapper, MemberEnt
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Long saveUploadData(String spaceId, UploadDataDTO uploadData, List<String> inviteEmails,
-        List<String> notifyEmails, boolean teamCreatable) {
+                               List<String> notifyEmails, boolean teamCreatable) {
         log.info("saving template data:{}", JSONUtil.toJsonStr(uploadData));
         Long memberId = IdWorker.getId();
         MemberEntity member = new MemberEntity();
@@ -1099,7 +1205,8 @@ public class MemberServiceImpl extends ExpandServiceImpl<MemberMapper, MemberEnt
 
     @Override
     public void sendInviteNotification(Long fromUserId,
-        List<Long> invitedMemberIds, String spaceId, Boolean isToFromUser) {
+                                       List<Long> invitedMemberIds, String spaceId,
+                                       Boolean isToFromUser) {
         if (ObjectUtil.isEmpty(invitedMemberIds)) {
             return;
         }
@@ -1111,10 +1218,12 @@ public class MemberServiceImpl extends ExpandServiceImpl<MemberMapper, MemberEnt
             .playerNotify(NotificationTemplateId.INVITE_MEMBER_TO_USER, invitedMemberIds,
                 fromUserId, spaceId, Dict.create().set(INVOLVE_MEMBER_ID, invitedMemberIds));
         if (isToFromUser) {
+            String memberName = memberMapper.selectMemberNameById(invitedMemberIds.get(0));
             NotificationManager.me()
                 .playerNotify(NotificationTemplateId.INVITE_MEMBER_TO_MYSELF,
                     ListUtil.toList(fromUserId), 0L, spaceId,
-                    Dict.create().set(INVOLVE_MEMBER_ID, invitedMemberIds));
+                    Dict.create().set(INVOLVE_MEMBER_ID, invitedMemberIds)
+                        .set("MEMBER_NAME", memberName));
         }
     }
 
@@ -1184,13 +1293,13 @@ public class MemberServiceImpl extends ExpandServiceImpl<MemberMapper, MemberEnt
     }
 
     @Override
-    public int getTotalMemberCountBySpaceId(String spaceId) {
+    public long getTotalMemberCountBySpaceId(String spaceId) {
         return SqlTool.retCount(baseMapper.selectCountBySpaceId(spaceId));
     }
 
     @Override
-    public int getTotalActiveMemberCountBySpaceId(String spaceId) {
-        return SqlTool.retCount(baseMapper.selectActiveMemberCountBySpaceId(spaceId));
+    public long getTotalActiveMemberCountBySpaceId(String spaceId) {
+        return SqlHelper.retCount(baseMapper.selectActiveMemberCountBySpaceId(spaceId));
     }
 
     @Override
@@ -1206,6 +1315,14 @@ public class MemberServiceImpl extends ExpandServiceImpl<MemberMapper, MemberEnt
     @Override
     public void clearOpenIdById(Long memberId) {
         baseMapper.clearOpenIdById(memberId);
+    }
+
+    @Override
+    public List<MemberEntity> getByUserIds(String spaceId, List<Long> userIds) {
+        if (CollUtil.isEmpty(userIds)) {
+            return new ArrayList<>();
+        }
+        return baseMapper.selectByUserIds(spaceId, userIds);
     }
 
     @Override
@@ -1292,6 +1409,7 @@ public class MemberServiceImpl extends ExpandServiceImpl<MemberMapper, MemberEnt
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void activeIfExistInvitationSpace(Long userId, List<Long> memberIds) {
         List<MemberEntity> memberEntities = new ArrayList<>();
         for (Long memberId : memberIds) {
@@ -1302,5 +1420,14 @@ public class MemberServiceImpl extends ExpandServiceImpl<MemberMapper, MemberEnt
             memberEntities.add(member);
         }
         updateBatchById(memberEntities);
+    }
+
+    @Override
+    public Long getMemberIdByUnitId(String spaceId, String unitId) {
+        Long memberId =
+            iUnitService.getUnitRefIdByUnitIdAndSpaceIdAndUnitType(unitId, spaceId,
+                UnitType.MEMBER);
+        ExceptionUtil.isNotNull(memberId, NOT_EXIST_MEMBER);
+        return memberId;
     }
 }

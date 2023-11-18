@@ -19,6 +19,17 @@
   padding-bottom: 4px;
 
   :global {
+    .workdocBtn {
+      margin: 4px 2px;
+      cursor: inherit;
+      border: 1px solid var(--secondLevelText);
+      & > svg {
+        fill: var(--secondLevelText);
+      }
+      & > div {
+        color: var(--secondLevelText) !important;
+      }
+    }
     .optionCellContainer {
       .unitMember {
         margin: 4px 2px;
@@ -203,6 +214,7 @@
         }
       }
 
+      .workdocBtn > div,
       .unitName,
       .time,
       .cellDateTimeDate,

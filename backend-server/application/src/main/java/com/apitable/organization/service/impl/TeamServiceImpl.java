@@ -18,17 +18,23 @@
 
 package com.apitable.organization.service.impl;
 
+import static com.apitable.organization.enums.OrganizationException.DUPLICATION_TEAM_NAME;
+import static com.apitable.organization.enums.OrganizationException.GET_TEAM_ERROR;
+
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.BooleanUtil;
+import cn.hutool.core.util.IdUtil;
 import cn.hutool.core.util.StrUtil;
 import com.apitable.core.support.tree.DefaultTreeBuildFactory;
 import com.apitable.core.util.ExceptionUtil;
 import com.apitable.core.util.SqlTool;
 import com.apitable.organization.dto.MemberIsolatedInfo;
 import com.apitable.organization.dto.MemberTeamInfoDTO;
+import com.apitable.organization.dto.TeamBaseInfoDTO;
 import com.apitable.organization.dto.TeamCteInfo;
 import com.apitable.organization.dto.TeamMemberDTO;
 import com.apitable.organization.dto.TeamPathInfo;
+import com.apitable.organization.dto.UnitBaseInfoDTO;
 import com.apitable.organization.entity.TeamEntity;
 import com.apitable.organization.entity.UnitEntity;
 import com.apitable.organization.enums.OrganizationException;
@@ -37,6 +43,7 @@ import com.apitable.organization.mapper.MemberMapper;
 import com.apitable.organization.mapper.TeamMapper;
 import com.apitable.organization.mapper.TeamMemberRelMapper;
 import com.apitable.organization.mapper.UnitMapper;
+import com.apitable.organization.ro.RoleMemberUnitRo;
 import com.apitable.organization.service.IRoleMemberService;
 import com.apitable.organization.service.ITeamMemberRelService;
 import com.apitable.organization.service.ITeamService;
@@ -56,6 +63,7 @@ import com.apitable.space.vo.SpaceRoleDetailVo;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.IdWorker;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.baomidou.mybatisplus.extension.toolkit.SqlHelper;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -113,6 +121,11 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, TeamEntity> impleme
 
     @Resource
     private IRoleMemberService iRoleMemberService;
+
+    @Override
+    public List<TeamBaseInfoDTO> getTeamBaseInfo(List<Long> teamIds) {
+        return teamMapper.selectBaseInfoDTOByIds(teamIds);
+    }
 
     @Override
     public List<TeamTreeVo> getTeamTree(String spaceId, Long memberId, Integer depth) {
@@ -235,13 +248,13 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, TeamEntity> impleme
     public boolean checkHasSubUnitByTeamId(String spaceId, Long teamId) {
         log.info("Check whether the team has members or teams");
         List<Long> subTeamIds = baseMapper.selectTeamIdsByParentId(spaceId, teamId);
-        int subMemberCount =
+        long subMemberCount =
             SqlTool.retCount(teamMemberRelMapper.countByTeamId(Collections.singletonList(teamId)));
         return CollUtil.isNotEmpty(subTeamIds) || subMemberCount > 0;
     }
 
     @Override
-    public int countMemberCountByParentId(Long teamId) {
+    public long countMemberCountByParentId(Long teamId) {
         log.info("count the team's members, includes the sub teams' members.");
         List<Long> allSubTeamIds = this.getAllTeamIdsInTeamTree(teamId);
         return CollUtil.isNotEmpty(allSubTeamIds)
@@ -249,7 +262,7 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, TeamEntity> impleme
     }
 
     @Override
-    public int getMemberCount(List<Long> teamIds) {
+    public long getMemberCount(List<Long> teamIds) {
         // obtain the number of all members in a department
         return SqlTool.retCount(teamMemberRelMapper.countByTeamId(teamIds));
     }
@@ -314,6 +327,7 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, TeamEntity> impleme
         entities.forEach(team -> {
             UnitEntity unit = new UnitEntity();
             unit.setId(IdWorker.getId());
+            unit.setUnitId(IdUtil.fastSimpleUUID());
             unit.setSpaceId(spaceId);
             unit.setUnitType(UnitType.TEAM.getType());
             unit.setUnitRefId(team.getId());
@@ -336,6 +350,39 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, TeamEntity> impleme
         ExceptionUtil.isTrue(flag, OrganizationException.CREATE_TEAM_ERROR);
         iUnitService.create(spaceId, UnitType.TEAM, team.getId());
         return team.getId();
+    }
+
+    @Override
+    public Long createSubTeam(String spaceId, String name, Long superId, Integer sequence) {
+        log.info("create sub team:{}", name);
+        if (null == sequence) {
+            sequence = getMaxSequenceByParentId(superId) + 1;
+        }
+        TeamEntity team = new TeamEntity();
+        team.setSpaceId(spaceId);
+        team.setTeamName(name);
+        team.setParentId(superId);
+        team.setSequence(sequence);
+        boolean flag = save(team);
+        ExceptionUtil.isTrue(flag, OrganizationException.CREATE_TEAM_ERROR);
+        iUnitService.create(spaceId, UnitType.TEAM, team.getId());
+        return team.getId();
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Long createSubTeam(String spaceId, String name, Long superId, Integer sequence,
+                              List<Long> roleIds) {
+        Long teamId = createSubTeam(spaceId, name, superId, sequence);
+        if (!roleIds.isEmpty()) {
+            RoleMemberUnitRo roleMember = new RoleMemberUnitRo();
+            roleMember.setId(teamId);
+            roleMember.setType(UnitType.TEAM.getType());
+            for (Long roleId : roleIds) {
+                iRoleMemberService.addRoleMembers(roleId, Collections.singletonList(roleMember));
+            }
+        }
+        return teamId;
     }
 
     @Override
@@ -418,13 +465,13 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, TeamEntity> impleme
         teamInfo.setTeamName(team.getTeamName());
         if (team.getParentId() == 0L) {
             teamInfo.setTeamId(0L);
-            Integer memberCount = memberMapper.selectCountBySpaceId(team.getSpaceId());
+            Long memberCount = SqlTool.retCount(memberMapper.selectCountBySpaceId(team.getSpaceId()));
             teamInfo.setMemberCount(memberCount);
             return teamInfo;
         }
         teamInfo.setTeamId(teamId);
         List<Long> teamIds = this.getAllTeamIdsInTeamTree(teamId);
-        Integer memberCount = teamMemberRelMapper.countByTeamId(teamIds);
+        Long memberCount = SqlHelper.retCount(teamMemberRelMapper.countByTeamId(teamIds));
         teamInfo.setMemberCount(memberCount);
         return teamInfo;
     }
@@ -453,6 +500,21 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, TeamEntity> impleme
         update.setSequence(max + 1);
         boolean flag = updateById(update);
         ExceptionUtil.isTrue(flag, OrganizationException.UPDATE_TEAM_NAME_ERROR);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updateTeam(TeamEntity team, List<Long> roleIds) {
+        updateById(team);
+        if (!roleIds.isEmpty()) {
+            iRoleMemberService.removeByRoleMemberIds(Collections.singletonList(team.getId()));
+            RoleMemberUnitRo roleMember = new RoleMemberUnitRo();
+            roleMember.setId(team.getId());
+            roleMember.setType(UnitType.TEAM.getType());
+            for (Long roleId : roleIds) {
+                iRoleMemberService.addRoleMembers(roleId, Collections.singletonList(roleMember));
+            }
+        }
     }
 
     @Override
@@ -658,12 +720,60 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, TeamEntity> impleme
     }
 
     @Override
+    public void checkNameExists(String spaceId, Long parentId, String name) {
+        int count = SqlTool.retCount(
+            baseMapper.selectCountByParentIdAndSpaceIdAndTeamName(parentId, spaceId, name));
+        ExceptionUtil.isFalse(count > 0, DUPLICATION_TEAM_NAME);
+    }
+
+    @Override
+    public void checkNameExists(String spaceId, Long parentId, Long teamId, String name) {
+        int count = SqlTool.retCount(
+            baseMapper.selectCountByParentIdAndSpaceIdAndTeamNameWithExceptId(parentId, spaceId,
+                teamId, name));
+        ExceptionUtil.isFalse(count > 0, DUPLICATION_TEAM_NAME);
+    }
+
+    @Override
+    public Long getTeamIdByUnitId(String spaceId, String unitId, Consumer<Boolean> consumer) {
+        if ("0".equals(unitId)) {
+            return getRootTeamId(spaceId);
+        }
+        Long teamId = iUnitService.getUnitRefIdByUnitIdAndSpaceIdAndUnitType(unitId, spaceId,
+            UnitType.TEAM);
+        consumer.accept(null != teamId);
+        return teamId;
+    }
+
+    @Override
+    public List<Long> getTeamIdsByUnitIds(String spaceId, List<String> unitIds) {
+        if (unitIds.isEmpty()) {
+            return new ArrayList<>();
+        }
+        return iUnitService.getUnitBaseInfoBySpaceIdAndUnitTypeAndUnitIds(spaceId, UnitType.TEAM,
+            unitIds).stream().map(UnitBaseInfoDTO::getUnitRefId).collect(
+            Collectors.toList());
+    }
+
+    @Override
+    public TeamEntity getTeamByUnitId(String spaceId, String unitId) {
+        Long teamId = getTeamIdByUnitId(spaceId, unitId,
+            status -> ExceptionUtil.isTrue(status, GET_TEAM_ERROR));
+        TeamEntity department = getById(teamId);
+        ExceptionUtil.isNotNull(department, GET_TEAM_ERROR);
+        return department;
+    }
+
+    @Override
     public Map<Long, List<String>> getMemberEachTeamPathName(Map<Long, List<Long>> memberTeamMap,
                                                              String spaceId) {
         // get all teamIds
         Set<Long> allTeamIds = new HashSet<>();
         for (Entry<Long, List<Long>> entry : memberTeamMap.entrySet()) {
             allTeamIds.addAll(entry.getValue());
+        }
+        if (allTeamIds.isEmpty()) {
+            return new HashMap<>();
         }
         // get member's team's all parent team, include itself
         List<TeamPathInfo> teamPathInfos =

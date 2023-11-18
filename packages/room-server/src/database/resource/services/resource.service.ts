@@ -19,6 +19,7 @@
 import { FieldType, ResourceIdPrefix, ResourceType } from '@apitable/core';
 import { Span } from '@metinseylan/nestjs-opentelemetry';
 import { Injectable } from '@nestjs/common';
+import { AutomationService } from 'automation/services/automation.service';
 import { PermissionException, ServerException } from 'shared/exception';
 import { IAuthHeader } from 'shared/interfaces';
 import { DatasheetMetaService } from '../../datasheet/services/datasheet.meta.service';
@@ -26,8 +27,6 @@ import { DatasheetService } from '../../datasheet/services/datasheet.service';
 import { NodeService } from '../../../node/services/node.service';
 import { WidgetService } from '../../widget/services/widget.service';
 import { DatasheetPack } from 'database/interfaces';
-import type { DatasheetPackResponse } from '@apitable/room-native-api';
-import { RobotRobotService } from 'automation/services/robot.robot.service';
 
 @Injectable()
 export class ResourceService {
@@ -36,7 +35,7 @@ export class ResourceService {
     private readonly datasheetService: DatasheetService,
     private readonly datasheetMetaService: DatasheetMetaService,
     private readonly widgetService: WidgetService,
-    private readonly robotService: RobotRobotService,
+    private readonly automationService: AutomationService,
   ) {}
 
   @Span()
@@ -55,7 +54,11 @@ export class ResourceService {
 
   @Span()
   async getHasRobotByResourceIds(resourceIds: string[]) {
-    return await this.robotService.isResourcesHasRobots(resourceIds);
+    const hasRobot = await this.automationService.isResourcesHasRobots(resourceIds);
+    if (!hasRobot) {
+      return await this.automationService.isResourcesHasTriggers(resourceIds);
+    }
+    return hasRobot;
   }
 
   async fetchForeignDatasheetPack(
@@ -64,7 +67,7 @@ export class ResourceService {
     auth: IAuthHeader,
     allowNative: boolean,
     shareId?: string,
-  ): Promise<DatasheetPack | DatasheetPackResponse> {
+  ): Promise<DatasheetPack> {
     // Obtain referenced datasheet
     const datasheetId = resourceId.startsWith(ResourceIdPrefix.Datasheet) ? resourceId : await this.nodeService.getMainNodeId(resourceId);
     return this.datasheetService.fetchForeignDatasheetPack(datasheetId, foreignDatasheetId, auth, allowNative, shareId);

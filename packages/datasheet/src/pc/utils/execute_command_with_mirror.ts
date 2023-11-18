@@ -16,33 +16,32 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { store } from 'pc/store';
-import { Events, isPrivateDeployment, ITemporaryView, IViewProperty, Player, Selectors, StoreActions, ViewPropertyFilter } from '@apitable/core';
-import { showViewManualSaveInMobile } from 'pc/components/tab_bar/view_sync_switch/show_view_manual_save_in_mobile';
-import { browser } from 'modules/shared/browser';
-import { ShowViewManualSaveAlert } from 'pc/components/tab_bar/view_sync_switch/show_view_manual_save_alert';
 import { has, isEqual } from 'lodash';
+import { Events, ITemporaryView, IViewProperty, Player, Selectors, StoreActions, ViewPropertyFilter } from '@apitable/core';
+import { browser } from 'modules/shared/browser';
+import { showViewManualSaveInMobile } from 'pc/components/tab_bar/view_sync_switch/show_view_manual_save_in_mobile';
+import { store } from 'pc/store';
 
 export const executeCommandWithMirror = (commandFunc: Function, viewProperty: Partial<IViewProperty>, cb?: () => void) => {
   const state = store.getState();
   const { mirrorId, viewId, datasheetId, embedId } = state.pageParams;
-  const { editable } = Selectors.getPermissions(state, datasheetId);
 
   if (!mirrorId) {
     const snapshot = Selectors.getSnapshot(state)!;
     const view = Selectors.getCurrentViewBase(snapshot, viewId, datasheetId);
-    if ((!state.labs.includes('view_manual_save') && !state.share.featureViewManualSave && !state.embedInfo.viewManualSave) || Boolean(view?.autoSave)) {
+    if (
+      (!state.labs.includes('view_manual_save') && !state.share.featureViewManualSave && !state.embedInfo.viewManualSave) ||
+      Boolean(view?.autoSave)
+    ) {
       return commandFunc();
     }
 
     if (browser?.is('mobile')) {
       showViewManualSaveInMobile();
     } else {
-      if(!embedId) {
+      if (!embedId) {
         Player.doTrigger(Events.view_notice_view_auto_false);
       }
-      // If you have not triggered the newbie guide for view configuration without collaboration, no save prompt will pop up after the operation
-      (isPrivateDeployment() || state.user.info?.wizards.hasOwnProperty(51)) && editable && ShowViewManualSaveAlert();
     }
     store.dispatch(StoreActions.activeOperateViewId(viewId!, datasheetId!));
     return commandFunc();

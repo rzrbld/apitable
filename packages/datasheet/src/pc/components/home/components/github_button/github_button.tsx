@@ -16,10 +16,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { Typography, useThemeColors } from '@apitable/components';
-import { integrateCdnHost, SystemConfig } from '@apitable/core';
-import styles from './style.module.less';
+import { colorVars, Typography, useThemeColors } from '@apitable/components';
+import { GithubFilled } from '@apitable/icons';
 import { getEnvVariables } from '../../../../utils/env';
+import styles from './style.module.less';
 
 export const GithubButton = () => {
   const colors = useThemeColors();
@@ -28,10 +28,11 @@ export const GithubButton = () => {
   }
   return (
     <div className={styles.githubBtnBox}>
-      <a className={styles.githubBtn} href="https://github.com/apitable/apitable" target="_blank"
-        rel="noreferrer">
-        <img src={integrateCdnHost(SystemConfig.settings.github_icon.value)} alt="apitable github"/>
-        <Typography variant='h7' color={colors.textCommonPrimary}>Start us on Github</Typography>
+      <a className={styles.githubBtn} href="https://github.com/apitable/apitable" target="_blank" rel="noreferrer">
+        <GithubFilled color={colorVars.textCommonPrimary} size={24} />
+        <Typography variant="h7" color={colors.textCommonPrimary}>
+          Star us on Github
+        </Typography>
       </a>
     </div>
   );

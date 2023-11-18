@@ -16,15 +16,16 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+import { useEffect, useRef, useState } from 'react';
+import { Skeleton } from '@apitable/components';
 import { Strings, t, Api } from '@apitable/core';
-// @ts-ignore
-import { showUpgradeContactUs, Trial } from 'enterprise';
 import { Modal } from 'pc/components/common';
 import { getEnvVariables } from 'pc/utils/env';
-import { useEffect, useRef, useState } from 'react';
-import { useSelector } from 'react-redux';
 import styles from './style.module.less';
-import { Skeleton } from '@apitable/components';
+// @ts-ignore
+import { showUpgradeContactUs, Trial } from 'enterprise';
+
+import {useAppSelector} from "pc/store/react-redux";
 
 const upperCaseFirstWord = (str: string) => {
   if (str.length < 2) {
@@ -34,17 +35,17 @@ const upperCaseFirstWord = (str: string) => {
 };
 
 function getClientReferenceId() {
-  return window['Rewardful'] && window['Rewardful'].referral || ('checkout_' + (new Date).getTime());
+  return (window['Rewardful'] && window['Rewardful'].referral) || '';
 }
 
 function getStripeCoupon() {
-  return window['Rewardful'] && window['Rewardful'].coupon || '';
+  return (window['Rewardful'] && window['Rewardful'].coupon) || '';
 }
 
 const UpgradeSpace = () => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const spaceId = useSelector(state => state.space.activeId);
-  const { product, recurringInterval, onTrial } = useSelector(state => state.billing?.subscription) || {};
+  const spaceId = useAppSelector((state) => state.space.activeId);
+  const { product, recurringInterval, onTrial } = useAppSelector((state) => state.billing?.subscription) || {};
   const [loading, setLoading] = useState(true);
   const vars = getEnvVariables();
 
@@ -69,14 +70,37 @@ const UpgradeSpace = () => {
             msg: 'fromVikaUpgrade',
             product,
             recurringInterval,
-            trial: onTrial
+            trial: onTrial,
           },
           '*',
         );
         setLoading(false);
       }
-
+      console.log('msg', msg, grade);
       if (msg === 'toDowngrade' && grade) {
+        if (grade === 'free') {
+          Modal.warning({
+            title: onTrial ? t(Strings.billing_cancel_trial_title) : t(Strings.billing_cancel_title),
+            content: onTrial ? t(Strings.billing_cancel_trial_content) : t(Strings.billing_cancel_content),
+            hiddenCancelBtn: false,
+            okText: t(Strings.confirm),
+            cancelText: t(Strings.cancel),
+            zIndex: 1100,
+            onOk: async () => {
+              if (!vars.IS_ENTERPRISE && !vars.IS_APITABLE) return;
+              //@ts-ignore
+              const planInfoRes = await Api.getSubscript(spaceId);
+              const { subscriptionId } = planInfoRes.data.data;
+              //@ts-ignore
+              const res = await Api?.cancelSubscription(spaceId!, subscriptionId);
+              const { success, data } = res.data;
+              if (success) {
+                location.href = data.url;
+              }
+            },
+          });
+          return;
+        }
         Modal.warning({
           title: t(Strings.downgrade),
           content: t(Strings.downgrade_content),
@@ -86,11 +110,10 @@ const UpgradeSpace = () => {
           }),
           cancelText: t(Strings.cancel),
           zIndex: 1100,
-          onOk: async() => {
+          onOk: async () => {
             const res = await Api.checkoutOrder(spaceId!, priceId, getClientReferenceId(), getStripeCoupon()?.id);
             const { url } = res.data;
             location.href = url;
-            // window.open(url, '_blank', 'noopener=yes,noreferrer=yes');
           },
         });
         return;
@@ -107,7 +130,7 @@ const UpgradeSpace = () => {
             }),
             cancelText: t(Strings.cancel),
             zIndex: 1100,
-            onOk: async() => {
+            onOk: async () => {
               const res = await Api.checkoutOrder(spaceId!, priceId, getClientReferenceId(), getStripeCoupon()?.id);
               const { url } = res.data;
               location.href = url;
@@ -127,11 +150,17 @@ const UpgradeSpace = () => {
           hiddenCancelBtn: false,
           cancelText: t(Strings.cancel),
           zIndex: 1100,
-          onOk: async() => {
-            const res = await Api.checkoutOrder(spaceId!, priceId, getClientReferenceId(), getStripeCoupon()?.id);
-            const { url } = res.data;
-            location.href = url;
-            // window.open(url, '_blank', 'noopener=yes,noreferrer=yes');
+          onOk: async () => {
+            if (!vars.IS_ENTERPRISE && !vars.IS_APITABLE) return;
+            //@ts-ignore
+            const planInfoRes = await Api.getSubscript(spaceId);
+            const { subscriptionId } = planInfoRes.data.data;
+            //@ts-ignore
+            const res = await Api?.updateBillingSubscription(spaceId, subscriptionId);
+            const { success, data } = res.data;
+            if (success) {
+              location.href = data.url;
+            }
           },
         });
         return;
@@ -144,7 +173,6 @@ const UpgradeSpace = () => {
       if (pageType) {
         window.open(`/space/${spaceId}/upgrade?pageType=${pageType}`, '_blank', 'noopener,noreferrer');
       }
-
     };
 
     window.addEventListener('message', receiveMes);
@@ -152,33 +180,36 @@ const UpgradeSpace = () => {
     return () => {
       window.removeEventListener('message', receiveMes);
     };
+    // eslint-disable-next-line
   }, [spaceId, product]);
 
   if (showTrialModal) {
-    return Trial && <Trial setShowTrialModal={setShowTrialModal} title={t(Strings.upgrade_space)}/>;
+    return Trial && <Trial setShowTrialModal={setShowTrialModal} title={t(Strings.upgrade_space)} />;
   }
 
   const iframeSrc = location.origin + '/pricing/';
   // const iframeSrc = 'http://localhost:3002' + '/pricing/';
 
-  return <div className={styles.container}>
-    {
-      loading && <div className={styles.loading}>
-        <Skeleton width='38%'/>
-        <Skeleton count={2}/>
-        <Skeleton width='61%'/>
+  return (
+    <div className={styles.container}>
+      {loading && (
+        <div className={styles.loading}>
+          <Skeleton width="38%" />
+          <Skeleton count={2} />
+          <Skeleton width="61%" />
 
-        <Skeleton width='38%'/>
-        <Skeleton count={2}/>
-        <Skeleton width='61%'/>
+          <Skeleton width="38%" />
+          <Skeleton count={2} />
+          <Skeleton width="61%" />
 
-        <Skeleton width='38%'/>
-        <Skeleton count={2}/>
-        <Skeleton width='61%'/>
-      </div>
-    }
-    <iframe src={iframeSrc} ref={iframeRef}/>
-  </div>;
+          <Skeleton width="38%" />
+          <Skeleton count={2} />
+          <Skeleton width="61%" />
+        </div>
+      )}
+      <iframe src={iframeSrc} ref={iframeRef} />
+    </div>
+  );
 };
 
 export default UpgradeSpace;

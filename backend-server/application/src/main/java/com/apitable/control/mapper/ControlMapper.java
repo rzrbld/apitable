@@ -18,21 +18,28 @@
 
 package com.apitable.control.mapper;
 
-import java.util.List;
-
-import com.baomidou.mybatisplus.annotation.InterceptorIgnore;
-import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import org.apache.ibatis.annotations.Param;
-
 import com.apitable.control.entity.ControlEntity;
 import com.apitable.control.infrastructure.ControlType;
 import com.apitable.control.model.ControlTypeDTO;
 import com.apitable.control.model.ControlUnitDTO;
+import com.baomidou.mybatisplus.annotation.InterceptorIgnore;
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import java.util.List;
+import org.apache.ibatis.annotations.Param;
 
 /**
- * Permission control table mapper
+ * Permission control table mapper.
  */
 public interface ControlMapper extends BaseMapper<ControlEntity> {
+
+    /**
+     * Query space id.
+     *
+     * @param controlId Control Unit ID
+     * @return spaceId
+     * @author Chambers
+     */
+    String selectSpaceIdByControlId(@Param("controlId") String controlId);
 
     /**
      * Query entity according to control ID
@@ -65,7 +72,8 @@ public interface ControlMapper extends BaseMapper<ControlEntity> {
      * @param type      Control unit type
      * @return Control unit ID
      */
-    List<String> selectControlIdByControlIdPrefixAndType(@Param("prefix") String prefix, @Param("type") Integer type);
+    List<String> selectControlIdByControlIdPrefixAndType(@Param("prefix") String prefix,
+        @Param("type") Integer type);
 
     /**
      * Query control unit ID
@@ -106,7 +114,8 @@ public interface ControlMapper extends BaseMapper<ControlEntity> {
      * @param controlIds Control unit ID set
      * @return Number of execution results
      */
-    int deleteByControlIds(@Param("userId") Long userId, @Param("controlIds") List<String> controlIds);
+    int deleteByControlIds(@Param("userId") Long userId,
+        @Param("controlIds") List<String> controlIds);
 
     /**
      * Query space control
@@ -116,8 +125,8 @@ public interface ControlMapper extends BaseMapper<ControlEntity> {
      * @param controlType Permission Type
      * @return ControlEntity
      */
-    ControlEntity selectDeletedByControlIdAndSpaceId(@Param("controlId") String controlId, @Param("spaceId") String spaceId,
-            @Param("controlType") ControlType controlType);
+    ControlEntity selectDeletedByControlIdAndSpaceId(@Param("controlId") String controlId,
+        @Param("spaceId") String spaceId, @Param("controlType") ControlType controlType);
 
     /**
      * Update deletion status
@@ -127,5 +136,6 @@ public interface ControlMapper extends BaseMapper<ControlEntity> {
      * @param isDeleted Deleted state
      * @return Integer
      */
-    Integer updateIsDeletedByIds(@Param("ids") List<Long> ids, @Param("userId") Long userId, @Param("isDeleted") Boolean isDeleted);
+    Integer updateIsDeletedByIds(@Param("ids") List<Long> ids, @Param("userId") Long userId,
+        @Param("isDeleted") Boolean isDeleted);
 }

@@ -21,7 +21,7 @@ import { groupBy } from 'lodash';
 import { IReduxState, Selectors } from '../../../exports/store';
 import { ResourceType } from 'types';
 import { IAtomEventType, ICombEventType } from '../interface';
-import { EventSourceTypeEnums, OPEventNameEnums } from './../../const';
+import { EventSourceTypeEnums, OPEventNameEnums } from './../../enum';
 import {
   IAtomEvent, IEventInstance, IEventTestResult, IOPBaseContext, IOPEvent
 } from './../../interface/event.interface';
@@ -32,20 +32,27 @@ interface IRecordMetaUpdated {
   action: any;
 }
 export class OPEventRecordMetaUpdated extends IAtomEventType<IRecordMetaUpdated> {
-  eventName = OPEventNameEnums.RecordMetaUpdated;
-  realType = EventRealTypeEnums.REAL;
-  scope = ResourceType.Datasheet;
-  test({ action, resourceId }: IOPBaseContext) {
-    const { pass, recordId } = testPath(action.p, ['recordMap', ':recordId', 'recordMeta']);
-    return {
-      pass,
-      context: {
-        datasheetId: resourceId,
-        recordId,
-        action,
+    eventName = OPEventNameEnums.RecordMetaUpdated;
+    realType = EventRealTypeEnums.REAL;
+    scope = ResourceType.Datasheet;
+
+    test({ action, resourceId }: IOPBaseContext) {
+      let pass,
+          recordId;
+      if (action.p.length === 3) {
+        ({ pass, recordId } = testPath(action.p, ['recordMap', ':recordId', 'recordMeta']));
+      } else {
+        ({ pass, recordId } = testPath(action.p, ['recordMap', ':recordId', 'recordMeta', 'fieldUpdatedMap']));
       }
-    };
-  }
+      return {
+        pass,
+        context: {
+          datasheetId: resourceId,
+          recordId,
+          action,
+        }
+      };
+    }
 }
 export class OPEventRecordCommentUpdated implements IAtomEventType<any> {
   eventName = OPEventNameEnums.RecordCommentUpdated;

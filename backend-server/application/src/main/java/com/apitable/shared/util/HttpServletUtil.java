@@ -18,14 +18,24 @@ public class HttpServletUtil {
      * @param request servlet request
      * @return Map
      */
-    public static Map<String, String> getCookiesAsMap(HttpServletRequest request) {
-        Map<String, String> cookieMap = new HashMap<>();
-        Cookie[] cookies = request.getCookies();
-        if (cookies != null) {
-            for (Cookie cookie : cookies) {
-                cookieMap.put(cookie.getName(), DecoderUtil.decode(cookie.getValue()));
+    public static Map<String, String> getParameterAsMap(HttpServletRequest request,
+                                                        boolean fetchCookies) {
+        Map<String, String> parameters = new HashMap<>();
+        Map<String, String[]> parameterMap = request.getParameterMap();
+        for (String key : parameterMap.keySet()) {
+            String[] values = parameterMap.get(key);
+            if (values.length > 0) {
+                parameters.put(key, values[0]);
             }
         }
-        return cookieMap;
+        if (fetchCookies) {
+            Cookie[] cookies = request.getCookies();
+            if (cookies != null) {
+                for (Cookie cookie : cookies) {
+                    parameters.put(cookie.getName(), DecoderUtil.decode(cookie.getValue()));
+                }
+            }
+        }
+        return parameters;
     }
 }

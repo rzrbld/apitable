@@ -15,10 +15,12 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-import { findNode, Selectors, Strings, t } from '@apitable/core';
 import { Drawer } from 'antd';
+import dynamic from 'next/dynamic';
 import Image from 'next/image';
+import * as React from 'react';
+import { useEffect, useState } from 'react';
+import { findNode, Selectors, Strings, t } from '@apitable/core';
 import { DashboardPanel } from 'pc/components/dashboard_panel';
 import { DataSheetPane } from 'pc/components/datasheet_pane';
 import { FolderShowcase } from 'pc/components/folder_showcase';
@@ -26,26 +28,29 @@ import { FormPanel } from 'pc/components/form_panel';
 import { MirrorRoute } from 'pc/components/mirror/mirror_route';
 import { ViewListBox } from 'pc/components/mobile_bar/view_list_box';
 import { useSideBarVisible } from 'pc/hooks';
-import * as React from 'react';
-import { useEffect, useState } from 'react';
-import { useSelector } from 'react-redux';
 import IconWechatGuide from 'static/icon/common/common_tip_guide.png';
 import { RenderModal } from '../../tab_bar/description_modal/description_modal';
 import { ApplicationJoinSpaceAlert } from '../application_join_space_alert';
 import { IShareMenu } from '../share_menu';
 import { ShareMenu } from '../share_menu/share_menu';
 import styles from './style.module.less';
+import { AutomationPanel } from "pc/components/automation";
+
+import {useAppSelector} from "pc/store/react-redux";
+
+// @ts-ignore
+const AIPanel = dynamic(() => import('enterprise').then((module) => module.ChatPage));
 
 export interface IShareMobileProps extends IShareMenu {
   applicationJoinAlertVisible: boolean;
 }
 
-export const ShareMobile: React.FC<React.PropsWithChildren<IShareMobileProps>> = props => {
-  const { shareId, datasheetId, folderId, formId, dashboardId, mirrorId } = useSelector(state => state.pageParams);
+export const ShareMobile: React.FC<React.PropsWithChildren<IShareMobileProps>> = (props) => {
+  const { shareId, datasheetId, folderId, formId, dashboardId, mirrorId, automationId, aiId } = useAppSelector((state) => state.pageParams);
   const [viewListStatus, setViewListStatus] = useState(false);
   const [shareGuideStatus, setShareGuideStatus] = useState(false);
   const [descModalStatus, setDescModal] = useState(false);
-  const datasheetName = useSelector(state => {
+  const datasheetName = useAppSelector((state) => {
     const treeNodesMap = state.catalogTree.treeNodesMap;
     const datasheet = Selectors.getDatasheet(state);
     if (shareId) {
@@ -70,7 +75,9 @@ export const ShareMobile: React.FC<React.PropsWithChildren<IShareMobileProps>> =
     if (!shareNode) {
       return;
     }
-    if (mirrorId) {
+    if (automationId) {
+      return <AutomationPanel resourceId={automationId}/>;
+    } else if (mirrorId) {
       return <MirrorRoute />;
     } else if (datasheetId) {
       return <DataSheetPane />;
@@ -78,6 +85,8 @@ export const ShareMobile: React.FC<React.PropsWithChildren<IShareMobileProps>> =
       return <FormPanel loading={props.loading} />;
     } else if (dashboardId) {
       return <DashboardPanel />;
+    } else if (aiId) {
+      return <AIPanel />;
     } else if (folderId) {
       const parentNode = findNode([shareNode], folderId);
       const childNodes = (parentNode && parentNode.children) ?? [];
@@ -125,32 +134,29 @@ export const ShareMobile: React.FC<React.PropsWithChildren<IShareMobileProps>> =
   return (
     <div className={styles.mobile}>
       {getComponent()}
-      {renderSide()}
-      {props.applicationJoinAlertVisible &&
-      <ApplicationJoinSpaceAlert
-        spaceId={props.shareSpace.spaceId}
-        spaceName={props.shareSpace.spaceName}
-        defaultVisible={props.shareSpace.allowApply}
+      {!aiId && renderSide()}
+      {props.applicationJoinAlertVisible && (
+        <ApplicationJoinSpaceAlert
+          spaceId={props.shareSpace.spaceId}
+          spaceName={props.shareSpace.spaceName}
+          defaultVisible={props.shareSpace.allowApply}
+        />
+      )}
+      <ViewListBox
+        displayState={viewListStatus}
+        hideViewList={() => {
+          setViewListStatus(false);
+        }}
       />
-      }
-      <ViewListBox displayState={viewListStatus} hideViewList={() => { setViewListStatus(false); }} />
-      {
-        shareGuideStatus &&
+      {shareGuideStatus && (
         <div className={styles.wechatShareGuide} onClick={() => setShareGuideStatus(false)}>
           <div className={styles.box}>
-            <Image
-              alt=""
-              src={IconWechatGuide}
-              width={41}
-              height={78}
-              style={{ position: 'absolute', top: -90, right: 0 }}
-            />
+            <Image alt="" src={IconWechatGuide} width={41} height={78} style={{ position: 'absolute', top: -90, right: 0 }} />
             <span className={styles.tip}>{t(Strings.click_top_right_to_share)}</span>
           </div>
         </div>
-      }
-      {
-        descModalStatus && datasheetId &&
+      )}
+      {descModalStatus && datasheetId && (
         <RenderModal
           visible={descModalStatus}
           onClose={() => setDescModal(false)}
@@ -159,7 +165,7 @@ export const ShareMobile: React.FC<React.PropsWithChildren<IShareMobileProps>> =
           modalStyle={{ top: 60 }}
           isMobile
         />
-      }
+      )}
     </div>
   );
 };

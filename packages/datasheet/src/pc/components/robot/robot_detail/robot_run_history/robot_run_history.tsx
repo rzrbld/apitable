@@ -16,109 +16,72 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { Box, Loading, Skeleton, Typography, useTheme } from '@apitable/components';
-import { Strings, t } from '@apitable/core';
-import useInfiniteScroll from 'react-infinite-scroll-hook';
+import { useAtomValue } from 'jotai';
+import { nanoid } from 'nanoid';
+import qs from 'qs';
+import { useCallback, useContext, useState } from 'react';
 import useSWRInfinite from 'swr/infinite';
-import { getRobotRunHistoryList } from '../../api';
-import { useRobot } from '../../hooks';
-import { RobotRunHistoryItem } from './robot_run_history_item';
+import { automationStateAtom } from '../../../automation/controller/atoms';
+import { ShareContext } from '../../../share';
+import { checkObject, getRobotApiHistoryList } from '../../api';
+import { RobotRunStatusEnums } from '../../interface';
 
-const PAGE_SIZE = 20;
+export const PAGE_SIZE = 20;
 
-export const RobotRunHistory = () => {
-  const { currentRobotId } = useRobot();
-  const { data, error, size, setSize } = useSWRInfinite(
-    index => `/robots/run-history?size=${PAGE_SIZE}&page=${index + 1}&robotId=${currentRobotId}`,
-    getRobotRunHistoryList
+export interface IRunHistoryDatum {
+  robotId: string;
+  taskId: string;
+  createdAt: string;
+  status: RobotRunStatusEnums;
+  executedActions: ExecutedAction[];
+}
+
+export interface ExecutedAction {
+  actionId: string;
+  actionTypeId: string;
+  success: boolean;
+}
+
+export const useGetTaskHistory = () => {
+
+  const { shareInfo } = useContext(ShareContext);
+  const automationState = useAtomValue(automationStateAtom);
+
+  const options = {
+    shareId: shareInfo?.shareId,
+  };
+  const query = checkObject(options) ? qs.stringify(options) : '';
+
+  const [key, setKey] = useState(() => nanoid());
+  const { data, isLoading, isValidating, error, size, setSize, mutate } = useSWRInfinite(
+    (index) => `/automation/${automationState?.resourceId}/roots/${automationState?.currentRobotId}/run-history?pageNum=${index + 1}&pageSize=${PAGE_SIZE}&key=${key}&${query}`,
+    getRobotApiHistoryList
   );
+
+  const reset = useCallback(() => {
+    setKey(nanoid());
+    mutate();
+  }, [mutate]);
+
   const items = data ? data.flat() : [];
   const isLoadingInitialData = !data && !error;
   const isLoadingMore = isLoadingInitialData || (size > 0 && data && typeof data[size - 1] === 'undefined');
   const isEmpty = data?.[0]?.length === 0;
-  const isReachingEnd =
-    isEmpty || (data && data[data.length - 1]?.length < PAGE_SIZE);
+  const isReachingEnd = isEmpty || (data && data[data.length - 1]?.length < PAGE_SIZE);
   // const isRefreshing = isValidating && data && data.length === size;
   const canLoadMore = !isReachingEnd && !isLoadingMore;
-
-  const [sentryRef, { rootRef }] = useInfiniteScroll({
-    loading: isLoadingInitialData,
-    hasNextPage: !isReachingEnd,
-    onLoadMore: () => canLoadMore && setSize(size + 1),
-    disabled: !!error,
-    rootMargin: '0px 0px 32px 0px',
-  });
-  const theme = useTheme();
-  return <>
-    <Box padding="16px">
-      <Box display="flex" alignItems="center">
-        <Box
-          height="12px"
-          width="2px"
-          backgroundColor={theme.color.fc0}
-          marginRight="4px"
-        />
-        <Typography variant="body3" color={theme.color.fc3}>
-          <div dangerouslySetInnerHTML={{ __html: t(Strings.robot_run_history_desc) }} />
-        </Typography>
-      </Box>
-      {
-        (error || !data) && <Skeleton
-          count={3}
-          height="52px"
-          type="text"
-          circle={false}
-          style={{
-            marginBottom: 16,
-          }}
-        />
-      }
-      <Box
-        height="calc(100vh - 150px)"
-        ref={rootRef}
-      >
-        {
-          items.map(item => <RobotRunHistoryItem key={item.taskId} item={item} />)
-        }
-        {
-          isEmpty ? <Box
-            display="flex"
-            justifyContent="center"
-            marginTop="210px"
-          >
-            <Typography variant="body2" color={theme.color.fc2}>{t(Strings.robot_run_history_no_data)}</Typography>
-          </Box> : <Box
-            ref={sentryRef}
-            display="flex"
-            alignItems="center"
-            justifyContent="center"
-            marginTop="16px"
-          >
-            {(isLoadingMore) &&
-                <Box display="flex">
-                  <Loading />
-                  <Typography
-                    component="span"
-                    variant="body4"
-                    color={theme.color.fc2}
-                  >
-                    正在加载更多…
-                  </Typography>
-                </Box>
-            }
-            {
-              isReachingEnd &&
-                <Typography
-                  component="span"
-                  variant="body4"
-                  color={theme.color.fc2}
-                >
-                  {t(Strings.robot_run_history_bottom_tip)}
-                </Typography>
-            }
-          </Box>
-        }
-      </Box>
-    </Box >
-  </>;
+  return {
+    canLoadMore,
+    items,
+    isEmpty,
+    size,
+    error,
+    isLoadingData: isLoading,
+    isLoading: isValidating,
+    isLoadingMore,
+    isLoadingInitialData,
+    isReachingEnd,
+    reset,
+    setSize,
+  };
 };

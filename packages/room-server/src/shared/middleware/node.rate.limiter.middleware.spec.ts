@@ -17,15 +17,17 @@
  */
 
 import { RedisService } from '@apitable/nestjs-redis';
-import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
-import { Test, TestingModule } from '@nestjs/testing';
-import { AppModule } from 'app.module';
+import { DeveloperService } from 'developer/services/developer.service';
 import { I18nService } from 'nestjs-i18n';
 import sha1 from 'sha1';
 import { NodeRateLimiterMiddleware } from 'shared/middleware/node.rate.limiter.middleware';
 import { NODE_LIMITER_PREFIX } from '../common';
 import { IBaseRateLimiter } from '../interfaces';
 import Mock = jest.Mock;
+import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
+import { Test, TestingModule } from '@nestjs/testing';
+import { AppModule } from '../../app.module';
+import { clearRedis } from '../testing/test-util';
 
 describe('FusionApiRateLimiter', () => {
   let app: NestFastifyApplication;
@@ -33,11 +35,13 @@ describe('FusionApiRateLimiter', () => {
   let redisService: RedisService;
   let i18nService: I18nService;
   let envConfigService: any;
+  let restService: any;
+  let developerService: any;
+  let datasheetRepository: any;
   let callHandler: Mock;
   let res: any;
 
   beforeAll(async() => {
-    jest.setTimeout(60000);
     const module: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
@@ -45,15 +49,18 @@ describe('FusionApiRateLimiter', () => {
     await app.init();
     redisService = app.get(RedisService);
     i18nService = app.get(I18nService);
+    developerService = app.get(DeveloperService);
     envConfigService = {
       getRoomConfig: jest.fn().mockReturnThis(),
     };
-    rateLimiter = new NodeRateLimiterMiddleware(redisService, envConfigService, i18nService);
+    restService = {
+      getApiRateLimit: jest.fn(),
+    };
+    datasheetRepository = {
+      selectById: jest.fn(),
+    };
+    rateLimiter = new NodeRateLimiterMiddleware(redisService, envConfigService, restService, datasheetRepository, developerService, i18nService);
     callHandler = jest.fn();
-  });
-
-  afterAll(async() => {
-    await app.close();
   });
 
   beforeEach(async() => {
@@ -62,13 +69,12 @@ describe('FusionApiRateLimiter', () => {
       end: jest.fn(),
       write: jest.fn(),
     };
-
-    await clearRedis();
+    await clearRedis(redisService);
   });
 
-  async function clearRedis() {
-    await redisService.getClient().flushdb();
-  }
+  afterAll(async() => {
+    await app.close();
+  });
 
   async function waitForAsyncProcessing(seconds = 0.2) {
     await new Promise((r) => setTimeout(r, seconds * 1000));
@@ -82,7 +88,7 @@ describe('FusionApiRateLimiter', () => {
           points: 1,
           duration: 120,
         });
-        rateLimiter.use(
+        await rateLimiter.use(
           {
             originalUrl: '/fusion/v1/nodes/dst1********',
             headers: {
@@ -106,7 +112,7 @@ describe('FusionApiRateLimiter', () => {
           points: 1,
           duration: 120,
         });
-        rateLimiter.use(
+        await rateLimiter.use(
           {
             originalUrl: '/fusion/v1/datasheets/dst********/records',
             headers: {
@@ -130,7 +136,7 @@ describe('FusionApiRateLimiter', () => {
           points: 1,
           duration: 120,
         });
-        rateLimiter.use(
+        await rateLimiter.use(
           {
             originalUrl: '/fusion/v1/spaces',
             headers: {
@@ -154,7 +160,7 @@ describe('FusionApiRateLimiter', () => {
           points: 1,
           duration: 120,
         });
-        rateLimiter.use(
+        await rateLimiter.use(
           {
             originalUrl: '/fusion/v1/spaces/spc******/nodes',
             headers: {
@@ -177,7 +183,7 @@ describe('FusionApiRateLimiter', () => {
           points: 1,
           duration: 120,
         });
-        rateLimiter.use(
+        await rateLimiter.use(
           {
             originalUrl: '/fusion/v1//spaces/spc1******/nodes/dst2********',
             headers: {
@@ -204,7 +210,7 @@ describe('FusionApiRateLimiter', () => {
           duration: 120,
           whiteList
         });
-        rateLimiter.use(
+        await rateLimiter.use(
           {
             originalUrl: '/fusion/v1//spaces/spc1******/nodes/dst3********',
             headers: {
@@ -231,7 +237,7 @@ describe('FusionApiRateLimiter', () => {
           duration: 120,
           whiteList
         });
-        rateLimiter.use(
+        await rateLimiter.use(
           {
             originalUrl: '/fusion/v1//spaces/spc1******/nodes/dst4********',
             headers: {

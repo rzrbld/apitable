@@ -16,17 +16,18 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { useThemeColors } from '@apitable/components';
-import { ISelectFieldOption, Selectors, Strings, t } from '@apitable/core';
 import { Tooltip } from 'antd';
 import classNames from 'classnames';
-import { setColor } from 'pc/components/multi_grid/format';
-import { stopPropagation } from 'pc/utils';
 import * as React from 'react';
 import { FC, useState } from 'react';
-import { useSelector } from 'react-redux';
+import { useThemeColors } from '@apitable/components';
+import { ISelectFieldOption, Selectors, Strings, t } from '@apitable/core';
+import { setColor } from 'pc/components/multi_grid/format';
+import { stopPropagation } from 'pc/utils';
 import { OptionSetting } from './enum';
 import styles from './style.module.less';
+
+import {useAppSelector} from "pc/store/react-redux";
 
 export interface IColorGroupProps {
   colorGroup: number[];
@@ -36,46 +37,45 @@ export interface IColorGroupProps {
   disabled?: boolean;
 }
 
-export const ColorGroup: FC<React.PropsWithChildren<IColorGroupProps>> = props => {
+export const ColorGroup: FC<React.PropsWithChildren<IColorGroupProps>> = (props) => {
   const { colorGroup, option, onChange, style, disabled } = props;
   const [colorIdx, setColorIdx] = useState<number>();
   const colors = useThemeColors();
-  const cacheTheme = useSelector(Selectors.getTheme);
+  const cacheTheme = useAppSelector(Selectors.getTheme);
 
   return (
     <ul className={styles.colorGroup} style={style}>
-      {colorGroup.map(colorIndex => {
+      {colorGroup.map((colorIndex) => {
         const selected = colorIndex === option.color;
-        const li = <li className={styles.item} key={option.id + colorIndex}>
-          <div
-            className={classNames(styles.outer, {
-              [styles.disabled]: disabled,
-              [styles.colorSelected]: selected,
-              [styles.active]: selected && colorIdx,
-            })}
-            onClick={(e: React.MouseEvent) => {
-              stopPropagation(e);
-              onChange?.(OptionSetting.SETCOLOR, option.id, colorIndex);
-              setColorIdx(colorIndex);
-            }}
-            onMouseDown={stopPropagation}
-          >
-            <div className={styles.borderWhite}>
-              <div
-                className={styles.inner}
-                style={{
-                  background: colorIndex === -1 ? colors.defaultBg : setColor(colorIndex, cacheTheme),
-                  border: colorIndex === -1 ? `1px solid ${colors.textCommonTertiary}` : 'none',
-                }}
-              />
+        const li = (
+          <li className={styles.item} key={option.id + colorIndex}>
+            <div
+              className={classNames(styles.outer, {
+                [styles.disabled]: disabled,
+                [styles.colorSelected]: selected,
+                [styles.active]: selected && colorIdx,
+              })}
+              onClick={(e: React.MouseEvent) => {
+                stopPropagation(e);
+                onChange?.(OptionSetting.SETCOLOR, option.id, colorIndex);
+                setColorIdx(colorIndex);
+              }}
+              onMouseDown={stopPropagation}
+              key={colorIndex}
+            >
+              <div className={styles.borderWhite}>
+                <div
+                  className={styles.inner}
+                  style={{
+                    background: colorIndex === -1 ? colors.defaultBg : setColor(colorIndex, cacheTheme),
+                    border: colorIndex === -1 ? `1px solid ${colors.textCommonTertiary}` : 'none',
+                  }}
+                />
+              </div>
             </div>
-          </div>
-        </li>;
-        return (
-          disabled ? <Tooltip title={t(Strings.view_lock_setting_desc)}>
-            {li}
-          </Tooltip> : <>{li}</>
+          </li>
         );
+        return disabled ? <Tooltip title={t(Strings.view_lock_setting_desc)}>{li}</Tooltip> : <>{li}</>;
       })}
     </ul>
   );

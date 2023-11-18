@@ -16,23 +16,25 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+import { IRobotTask } from '@apitable/core';
+import { RunHistoryStatusEnum } from 'shared/enums/automation.enum';
+import { EntityRepository, In, Repository } from 'typeorm';
 import { AutomationRunHistoryEntity } from '../entities/automation.run.history.entity';
-import { EntityRepository, Repository } from 'typeorm';
 
 @EntityRepository(AutomationRunHistoryEntity)
 export class AutomationRunHistoryRepository extends Repository<AutomationRunHistoryEntity> {
-
   getRunHistoryByRobotId(robotId: string, skip = 0, take = 10) {
     return this.find({
       select: ['taskId', 'robotId', 'createdAt', 'status'],
       where: {
         robotId,
+        status: In([RunHistoryStatusEnum.RUNNING, RunHistoryStatusEnum.SUCCESS, RunHistoryStatusEnum.FAILED]),
       },
       order: {
         createdAt: 'DESC',
       },
       skip,
-      take
+      take,
     });
   }
 
@@ -44,4 +46,25 @@ export class AutomationRunHistoryRepository extends Repository<AutomationRunHist
     });
   }
 
+  selectContextByTaskIdAndTriggerId(taskId: string, triggerId: string): Promise<IRobotTask | undefined> {
+    return this.createQueryBuilder('rhs')
+      .select('robot_id', 'robotId')
+      .addSelect('task_id', 'taskId')
+      .addSelect('status', 'status')
+      .addSelect("JSON_EXTRACT(rhs.data, CONCAT('$.', :triggerId, '.input'))", 'triggerInput')
+      .addSelect("JSON_EXTRACT(rhs.data, CONCAT('$.', :triggerId, '.output'))", 'triggerOutput')
+      .where('rhs.task_id = :taskId', { taskId })
+      .setParameter('triggerId', triggerId)
+      .getRawOne<IRobotTask>();
+  }
+
+  async updateStatusByTaskId(taskId: string, status: RunHistoryStatusEnum): Promise<number | undefined> {
+    const r = await this.update({ taskId }, { status });
+    return r.affected;
+  }
+
+  async selectRobotIdByTaskId(taskId: string): Promise<string | undefined> {
+    const result = await this.findOne({ select: ['robotId'], where: { taskId }});
+    return result?.robotId;
+  }
 }

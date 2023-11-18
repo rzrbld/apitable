@@ -91,6 +91,20 @@ export enum RollUpFuncType {
   ARRAYCOMPACT = 'ARRAYCOMPACT',
 }
 
+export enum LookUpLimitType {
+  'ALL' = 'ALL',
+  'FIRST' = 'FIRST',
+}
+
+export interface ILookUpSortField {
+  fieldId: string;
+  desc: boolean;
+}
+
+export interface ILookUpSortInfo {
+  rules: ILookUpSortField[]
+}
+
 export interface ILookUpProperty {
   datasheetId: string;
   relatedLinkFieldId: string;
@@ -98,7 +112,10 @@ export interface ILookUpProperty {
   rollUpType?: RollUpFuncType;
   formatting?: IComputedFieldFormattingProperty;
   filterInfo?: IFilterInfo;
+  /** If filterInfo and sortInfo are enabled. */
   openFilter?: boolean;
+  sortInfo?: ILookUpSortInfo;
+  lookUpLimit?: LookUpLimitType;
 }
 
 export interface ITextField extends IBaseField {
@@ -484,13 +501,29 @@ export interface ILinkFieldProperty {
   limitSingleRecord?: boolean; // Whether to limit only one block to be associated. Note: This is a soft limit that only takes effect on the current table interaction, there are actually multiple ways to break the limit.
 }
 
+export interface IOneWayLinkFieldProperty {
+  foreignDatasheetId: string;
+  limitToView?: string; // The limit is only on the optional record corresponding to the viewId. Note: viewId may not exist in the associated table with the modification of the associated table
+  limitSingleRecord?: boolean; // Whether to limit only one block to be associated. Note: This is a soft limit that only takes effect on the current table interaction, there are actually multiple ways to break the limit.
+}
+
 export interface ILinkField extends IBaseField {
   property: ILinkFieldProperty;
   type: FieldType.Link;
 }
 
+export interface IOneWayLinkField extends IBaseField {
+  property: IOneWayLinkFieldProperty;
+  type: FieldType.OneWayLink;
+}
+
 export enum LinkFieldSet {
   Add = 'add',
+}
+
+export interface IWorkDocValue {
+  documentId: string;
+  title: string;
 }
 
 export interface IAttachmentValue {
@@ -551,6 +584,11 @@ export interface ICascaderField extends IBaseField {
   property: ICascaderProperty;
 }
 
+export interface IWorkDocField extends IBaseField {
+  type: FieldType.WorkDoc;
+  property: IWorkDocProperty;
+}
+
 interface ILinkedFields {
   id: string;
   name: string;
@@ -565,6 +603,8 @@ interface ICascaderProperty {
   fullLinkedFields: ILinkedFields[],
 }
 
+type IWorkDocProperty = null;
+
 export type IField =
   | INotSupportField
   | IDeniedField
@@ -575,6 +615,7 @@ export type IField =
   | IMultiSelectField
   | ISingleSelectField
   | ILinkField
+  | IOneWayLinkField
   | IURLField
   | IEmailField
   | IPhoneField
@@ -591,7 +632,8 @@ export type IField =
   | ILastModifiedTimeField
   | ICreatedByField
   | ILastModifiedByField
-  | ICascaderField;
+  | ICascaderField
+  | IWorkDocField;
 
 export enum FieldType {
   NotSupport = 0,
@@ -620,6 +662,8 @@ export enum FieldType {
   CreatedBy = 23,
   LastModifiedBy = 24,
   Cascader = 25,
+  OneWayLink = 26,
+  WorkDoc = 27,
   DeniedField = 999, // no permission column
 }
 
@@ -725,6 +769,15 @@ export const FieldTypeDescriptionMap: {
     fieldGroup: FieldGroup.Common,
     help: t(Strings.field_help_attachment),
     hasOptSetting: false,
+  },
+  [FieldType.OneWayLink]: {
+    title: t(Strings.field_title_one_way_link),
+    subTitle: t(Strings.field_desc_one_way_link),
+    type: FieldType.OneWayLink,
+    canBePrimaryField: false,
+    fieldGroup: FieldGroup.Advanced,
+    help: t(Strings.field_help_one_way_link),
+    hasOptSetting: true,
   },
   [FieldType.Link]: {
     title: t(Strings.field_title_link),
@@ -878,5 +931,14 @@ export const FieldTypeDescriptionMap: {
     fieldGroup: FieldGroup.Advanced,
     help:  t(Strings.field_help_cascader),
     hasOptSetting: true,
+  },
+  [FieldType.WorkDoc]: {
+    title: t(Strings.field_title_workdoc),
+    subTitle: t(Strings.field_desc_workdoc),
+    type: FieldType.WorkDoc,
+    canBePrimaryField: false,
+    fieldGroup: FieldGroup.Common,
+    help:  t(Strings.field_help_workdoc),
+    hasOptSetting: false,
   },
 };

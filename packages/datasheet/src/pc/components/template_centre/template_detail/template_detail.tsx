@@ -16,13 +16,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { useThemeColors } from '@apitable/components';
-import { AutoTestID, Events, findNode, IReduxState, ITemplateDirectory, Navigation, Player, Selectors, StoreActions } from '@apitable/core';
 import { useMount, useRequest, useUnmount } from 'ahooks';
 import { openTryoutSku } from 'dingtalk-design-libs';
 import dd from 'dingtalk-jsapi';
 import { get } from 'lodash';
 import { useRouter } from 'next/router';
+import { FC, useEffect } from 'react';
+import SplitPane from 'react-split-pane';
+import { useThemeColors } from '@apitable/components';
+import { AutoTestID, Events, findNode, IReduxState, ITemplateDirectory, Navigation, Player, Selectors, StoreActions } from '@apitable/core';
 import { Loading } from 'pc/components/common';
 import { ComponentDisplay, ScreenSize } from 'pc/components/common/component_display';
 import { CommonSide } from 'pc/components/common_side';
@@ -30,17 +32,17 @@ import { DashboardPanel } from 'pc/components/dashboard_panel';
 import { DataSheetPane } from 'pc/components/datasheet_pane';
 import { FolderShowcase } from 'pc/components/folder_showcase';
 import { FormPanel } from 'pc/components/form_panel';
-// @ts-ignore
-import { isDingtalkSkuPage, isEnterprise } from 'enterprise';
 import { MirrorRoute } from 'pc/components/mirror/mirror_route';
 import { Router } from 'pc/components/route_manager/router';
 import { useQuery, useResponsive, useSideBarVisible, useTemplateRequest } from 'pc/hooks';
 import { useAppDispatch } from 'pc/hooks/use_app_dispatch';
 import { getEnvVariables } from 'pc/utils/env';
-import { FC, useEffect } from 'react';
-import { useSelector } from 'react-redux';
-import SplitPane from 'react-split-pane';
+import { AutomationPanel } from '../../automation/panel';
 import styles from './style.module.less';
+// @ts-ignore
+import { isDingtalkSkuPage, isEnterprise } from 'enterprise';
+
+import {useAppSelector} from "pc/store/react-redux";
 
 const _SplitPane: any = SplitPane;
 
@@ -48,14 +50,14 @@ export const TemplateDetail: FC<React.PropsWithChildren<unknown>> = () => {
   const colors = useThemeColors();
   const router = useRouter();
   const { sideBarVisible: _sideBarVisible } = useSideBarVisible();
-  const pageParams = useSelector((state: IReduxState) => state.pageParams);
-  const { datasheetId, folderId, templateId, categoryId, formId, dashboardId, mirrorId } = pageParams;
+  const pageParams = useAppSelector((state: IReduxState) => state.pageParams);
+  const { datasheetId, automationId, folderId, templateId, categoryId, formId, dashboardId, mirrorId } = pageParams;
 
-  const spaceId = useSelector(state => state.space.activeId);
-  const activeNodeId = useSelector((state: IReduxState) => Selectors.getNodeId(state));
+  const spaceId = useAppSelector((state) => state.space.activeId);
+  const activeNodeId = useAppSelector((state: IReduxState) => Selectors.getNodeId(state));
   const { getTemplateDirectoryReq } = useTemplateRequest();
   const { run: getTemplateDirectory } = useRequest<ITemplateDirectory, any[]>(getTemplateDirectoryReq, { manual: true });
-  const templateDirectory = useSelector(state => state.templateCentre.directory);
+  const templateDirectory = useAppSelector((state) => state.templateCentre.directory);
   const dispatch = useAppDispatch();
   const query = useQuery();
   const appId = query.get('appId') || '';
@@ -105,7 +107,7 @@ export const TemplateDetail: FC<React.PropsWithChildren<unknown>> = () => {
         spaceId,
         categoryId,
         templateId: templateId || routerTemplateId,
-        nodeId: nodeId
+        nodeId: nodeId,
       },
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -115,7 +117,9 @@ export const TemplateDetail: FC<React.PropsWithChildren<unknown>> = () => {
     if (!templateDirectory || !templateId) {
       return;
     }
-    if (mirrorId) {
+    if (automationId) {
+      return <AutomationPanel resourceId={automationId} />;
+    } else if (mirrorId) {
       return <MirrorRoute />;
     } else if (datasheetId) {
       return <DataSheetPane />;
@@ -172,7 +176,7 @@ export const TemplateDetail: FC<React.PropsWithChildren<unknown>> = () => {
           }
         }
       })
-      .catch(err => {
+      .catch((err) => {
         console.warn(err);
       });
   };
@@ -195,7 +199,7 @@ export const TemplateDetail: FC<React.PropsWithChildren<unknown>> = () => {
     <div id={AutoTestID.TEMPLATE_DETAIL_CONTAINER} className={styles.templateDetailWrapper}>
       <ComponentDisplay minWidthCompatible={ScreenSize.md}>
         <_SplitPane
-          split='vertical'
+          split="vertical"
           minSize={templateId ? 320 : 280}
           defaultSize={defaultSize}
           maxSize={800}

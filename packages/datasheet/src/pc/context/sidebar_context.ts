@@ -17,7 +17,9 @@
  */
 
 import { createContext, useContext } from 'react';
-import { useSelector } from 'react-redux';
+
+
+import {useAppSelector} from "pc/store/react-redux";
 
 export enum SideBarType {
   User,
@@ -41,6 +43,8 @@ export interface ISideBarContextProps {
   onSetPanelVisible?: (visible: boolean) => void;
   onSetSideBarVisibleByUser?: (visible: boolean, panelVisible?: boolean) => void;
   onSetSideBarVisibleByOhter?: (visible: boolean) => void;
+  newTdbId?: string;
+  setNewTdbId?: (newTdbId: string) => void;
 }
 
 export const SideBarContext = createContext<ISideBarContextProps>({
@@ -49,16 +53,9 @@ export const SideBarContext = createContext<ISideBarContextProps>({
 });
 
 export const useSideBar = () => {
-  const sideBarVisible = useSelector(state => state.space.sideBarVisible);
-  const {
-    toggleType,
-    clickType,
-    onSetClickType,
-    onSetToggleType,
-    onSetPanelVisible,
-    onSetSideBarVisibleByOhter,
-    onSetSideBarVisibleByUser,
-  } = useContext(SideBarContext);
+  const sideBarVisible = useAppSelector((state) => state.space.sideBarVisible);
+  const { toggleType, clickType, onSetClickType, onSetToggleType, onSetPanelVisible, onSetSideBarVisibleByOhter, onSetSideBarVisibleByUser } =
+    useContext(SideBarContext);
 
   return {
     toggleType,

@@ -17,16 +17,17 @@
  */
 
 import { Injectable } from '@nestjs/common';
-import { UserEntity } from '../../user/entities/user.entity';
+import { UserEntity } from 'user/entities/user.entity';
 import { DeveloperRepository } from '../repositories/developer.repository';
-import { UserService } from 'user/services/user.service';
+import { UserService } from '../../user/services/user.service';
 
 @Injectable()
 export class DeveloperService {
   constructor(
     private readonly developerRepo: DeveloperRepository,
     private readonly userService: UserService,
-  ) {}
+  ) {
+  }
 
   /**
    * Get User base info by api key

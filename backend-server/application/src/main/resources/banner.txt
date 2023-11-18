@@ -1,9 +1,8 @@
-${Ansi.GREEN}   _____ __________.______________     ___.   .__            ____  __.___________
-${Ansi.GREEN}  /  _  \\______   \   \__    ___/____ \_ |__ |  |   ____   |    |/ _|\_   _____/
-${Ansi.GREEN} /  /_\  \|     ___/   | |    |  \__  \ | __ \|  | _/ __ \  |      <   |    __)_
-${Ansi.GREEN}/    |    \    |   |   | |    |   / __ \| \_\ \  |_\  ___/  |    |  \  |        \
-${Ansi.GREEN}\____|__  /____|   |___| |____|  (____  /___  /____/\___  > |____|__ \/_______  /
-${Ansi.GREEN}        \/                            \/    \/          \/          \/        \/
+${Ansi.GREEN}            _____ _____ _______    _     _      
+${Ansi.GREEN}      /\   |  __ \_   _|__   __|  | |   | |     
+${Ansi.GREEN}     /  \  | |__) || |    | | __ _| |__ | | ___ 
+${Ansi.GREEN}    / /\ \ |  ___/ | |    | |/ _` | '_ \| |/ _ \
+${Ansi.GREEN}   / ____ \| |    _| |_   | | (_| | |_) | |  __/
+${Ansi.GREEN}  /_/    \_\_|   |_____|  |_|\__,_|_.__/|_|\___|
 ${Ansi.BLUE}                  POWERED BY APITable Ltd.
-${Ansi.BLUE}                    KOLKHOZ Edition (KE).
 ${AnsiColor.RED}Spring Boot Version : ${spring-boot.formatted-version}

@@ -18,8 +18,6 @@
 
 package com.apitable.workspace.service;
 
-import com.alibaba.excel.ExcelReader;
-import com.alibaba.excel.read.metadata.ReadSheet;
 import com.apitable.control.infrastructure.role.ControlRole;
 import com.apitable.workspace.dto.CreateNodeDto;
 import com.apitable.workspace.dto.NodeBaseInfoDTO;
@@ -32,9 +30,8 @@ import com.apitable.workspace.entity.DatasheetMetaEntity;
 import com.apitable.workspace.entity.DatasheetRecordEntity;
 import com.apitable.workspace.entity.NodeEntity;
 import com.apitable.workspace.enums.NodeType;
-import com.apitable.workspace.listener.ExcelSheetsDataListener;
+import com.apitable.workspace.model.DatasheetCreateObject;
 import com.apitable.workspace.ro.CreateDatasheetRo;
-import com.apitable.workspace.ro.ImportExcelOpRo;
 import com.apitable.workspace.ro.NodeCopyOpRo;
 import com.apitable.workspace.ro.NodeMoveOpRo;
 import com.apitable.workspace.ro.NodeOpRo;
@@ -50,11 +47,9 @@ import com.apitable.workspace.vo.NodeSearchResult;
 import com.apitable.workspace.vo.NodeShareTree;
 import com.apitable.workspace.vo.ShowcaseVo.NodeExtra;
 import com.baomidou.mybatisplus.extension.service.IService;
-import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import javax.annotation.Nullable;
 
@@ -176,7 +171,7 @@ public interface INodeService extends IService<NodeEntity> {
      * * contains root node
      *
      * @param spaceId space id
-     * @param nodeId node id
+     * @param nodeId  node id
      * @return parent path
      */
     List<NodePathVo> getParentPathByNodeId(String spaceId, String nodeId);
@@ -184,9 +179,9 @@ public interface INodeService extends IService<NodeEntity> {
     /**
      * gets the node parent path.
      *
-     * @param nodeIds   node ids
-     * @param includeRootNode   include root node
-     * @return List<NodeBaseInfoDTO>
+     * @param nodeIds         node ids
+     * @param includeRootNode include root node
+     * @return NodeBaseInfoDTO List
      * @author Chambers
      */
     List<NodeBaseInfoDTO> getParentPathNodes(List<String> nodeIds, boolean includeRootNode);
@@ -197,7 +192,7 @@ public interface INodeService extends IService<NodeEntity> {
      * @param nodeIds node ids
      * @return NodeInfos
      */
-    List<NodeInfo> getNodeInfoByNodeIds(Collection<String> nodeIds);
+    List<NodeInfo> getNodeInfo(String spaceId, List<String> nodeIds, Long memberId);
 
     /**
      * get multi node info.
@@ -205,7 +200,7 @@ public interface INodeService extends IService<NodeEntity> {
      * @param nodeIds node ids
      * @return NodeInfos
      */
-    List<NodeInfo> getNodeInfo(String spaceId, List<String> nodeIds, Long memberId);
+    List<NodeInfo> getNodeInfoByNodeIds(Collection<String> nodeIds);
 
     /**
      * get multi node info.
@@ -270,7 +265,7 @@ public interface INodeService extends IService<NodeEntity> {
      * Get sub nodes.
      *
      * @param nodeId node id
-     * @return List<NodeShareTree>
+     * @return NodeShareTree List
      * @author Chambers
      */
     List<NodeShareTree> getSubNodes(String nodeId);
@@ -278,8 +273,8 @@ public interface INodeService extends IService<NodeEntity> {
     /**
      * Get node ids in node tree.
      *
-     * @param nodeId  node id
-     * @param depth   recursive depth starting with 1
+     * @param nodeId node id
+     * @param depth  recursive depth starting with 1
      * @return NodeInfoTreeVo
      * @author Chambers
      */
@@ -288,8 +283,8 @@ public interface INodeService extends IService<NodeEntity> {
     /**
      * Get node ids in node tree.
      *
-     * @param nodeId  node id
-     * @param depth   recursive depth starting with 1
+     * @param nodeId    node id
+     * @param depth     recursive depth starting with 1
      * @param isRubbish rubbish status
      * @return NodeInfoTreeVo
      * @author Chambers
@@ -300,7 +295,7 @@ public interface INodeService extends IService<NodeEntity> {
      * Sort node.
      *
      * @param sub sub
-     * @return List<String>
+     * @return node is list
      * @author Chambers
      */
     List<String> sortNodeAtSameLevel(List<NodeTreeDTO> sub);
@@ -315,7 +310,7 @@ public interface INodeService extends IService<NodeEntity> {
      * @return NodeInfoVos
      */
     List<NodeInfoVo> getChildNodesByNodeId(String spaceId, Long memberId, String nodeId,
-        NodeType nodeType);
+                                           NodeType nodeType);
 
     /**
      * get node position.
@@ -348,6 +343,16 @@ public interface INodeService extends IService<NodeEntity> {
     NodeInfoTreeVo getNodeInfoTreeByNodeIds(String spaceId, Long memberId, List<String> nodeIds);
 
     /**
+     * create datasheet node.
+     *
+     * @param userId  user id
+     * @param spaceId space id
+     * @param object  datasheet create object
+     * @return datasheet node id
+     */
+    String createDatasheetNode(Long userId, String spaceId, DatasheetCreateObject object);
+
+    /**
      * create node.
      *
      * @param userId   user id
@@ -365,7 +370,7 @@ public interface INodeService extends IService<NodeEntity> {
      * @return form id
      */
     String createDatasheetWithDesc(String spaceId, Long userId,
-        CreateDatasheetRo createDatasheetRo);
+                                   CreateDatasheetRo createDatasheetRo);
 
     /**
      * create child node.
@@ -415,8 +420,8 @@ public interface INodeService extends IService<NodeEntity> {
      * delete template node.
      * delete template mapping node
      *
-     * @param userId  user id
-     * @param nodeId  node id
+     * @param userId user id
+     * @param nodeId node id
      */
     void delTemplateRefNode(Long userId, String nodeId);
 
@@ -440,43 +445,7 @@ public interface INodeService extends IService<NodeEntity> {
      * @return new node id
      */
     String copyNodeToSpace(Long userId, String destSpaceId, String destParentId,
-        String sourceNodeId, NodeCopyOptions options);
-
-    /**
-     * import excel.
-     *
-     * @param userId  user id
-     * @param spaceId space id
-     * @param opRo    request parameters
-     * @return data
-     * @throws IOException io exception
-     */
-    @Deprecated
-    String importExcel(Long userId, String spaceId, ImportExcelOpRo opRo) throws IOException;
-
-    /**
-     * import.
-     *
-     * @param excelReader        Excel read listener
-     * @param sheetsDataListener Excel listener
-     * @param readSheets         array of sheet objects
-     * @return excel data
-     */
-    Map<String, List<List<Object>>> importMultipleSheetsByEasyExcel(ExcelReader excelReader,
-        ExcelSheetsDataListener sheetsDataListener,
-        List<ReadSheet> readSheets);
-
-    /**
-     * import.
-     *
-     * @param excelReader        Excel read listener
-     * @param sheetsDataListener Excel listener
-     * @param readSheet          datasheet
-     * @return excel data
-     */
-    List<List<Object>> importSingleSheetByEasyExcel(ExcelReader excelReader,
-        ExcelSheetsDataListener sheetsDataListener,
-        ReadSheet readSheet);
+                           String sourceNodeId, NodeCopyOptions options);
 
     /**
      * update node ban status.
@@ -538,7 +507,7 @@ public interface INodeService extends IService<NodeEntity> {
      * @return node id
      */
     String parseExcel(Long userId, String uuid, String spaceId, Long memberId, String parentNodeId,
-        String viewName, String fileName, String fileSuffix, InputStream inputStream);
+                      String viewName, String fileName, String fileSuffix, InputStream inputStream);
 
     /**
      * parse csv.
@@ -554,7 +523,7 @@ public interface INodeService extends IService<NodeEntity> {
      * @return node id
      */
     String parseCsv(Long userId, String uuid, String spaceId, Long memberId, String parentNodeId,
-        String viewName, String fileName, InputStream inputStream);
+                    String viewName, String fileName, InputStream inputStream);
 
     /**
      * special batch save operation
@@ -567,9 +536,9 @@ public interface INodeService extends IService<NodeEntity> {
      * @param recordEntities    records
      */
     void batchCreateDataSheet(NodeData data, List<NodeEntity> nodeEntities,
-        List<DatasheetEntity> datasheetEntities,
-        List<DatasheetMetaEntity> metaEntities,
-        List<DatasheetRecordEntity> recordEntities);
+                              List<DatasheetEntity> datasheetEntities,
+                              List<DatasheetMetaEntity> metaEntities,
+                              List<DatasheetRecordEntity> recordEntities);
 
     /**
      * save records.

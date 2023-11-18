@@ -19,81 +19,97 @@
 package com.apitable.workspace.enums;
 
 /**
- * node type
- *
+ * node type.
  */
 public enum NodeType {
 
     /**
-     * root node
+     * root node.
      */
     ROOT(0),
 
     /**
-     * folder
+     * folder.
      */
     FOLDER(1),
 
     /**
-     * datasheet
+     * datasheet.
      */
     DATASHEET(2),
 
     /**
-     * form
+     * form.
      */
     FORM(3),
 
     /**
-     * dashboard
+     * dashboard.
      */
     DASHBOARD(4),
 
     /**
-     * mirror
+     * mirror.
      */
     MIRROR(5),
 
     /**
-     * dataPage, Page design based on
+     * dataPage, Page design based on.
      */
     DATAPAGE(6),
 
     /**
-     * canvas
+     * canvas.
      */
     CANVAS(7),
 
     /**
-     * editor documents
+     * editor documents.
      */
     WORD_DOC(8),
 
     /**
-     * static resource file
+     * ai chat bot.
+     */
+    AI_CHAT_BOT(9),
+
+    /**
+     * automation.
+     */
+    AUTOMATION(10),
+
+    /**
+     * airagent. NOTICE: Airagent will not create `node`, here is just for ID Generating
+     */
+    AIRAGENT(11),
+
+    /**
+     * static resource file.
      */
     ASSET_FILE(98),
 
     /**
-     * dataDoc
+     * dataDoc.
      */
     DATADOC(99);
 
 
-    private int nodeType;
+    private final int value;
 
-    NodeType(int nodeType) {
-        this.nodeType = nodeType;
+    NodeType(int value) {
+        this.value = value;
     }
 
     public int getNodeType() {
-        return nodeType;
+        return value;
     }
 
-    public void setNodeType(int nodeType) {
-        this.nodeType = nodeType;
-    }
-
+    /**
+     * transform from.
+     *
+     * @param code code value
+     * @return NodeType
+     */
     public static NodeType toEnum(int code) {
         for (NodeType e : NodeType.values()) {
             if (e.getNodeType() == code) {
@@ -104,9 +120,9 @@ public enum NodeType {
     }
 
     /**
-     * exclude root and folder type
+     * exclude root and folder type.
      */
     public boolean isFileNode() {
-        return nodeType > 1;
+        return value > 1;
     }
 }

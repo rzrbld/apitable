@@ -24,6 +24,8 @@ export const MAX_ROBOT_COUNT_PER_DST = 30; // The maximum number of robots in a 
 // When you click the file for the first time, to activate the novice guide, you need to add a class
 export const FIRST_FILE_IN_GUIDE_CLASS = 'FIRST_FILE_IN_GUIDE_CLASS';
 
+export const DEFAULT_CHECK_ICON = 'white_check_mark';
+
 // table area related
 export const UPPER_LEFT_REGION = 0;
 export const BOTTOM_LEFT_REGION = 1;
@@ -44,7 +46,9 @@ export enum NodeType {
   DATAPAGE = 6,
   CANVAS = 7,
   WORD_DOC = 8,
-  VIEW = 9,
+  AI = 9,
+  AUTOMATION = 10,
+  VIEW = 11,
   ASSET_FILE = 98,
   TRASH = 99,
 }
@@ -54,6 +58,7 @@ export const nodeNameMap = new Map<NodeType, string>([
   [NodeType.DATASHEET, t(Strings.datasheet)],
   [NodeType.FORM, t(Strings.form)],
   [NodeType.VIEW, t(Strings.view)],
+  [NodeType.AUTOMATION, t(Strings.automation)],
   [NodeType.TRASH, t(Strings.trash)],
   [NodeType.MIRROR, t(Strings.mirror)],
   [NodeType.DASHBOARD, t(Strings.dashboard)],
@@ -67,6 +72,10 @@ export const orderedNode = [
   {
     type: NodeType.DATASHEET,
     name: t(Strings.file),
+  },
+  {
+    type: NodeType.AUTOMATION,
+    name: t(Strings.automation),
   },
   {
     type: NodeType.FORM,
@@ -83,6 +92,7 @@ export enum NodeTypeReg {
   DATASHEET = 'dst',
   FORM = 'fom',
   DASHBOARD = 'dsb',
+  AUTOMATION = 'aut',
   MIRROR = 'mir',
   WIDGET = 'wdt',
 }
@@ -134,6 +144,15 @@ export const permission = {
 
 export const nodePermissionMap = new Map<NodeType, { [key: string]: string }>([
   [
+    NodeType.AUTOMATION,
+    {
+      [permission.manager]: t(Strings.automation_manager_label),
+      [permission.editor]: t(Strings.automation_editor_label),
+      [permission.updater]: t(Strings.automation_updater_label),
+      [permission.reader]: t(Strings.automation_reader_label),
+    },
+  ],
+  [
     NodeType.DATASHEET,
     {
       [permission.manager]: t(Strings.add_datasheet_manager),
@@ -176,6 +195,15 @@ export const nodePermissionMap = new Map<NodeType, { [key: string]: string }>([
       [permission.editor]: t(Strings.mirror_editor_label),
       [permission.reader]: t(Strings.mirror_reader_label),
       [permission.updater]: t(Strings.mirror_uploader_label),
+    },
+  ],
+  [
+    NodeType.AI,
+    {
+      [permission.manager]: '在「只可阅读」基础上，还可以编辑小程序和分享仪表盘',
+      [permission.editor]: '在「只可阅读」基础上，还可以编辑小程序和分享仪表盘',
+      [permission.reader]: '在「只可阅读」基础上，还可以编辑小程序和分享仪表盘',
+      [permission.updater]: '在「只可阅读」基础上，还可以编辑小程序和分享仪表盘',
     },
   ],
 ]);
@@ -256,6 +284,7 @@ export enum Modules {
 export enum ContextMenuType {
   DEFAULT = 'DEFAULT', // default menu for working directory
   DATASHEET = 'DATASHEET', // right-click table menu for working directory
+  AUTOMATION = 'AUTOMATION', // right-click table menu for working directory
   FORM = 'FORM', // right-click magic form menu for working directory
   DASHBOARD = 'DASHBOARD', // DASHBOARD
   FOLDER = 'FOLDER', // right-click folder menu for working directory
@@ -264,6 +293,7 @@ export enum ContextMenuType {
   MIRROR = 'MIRROR', // Action menu for view tab bar
   FORM_FIELD_OP = 'FORM_FIELD_OP', // Magical form field operation menu
   EXPAND_RECORD_FIELD = 'EXPAND_RECORD_FIELD', // Expand the operation field configuration in the card
+  AI = 'AI'
 }
 
 export const NODE_DESCRIPTION_EDITOR_ID = 'folderDescribeEditor';
@@ -458,6 +488,8 @@ export enum WizardIdConstant {
   CONTACT_US_GUIDE = 64,
   VIKABY_UPDATE_LOGS_HISTORY = 67,
   AGREE_TERMS_OF_SERVICE = Number(getCustomConfig().LOGIN_AGREE_TERMS_OF_SERVICE_WIZARD_ID),
+
+  AUTOMATION_TRIGGER = 117,
 
   // org chart view
   ORG_VIEW_CREATE = 78, // Click the "Create Schema View button" -> show the video "How to use Schema View"

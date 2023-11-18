@@ -16,25 +16,37 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { ContextMenu, Message, useThemeColors } from '@apitable/components';
-import {
-  CollaCommandName, Events, IWidget, Navigation, PermissionType, Player, Selectors, StoreActions, Strings, t, WidgetApi,
-  WidgetPackageStatus,
-  WidgetReleaseType,
-} from '@apitable/core';
-import { AddOutlined, CodeFilled, DeleteOutlined, EditOutlined, GotoOutlined, SettingOutlined } from '@apitable/icons';
 import { useLocalStorageState, useMount, useUpdateEffect } from 'ahooks';
 import { Drawer } from 'antd';
 import classNames from 'classnames';
-// @ts-ignore
-import { isDingtalkSkuPage } from 'enterprise';
 import { keyBy } from 'lodash';
+import * as React from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { Responsive, WidthProvider } from 'react-grid-layout';
+import { ContextMenu, Message, useThemeColors } from '@apitable/components';
+import {
+  CollaCommandName,
+  Events,
+  IWidget,
+  Navigation,
+  PermissionType,
+  Player,
+  Selectors,
+  StoreActions,
+  Strings,
+  t,
+  WidgetApi,
+  WidgetPackageStatus,
+  WidgetReleaseType,
+} from '@apitable/core';
+import { AddOutlined, CodeFilled, DeleteOutlined, DuplicateOutlined, EditOutlined, GotoOutlined, SettingOutlined } from '@apitable/icons';
 import { EmitterEventName } from 'modules/shared/simple_emitter';
 import { Modal } from 'pc/components/common';
 import { ScreenSize } from 'pc/components/common/component_display';
 import { simpleEmitter as panelSimpleEmitter } from 'pc/components/common/vika_split_panel';
 import { Router } from 'pc/components/route_manager/router';
 import { simpleEmitter, WIDGET_MENU, WidgetItem } from 'pc/components/widget';
+import { WidgetContextProvider } from 'pc/components/widget/context';
 import { expandWidgetRoute } from 'pc/components/widget/expand_widget';
 import { expandWidgetCenter, InstallPosition } from 'pc/components/widget/widget_center';
 import { installedWidgetHandle } from 'pc/components/widget/widget_panel/widget_panel_header';
@@ -44,16 +56,17 @@ import { useResponsive } from 'pc/hooks/use_responsive';
 import { resourceService } from 'pc/resource_service';
 import { store } from 'pc/store';
 import { flatContextData } from 'pc/utils';
-import * as React from 'react';
-import { useEffect, useRef, useState } from 'react';
-import { Responsive, WidthProvider } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
-import { useSelector } from 'react-redux';
+import { getEnvVariables } from '../../../utils/env';
 import { useTrackMissWidgetAndDep } from '../hooks';
 import { RecommendWidgetPanel } from '../recommend_widget_panel';
 import { TabBar } from '../tab_bar';
+import { createWidgetByExistWidgetId } from '../utils';
 import styles from './style.module.less';
-import { WidgetContextProvider } from 'pc/components/widget/context';
+// @ts-ignore
+import { isDingtalkSkuPage } from 'enterprise';
+
+import {useAppSelector} from "pc/store/react-redux";
 
 export const DASHBOARD_PANEL_ID = 'DASHBOARD_PANEL_ID';
 
@@ -66,13 +79,16 @@ export const Dashboard = () => {
   const [activeMenuWidget, setActiveMenuWidget] = useState<IWidget>();
   const [dragging, setDragging] = useState<boolean>(false);
 
-  const dashboardPack = useSelector(Selectors.getDashboardPack);
-  const dashboardLayout = useSelector(Selectors.getDashboardLayout);
-  const { dashboardId, templateId, shareId, widgetId, embedId } = useSelector(state => state.pageParams);
-  const { editable, manageable } = useSelector(Selectors.getDashboardPermission);
-  const spaceId = useSelector(state => state.space.activeId);
-  const widgetMap = useSelector(state => state.widgetMap);
-  const embedInfo = useSelector(state => Selectors.getEmbedInfo(state));
+  const dashboardPack = useAppSelector(Selectors.getDashboardPack);
+  const dashboardLayout = useAppSelector(Selectors.getDashboardLayout);
+  const { dashboardId, templateId, shareId, widgetId, embedId } = useAppSelector((state) => state.pageParams);
+  const { editable, manageable } = useAppSelector(Selectors.getDashboardPermission);
+  const spaceId = useAppSelector((state) => state.space.activeId);
+  const widgetMap = useAppSelector((state) => state.widgetMap);
+  const embedInfo = useAppSelector((state) => Selectors.getEmbedInfo(state));
+  const linkId = useAppSelector(Selectors.getLinkId);
+  const installedWidgetIds = useAppSelector(Selectors.getInstalledWidgetInDashboard);
+  const reachInstalledLimit = installedWidgetIds && installedWidgetIds.length >= Number(getEnvVariables().DASHBOARD_WIDGET_MAX_NUM);
 
   // Custom hooks start
   const colors = useThemeColors();
@@ -105,7 +121,7 @@ export const Dashboard = () => {
     if (!dashboardIsEmpty || !manageable) {
       return;
     }
-    WidgetApi.getRecentInstalledWidgets(spaceId!).then(res => {
+    WidgetApi.getRecentInstalledWidgets(spaceId!).then((res) => {
       const { data, success } = res.data;
       if (success) {
         store.getState();
@@ -130,14 +146,14 @@ export const Dashboard = () => {
   }, [embedInfo]);
 
   useEffect(() => {
-    simpleEmitter.bind(EmitterEventName.ToggleWidgetDevMode, widgetId => {
+    simpleEmitter.bind(EmitterEventName.ToggleWidgetDevMode, (widgetId) => {
       setDevWidgetId(widgetId);
     });
     return () => simpleEmitter.unbind(EmitterEventName.ToggleWidgetDevMode);
   }, [setDevWidgetId]);
 
   useEffect(() => {
-    panelSimpleEmitter.bind(EmitterEventName.PanelDragging, panelDragging => {
+    panelSimpleEmitter.bind(EmitterEventName.PanelDragging, (panelDragging) => {
       setDragging(panelDragging);
     });
     return () => panelSimpleEmitter.unbind(EmitterEventName.PanelDragging);
@@ -221,6 +237,21 @@ export const Dashboard = () => {
     });
   };
 
+  const _copyWidget = async (widgetId: string) => {
+    try {
+      await createWidgetByExistWidgetId(widgetId, dashboardId!);
+    } catch (e: any) {
+      Message.error({
+        content: typeof e === 'string' ? e : e?.message,
+      });
+      return;
+    }
+
+    Message.success({
+      content: t(Strings.copy_widget_success),
+    });
+  };
+
   const isWidgetBan = () => WidgetPackageStatus.Ban === activeMenuWidget?.status;
   const isWidgetDev = () => activeMenuWidget?.id === devWidgetId;
   const hadWidgetExpanding = Boolean(widgetId);
@@ -278,6 +309,15 @@ export const Dashboard = () => {
         },
       },
       {
+        icon: <DuplicateOutlined color={colors.thirdLevelText} />,
+        text: t(Strings.copy_widget),
+        onClick: ({ props }: { props?: any }) => {
+          const { widgetId } = props;
+          _copyWidget(widgetId);
+        },
+        hidden: Boolean(linkId) || isWidgetDev() || !manageable || reachInstalledLimit,
+      },
+      {
         icon: <DeleteOutlined color={colors.thirdLevelText} />,
         text: t(Strings.widget_operate_delete),
         onClick: deleteWidget,
@@ -290,7 +330,7 @@ export const Dashboard = () => {
     expandWidgetCenter(InstallPosition.Dashboard);
   };
 
-  const onLayout = (__currentLayout: any, allLayouts: { [x: string]: any; }) => {
+  const onLayout = (_currLayout: any, allLayouts: { [x: string]: any }) => {
     if (!dashboardLayout || readonly) {
       return;
     }
@@ -322,7 +362,7 @@ export const Dashboard = () => {
 
     const layoutMap = keyBy(_currentLayout, 'i');
 
-    const _layout = dashboardLayout.map(item => {
+    const _layout = dashboardLayout.map((item) => {
       const widgetPosition = layoutMap[item.id];
       return {
         id: widgetPosition.i,
@@ -347,7 +387,7 @@ export const Dashboard = () => {
   return (
     <div
       style={{
-        padding: (isMobile || templateId || shareId || embedId) ? 0 : 16,
+        padding: isMobile || templateId || shareId || embedId ? 0 : 16,
         height: '100%',
         width: '100%',
         position: 'relative',
@@ -355,8 +395,8 @@ export const Dashboard = () => {
       id={DASHBOARD_PANEL_ID}
     >
       <div className={styles.dashboardPanel} ref={containerRef}>
-        {
-          (!embedId || embedInfo.viewControl?.tabBar) && <TabBar
+        {(!embedId || embedInfo.viewControl?.tabBar) && (
+          <TabBar
             dashboardId={dashboardId!}
             containerRef={containerRef}
             setVisibleRecommend={setVisibleRecommend}
@@ -366,10 +406,11 @@ export const Dashboard = () => {
             canImportWidget={manageable}
             setIsFullScreen={setIsFullScreen}
             installedWidgetHandle={installedWidgetHandle}
+            reachInstalledLimit={reachInstalledLimit}
           />
-        }
+        )}
         <WidgetContextProvider>
-          <div className={styles.widgetArea} style={{ pointerEvents: 'auto', height: (!embedId || embedInfo.viewControl?.tabBar) ? '' : '100%' }}>
+          <div className={styles.widgetArea} style={{ pointerEvents: 'auto', height: !embedId || embedInfo.viewControl?.tabBar ? '' : '100%' }}>
             {installedWidgetInDashboard && (
               <ResponsiveGridLayout
                 isDroppable={!readonly}
@@ -391,10 +432,18 @@ export const Dashboard = () => {
                   xs: 400,
                 }}
                 layouts={{
-                  lg: dashboardLayout!.map(item => {
-                    return { w: item.widthInColumns, h: item.heightInRoes, x: item.column, y: item.row, minH: 6, minW: 3, i: item.id };
+                  lg: dashboardLayout!.map((item) => {
+                    return {
+                      w: item.widthInColumns,
+                      h: item.heightInRoes,
+                      x: item.column,
+                      y: item.row,
+                      minH: 6,
+                      minW: 3,
+                      i: item.id,
+                    };
                   }),
-                  xs: dashboardLayout!.map(item => {
+                  xs: dashboardLayout!.map((item) => {
                     return { w: 1, h: item.heightInRoes, x: item.column, y: item.row, minH: 6, maxW: 1, i: item.id };
                   }),
                 }}
@@ -418,9 +467,9 @@ export const Dashboard = () => {
                 onDragStop={() => setDragging(false)}
                 onResizeStop={() => setDragging(false)}
               >
-                {dashboardLayout!.map(item => {
-                  const isDevMode = widgetMap?.[item.id]?.widget?.status !== WidgetPackageStatus.Ban &&
-                    devWidgetId === item.id && !hideReadonlyEmbedItem;
+                {dashboardLayout!.map((item) => {
+                  const isDevMode =
+                    widgetMap?.[item.id]?.widget?.status !== WidgetPackageStatus.Ban && devWidgetId === item.id && !hideReadonlyEmbedItem;
                   return (
                     <div key={item.id} className={classNames(widgetId === item.id && styles.isFullscreen)} data-widget-id={item.id} tabIndex={-1}>
                       <WidgetItem
@@ -451,8 +500,8 @@ export const Dashboard = () => {
           </div>
         </WidgetContextProvider>
       </div>
-      {
-        !embedId && <Drawer
+      {!embedId && (
+        <Drawer
           placement={'bottom'}
           closable={false}
           onClose={() => {
@@ -471,14 +520,9 @@ export const Dashboard = () => {
           }}
           zIndex={11}
         >
-          <RecommendWidgetPanel
-            setVisibleRecommend={setVisibleRecommend}
-            visibleRecommend={visibleRecommend}
-            readonly={!manageable}
-            installedWidgetHandle={installedWidgetHandle}
-          />
+          <RecommendWidgetPanel setVisibleRecommend={setVisibleRecommend} visibleRecommend={visibleRecommend} readonly={!manageable} />
         </Drawer>
-      }
+      )}
 
       <ContextMenu overlay={flatContextData(menuData, true)} menuId={WIDGET_MENU} onShown={({ props }) => setActiveMenuWidget(props?.widget)} />
     </div>

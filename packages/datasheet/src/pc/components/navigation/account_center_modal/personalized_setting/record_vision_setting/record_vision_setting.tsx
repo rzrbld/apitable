@@ -16,25 +16,29 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+import { FC } from 'react';
+import { useDispatch } from 'react-redux';
+// eslint-disable-next-line no-restricted-imports
 import { Select, Typography } from '@apitable/components';
 import { RecordVision, StoreActions, Strings, t } from '@apitable/core';
 import { setStorage, StorageMethod, StorageName } from 'pc/utils/storage';
-import { FC } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
 import styles from './style.module.less';
+
+import {useAppSelector} from "pc/store/react-redux";
 
 const options = [
   {
     label: t(Strings.expand_record_vision_setting_center),
-    value: RecordVision.Center
-  }, {
+    value: RecordVision.Center,
+  },
+  {
     label: t(Strings.expand_record_vision_setting_side),
-    value: RecordVision.Side
-  }
+    value: RecordVision.Side,
+  },
 ];
 
 export const RecordVisionSetting: FC<React.PropsWithChildren<unknown>> = () => {
-  const value = useSelector(state => state.recordVision);
+  const value = useAppSelector((state) => state.recordVision);
 
   const dispatch = useDispatch();
 
@@ -50,7 +54,9 @@ export const RecordVisionSetting: FC<React.PropsWithChildren<unknown>> = () => {
 
   return (
     <div className={styles.expandRecordVisionSetting}>
-      <Typography variant="h7" className={styles.title}>{t(Strings.expand_record_vision_setting)}</Typography>
+      <Typography variant="h7" className={styles.title}>
+        {t(Strings.expand_record_vision_setting)}
+      </Typography>
       <Select
         options={options}
         value={value || RecordVision.Center}
@@ -58,6 +64,6 @@ export const RecordVisionSetting: FC<React.PropsWithChildren<unknown>> = () => {
         dropdownMatchSelectWidth
         triggerStyle={{ width: 200 }}
       />
-    </div >
+    </div>
   );
 };

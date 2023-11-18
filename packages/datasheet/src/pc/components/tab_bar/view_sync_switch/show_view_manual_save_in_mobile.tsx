@@ -16,13 +16,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { colorVars, Typography } from '@apitable/components';
-import { Strings, t } from '@apitable/core';
-import { CloseOutlined, InfoCircleFilled } from '@apitable/icons';
 import { createRoot } from 'react-dom/client';
-import styles from './style.module.less';
+import { Provider } from 'react-redux';
+import { store } from '../../../store';
+import { MobilePopupContent } from './popup_content/mobile';
 
 const VIEW_MANUAL_SAVE_TIP = 'VIEW_MANUAL_SAVE_TIP';
+const DOM_IDDATASHEET_VIEW_CONTAINER_ID = 'DATASHEET_VIEW_CONTAINER_ID';
 
 export const showViewManualSaveInMobile = () => {
   if (document.querySelector(`.${VIEW_MANUAL_SAVE_TIP}`)) {
@@ -31,23 +31,24 @@ export const showViewManualSaveInMobile = () => {
   const container = document.createElement('div');
   container.classList.add(VIEW_MANUAL_SAVE_TIP);
   document.body.appendChild(container);
-  const root= createRoot(container);
+  const root = createRoot(container);
+
+  const datasheetContainer = document.body.querySelector(`#${DOM_IDDATASHEET_VIEW_CONTAINER_ID}`) as HTMLElement;
+
+  if (datasheetContainer) {
+    datasheetContainer.style.marginTop = '40px';
+  }
   const modalClose = () => {
     root.unmount();
+    if (datasheetContainer) {
+      datasheetContainer.style.marginTop = '0px';
+    }
     container.parentElement?.removeChild(container);
   };
 
-  root.render((
-    <div className={styles.mobileTip}>
-      <span className={styles.infoIcon}>
-        <InfoCircleFilled />
-      </span>
-      <Typography variant={'body2'}>
-        {t(Strings.mbile_manual_setting_tip)}
-      </Typography>
-      <span onClick={modalClose}>
-        <CloseOutlined color={colorVars.primaryColor} />
-      </span>
-    </div>
-  ));
+  root.render(
+    <Provider store={store}>
+      <MobilePopupContent onClose={modalClose} />
+    </Provider>,
+  );
 };

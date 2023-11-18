@@ -34,6 +34,7 @@ import com.apitable.control.mapper.ControlMapper;
 import com.apitable.control.model.ControlTypeDTO;
 import com.apitable.core.constants.RedisConstants;
 import com.apitable.core.util.SqlTool;
+import com.apitable.organization.service.IMemberService;
 import com.apitable.shared.util.DateHelper;
 import com.apitable.space.dto.ControlStaticsDTO;
 import com.apitable.space.dto.DatasheetStaticsDTO;
@@ -42,7 +43,9 @@ import com.apitable.space.dto.NodeTypeStaticsDTO;
 import com.apitable.space.mapper.StaticsMapper;
 import com.apitable.space.service.IStaticsService;
 import com.apitable.workspace.enums.ViewType;
+import com.apitable.workspace.mapper.DatasheetMapper;
 import com.apitable.workspace.mapper.NodeMapper;
+import com.baomidou.mybatisplus.extension.toolkit.SqlHelper;
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.util.Date;
@@ -68,6 +71,9 @@ import org.springframework.stereotype.Service;
 public class StaticsServiceImpl implements IStaticsService {
 
     @Resource
+    private IMemberService iMemberService;
+
+    @Resource
     private ControlMapper controlMapper;
 
     @Resource
@@ -77,10 +83,16 @@ public class StaticsServiceImpl implements IStaticsService {
     private StaticsMapper staticsMapper;
 
     @Resource
+    private DatasheetMapper datasheetMapper;
+
+    @Resource
     private RedisTemplate<String, Long> redisTemplate;
 
     @Value("${SKIP_USAGE_VERIFICATION:false}")
     private Boolean skipUsageVerification;
+
+    @Value("${SPACE_STATISTICS_CACHE_HOURS:1}")
+    private Integer cacheHours;
 
     @Override
     public long getCurrentMonthApiUsage(String spaceId) {
@@ -181,7 +193,7 @@ public class StaticsServiceImpl implements IStaticsService {
         Long lastMonthMinId = redisTemplate.opsForValue().get(lastMonthKey);
         // If the minimum table ID of last month does not exist, query the maximum table ID directly
         if (lastMonthMinId == null) {
-            id = staticsMapper.selectMaxId();
+            id = staticsMapper.selectApiUsageMaxId();
         } else {
             LocalDateTime startDayOfMonth = now.with(firstDayOfMonth());
             id = staticsMapper.selectApiUsageMinIdByCreatedAt(lastMonthMinId, startDayOfMonth);
@@ -192,13 +204,32 @@ public class StaticsServiceImpl implements IStaticsService {
     }
 
     @Override
-    public long getMemberTotalCountBySpaceId(String spaceId) {
-        return SqlTool.retCount(staticsMapper.countMemberBySpaceId(spaceId));
+    public long getActiveMemberTotalCountFromCache(String spaceId) {
+        String key = StrUtil.format(GENERAL_STATICS, "space:active-member-count", spaceId);
+        Number cacheValue = redisTemplate.opsForValue().get(key);
+        if (cacheValue != null) {
+            return cacheValue.longValue();
+        }
+        long count = iMemberService.getTotalActiveMemberCountBySpaceId(spaceId);
+        redisTemplate.opsForValue().set(key, count, Long.valueOf(cacheHours), TimeUnit.HOURS);
+        return count;
+    }
+
+    @Override
+    public long getTotalChatbotNodesfromCache(String spaceId) {
+        return SqlHelper.retCount(staticsMapper.countChatbotNodesBySpaceId(spaceId));
     }
 
     @Override
     public long getTeamTotalCountBySpaceId(String spaceId) {
-        return SqlTool.retCount(staticsMapper.countTeamBySpaceId(spaceId));
+        String key = StrUtil.format(GENERAL_STATICS, "space:team-count", spaceId);
+        Number cacheValue = redisTemplate.opsForValue().get(key);
+        if (cacheValue != null) {
+            return cacheValue.longValue();
+        }
+        long count = SqlTool.retCount(staticsMapper.countTeamBySpaceId(spaceId));
+        redisTemplate.opsForValue().set(key, count, Long.valueOf(cacheHours), TimeUnit.HOURS);
+        return count;
     }
 
     @Override
@@ -212,7 +243,15 @@ public class StaticsServiceImpl implements IStaticsService {
         if (null != recordCount) {
             return recordCount;
         }
-        recordCount = SqlTool.retCount(staticsMapper.countRecordsBySpaceId(spaceId));
+        List<String> dstIds = datasheetMapper.selectDstIdBySpaceId(spaceId);
+        if (CollUtil.isEmpty(dstIds)) {
+            return 0L;
+        }
+        recordCount = 0L;
+        List<List<String>> dstIdList = CollUtil.split(dstIds, 1000);
+        for (List<String> item : dstIdList) {
+            recordCount += SqlTool.retCount(staticsMapper.countRecordsByDstIds(item));
+        }
         // save in cache
         redisTemplate.opsForValue()
             .setIfAbsent(RedisConstants.getGeneralStaticsOfRecordKey(spaceId), recordCount, 1L,

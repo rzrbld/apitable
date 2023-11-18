@@ -16,41 +16,34 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { Api, ConfigConstant, INode, IReduxState, Navigation, StoreActions, Strings, t, TEMPLATE_CENTER_ID, TrackEvents } from '@apitable/core';
-import { ChevronDownOutlined } from '@apitable/icons';
 import { Checkbox, TreeSelect } from 'antd';
 import { CheckboxChangeEvent } from 'antd/lib/checkbox';
+import { usePostHog } from 'posthog-js/react';
+import * as React from 'react';
+import { FC, useEffect, useState } from 'react';
+import { Api, IReduxState, Navigation, StoreActions, Strings, t, TEMPLATE_CENTER_ID, TrackEvents } from '@apitable/core';
+import { ChevronDownOutlined } from '@apitable/icons';
 import { BaseModal } from 'pc/components/common';
 import { Router } from 'pc/components/route_manager/router';
 import { useCatalogTreeRequest, useRequest, useRootManageable, useTemplateRequest } from 'pc/hooks';
+import { transformNodeTreeData, ISelectTreeNode } from 'pc/utils';
 import { dispatch } from 'pc/worker/store';
-import * as React from 'react';
-import { FC, useEffect, useState } from 'react';
-import { useSelector } from 'react-redux';
 import styles from './style.module.less';
-import { usePostHog } from 'posthog-js/react';
+
+import {useAppSelector} from "pc/store/react-redux";
 
 export interface IUsingTemplateModalProps {
   onCancel: React.Dispatch<React.SetStateAction<string>>;
   templateId: string;
 }
 
-// HEAR!HEAR!HEAR!
-interface ISelectTreeNode {
-  pId: string;
-  id: string;
-  value: string;
-  title: string;
-  isLeaf: boolean;
-}
-
-export const UsingTemplateModal: FC<React.PropsWithChildren<IUsingTemplateModalProps>> = props => {
+export const UsingTemplateModal: FC<React.PropsWithChildren<IUsingTemplateModalProps>> = (props) => {
   const { onCancel, templateId } = props;
   const [treeData, setTreeData] = useState<ISelectTreeNode[]>([]);
   const [nodeId, setNodeId] = useState('');
   // Whether to use the data in the template
   const [isContainData, setIsContainData] = useState(true);
-  const spaceId = useSelector((state: IReduxState) => state.space.activeId);
+  const spaceId = useAppSelector((state: IReduxState) => state.space.activeId);
   const { getNodeTreeReq } = useCatalogTreeRequest();
   const { usingTemplateReq } = useTemplateRequest();
   const { data: NodeTreeData } = useRequest(getNodeTreeReq);
@@ -59,42 +52,17 @@ export const UsingTemplateModal: FC<React.PropsWithChildren<IUsingTemplateModalP
 
   useEffect(() => {
     if (NodeTreeData) {
-      setTreeData(transformData([NodeTreeData]));
+      setTreeData(transformNodeTreeData([NodeTreeData]));
       setNodeId(NodeTreeData.nodeId);
     }
     // eslint-disable-next-line
   }, [NodeTreeData]);
 
-  const transformData = (data: INode[]) => {
-    if (!data) {
-      return [];
-    }
-    const arr = data.reduce((prev, node) => {
-      if (node.type === ConfigConstant.NodeType.DATASHEET || !node.permissions.childCreatable) {
-        return prev;
-      }
-      const newNode = {
-        id: node.nodeId,
-        pId: node.parentId,
-        value: node.nodeId,
-        title: node.nodeName,
-        isLeaf: !node.hasChildren,
-      };
-      let result: ISelectTreeNode[] = [];
-      if (node.hasChildren && node.children) {
-        result = transformData(node.children);
-      }
-      prev.push(newNode, ...result);
-      return prev;
-    }, [] as ISelectTreeNode[]);
-    return arr;
-  };
-
   const handleCancel = () => {
     onCancel('');
   };
 
-  const onOk = async() => {
+  const onOk = async () => {
     if (!templateId) {
       return;
     }
@@ -102,21 +70,21 @@ export const UsingTemplateModal: FC<React.PropsWithChildren<IUsingTemplateModalP
     const result = await usingTemplate(templateId, nodeId, isContainData);
     if (result && spaceId) {
       dispatch(StoreActions.getSpaceInfo(spaceId!, true));
-      Router.push(Navigation.WORKBENCH, { params: { spaceId, nodeId: result.nodeId }});
+      Router.push(Navigation.WORKBENCH, { params: { spaceId, nodeId: result.nodeId } });
     }
   };
 
   const onLoadData = (treeNode: any) => {
     const { id } = treeNode.props;
-    if (treeData.findIndex(item => item.pId === id) !== -1) {
-      return new Promise<void>(resolve => {
+    if (treeData.findIndex((item) => item.pId === id) !== -1) {
+      return new Promise<void>((resolve) => {
         resolve();
       });
     }
-    return new Promise<void>(async resolve => {
+    return new Promise<void>(async (resolve) => {
       const { data: result } = await Api.getChildNodeList(id);
       const { data } = result;
-      setTreeData([...treeData, ...transformData(data)]);
+      setTreeData([...treeData, ...transformNodeTreeData(data)]);
       resolve();
     });
   };
@@ -144,8 +112,7 @@ export const UsingTemplateModal: FC<React.PropsWithChildren<IUsingTemplateModalP
       <div className={styles.usingTemplateWrapper}>
         <div className={styles.tip}>{t(Strings.template_centre_using_template_tip)}</div>
         <div className={styles.selectWrapper}>
-          {
-            treeData.length !== 0 && nodeId &&
+          {treeData.length !== 0 && nodeId && (
             <TreeSelect
               treeDataSimpleMode
               style={{ width: '100%' }}
@@ -157,7 +124,7 @@ export const UsingTemplateModal: FC<React.PropsWithChildren<IUsingTemplateModalP
               loadData={onLoadData}
               treeDefaultExpandedKeys={[NodeTreeData.nodeId]}
             />
-          }
+          )}
         </div>
         {disabled && <div className={styles.permissionTip}>{t(Strings.template_centre_using_template_permission_tip)}</div>}
         <Checkbox className={styles.checkbox} onChange={checkboxChange} defaultChecked={isContainData}>

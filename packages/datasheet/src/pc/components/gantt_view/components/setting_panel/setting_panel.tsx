@@ -16,17 +16,47 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { black, IOption, Select, Switch, Tooltip, Typography, WrapperTooltip } from '@apitable/components';
-import {
-  BasicValueType, CollaCommandName, ConfigConstant, DateTimeField, DEFAULT_WORK_DAYS, ExecuteResult, Field, FieldType, GanttColorType,
-  GanttStyleKeyType, getNewId, getUniqName, IDPrefix, IGanttViewColumn, IGanttViewProperty, IGanttViewStatus, ILinkField, ISetRecordOptions,
-  LinkFieldSet, Selectors, StoreActions, Strings, t,
-} from '@apitable/core';
-import {
-  AddOutlined, ChevronRightOutlined, ClassOutlined, CloseOutlined, LinktableOutlined, QuestionCircleOutlined, WarnCircleOutlined, ChevronDownOutlined
-} from '@apitable/icons';
 import { Select as MultiSelect } from 'antd';
 import classNames from 'classnames';
+import { FC, memo, useContext, useMemo } from 'react';
+import { shallowEqual, useDispatch } from 'react-redux';
+// eslint-disable-next-line no-restricted-imports
+import { black, IOption, Select, Switch, Tooltip, Typography, WrapperTooltip } from '@apitable/components';
+import {
+  BasicValueType,
+  CollaCommandName,
+  ConfigConstant,
+  DateTimeField,
+  DEFAULT_WORK_DAYS,
+  ExecuteResult,
+  Field,
+  FieldType,
+  GanttColorType,
+  GanttStyleKeyType,
+  getNewId,
+  getUniqName,
+  IDPrefix,
+  IGanttViewColumn,
+  IGanttViewProperty,
+  IGanttViewStatus,
+  ILinkField,
+  ISetRecordOptions,
+  LinkFieldSet,
+  Selectors,
+  StoreActions,
+  Strings,
+  t,
+} from '@apitable/core';
+import {
+  AddOutlined,
+  ChevronDownOutlined,
+  ChevronRightOutlined,
+  ClassOutlined,
+  CloseOutlined,
+  OneWayLinkOutlined,
+  QuestionCircleOutlined, TwoWayLinkOutlined,
+  WarnCircleOutlined,
+} from '@apitable/icons';
 import { TriggerCommands } from 'modules/shared/apphook/trigger_commands';
 import { Message } from 'pc/components/common';
 import { ColorPicker, OptionSetting } from 'pc/components/common/color_picker';
@@ -43,9 +73,9 @@ import { resourceService } from 'pc/resource_service';
 import { getEnvVariables } from 'pc/utils/env';
 import { executeCommandWithMirror } from 'pc/utils/execute_command_with_mirror';
 import { setStorage, StorageName } from 'pc/utils/storage/storage';
-import { FC, memo, useContext, useMemo } from 'react';
-import { shallowEqual, useDispatch, useSelector } from 'react-redux';
 import styles from './style.module.less';
+
+import {useAppSelector} from "pc/store/react-redux";
 
 const Option = Select.Option;
 const MultiOption = MultiSelect.Option;
@@ -106,7 +136,7 @@ interface ISettingPanelProps {
 export const SettingPanel: FC<React.PropsWithChildren<ISettingPanelProps>> = memo(({ ganttViewStatus }) => {
   const { theme } = useContext(KonvaGridContext);
   const colors = theme.color;
-  const { view, fieldMap, ganttStyle, fieldPermissionMap, permissions, exitFieldNames } = useSelector(state => {
+  const { view, fieldMap, ganttStyle, fieldPermissionMap, permissions, exitFieldNames } = useAppSelector((state) => {
     const fieldMap = Selectors.getFieldMap(state, state.pageParams.datasheetId!)!;
     return {
       fieldMap,
@@ -114,15 +144,15 @@ export const SettingPanel: FC<React.PropsWithChildren<ISettingPanelProps>> = mem
       ganttStyle: Selectors.getGanttStyle(state)!,
       fieldPermissionMap: Selectors.getFieldPermissionMap(state),
       permissions: Selectors.getPermissions(state),
-      exitFieldNames: Object.values(fieldMap).map(field => field.name),
+      exitFieldNames: Object.values(fieldMap).map((field) => field.name),
     };
   }, shallowEqual);
   const env = getEnvVariables();
   const dispatch = useDispatch();
   const columns = view.columns as IGanttViewColumn[];
   const columnCount = columns.length;
-  const { datasheetId, viewId } = useSelector(state => state.pageParams);
-  const spaceId = useSelector(state => state.space.activeId);
+  const { datasheetId, viewId } = useAppSelector((state) => state.pageParams);
+  const spaceId = useAppSelector((state) => state.space.activeId);
   const {
     startFieldId,
     endFieldId,
@@ -138,11 +168,11 @@ export const SettingPanel: FC<React.PropsWithChildren<ISettingPanelProps>> = mem
   const isCryptoEndField = Boolean(endFieldRole && endFieldRole === ConfigConstant.Role.None);
   const noRequiredField = startFieldId == null && endFieldId == null;
   const manageable = permissions.manageable;
-  const activeView = useSelector(state => Selectors.getCurrentView(state)) as IGanttViewProperty;
+  const activeView = useAppSelector((state) => Selectors.getCurrentView(state)) as IGanttViewProperty;
   const linkFieldRole = Selectors.getFieldRoleByFieldId(fieldPermissionMap, linkFieldId);
   const isCryptoLinkField = Boolean(linkFieldRole && linkFieldRole === ConfigConstant.Role.None);
   const linkField = fieldMap[linkFieldId];
-  const visibleRows = useSelector(state => Selectors.getVisibleRows(state));
+  const visibleRows = useAppSelector((state) => Selectors.getVisibleRows(state));
   const isViewLock = useShowViewLockModal();
 
   const fieldOptions = columns
@@ -157,7 +187,7 @@ export const SettingPanel: FC<React.PropsWithChildren<ISettingPanelProps>> = mem
       }
       return null;
     })
-    .filter(v => v) as IOption[];
+    .filter((v) => v) as IOption[];
 
   const singleFieldOptions = columns
     .map(({ fieldId }) => {
@@ -170,7 +200,7 @@ export const SettingPanel: FC<React.PropsWithChildren<ISettingPanelProps>> = mem
       }
       return null;
     })
-    .filter(v => v) as IOption[];
+    .filter((v) => v) as IOption[];
 
   const linkFieldOptions = useMemo(() => {
     const options: IOption[] = [];
@@ -184,14 +214,15 @@ export const SettingPanel: FC<React.PropsWithChildren<ISettingPanelProps>> = mem
     }
 
     activeView.columns
-      .filter(column => fieldMap[column.fieldId].type === FieldType.Link)
-      .forEach(column => {
+      .filter((column) => [FieldType.Link, FieldType.OneWayLink].includes(fieldMap[column.fieldId].type))
+      .forEach((column) => {
         const columnFieldId = column.fieldId;
         options.push({
           value: columnFieldId,
           label: fieldMap[columnFieldId].name,
           disabled: (fieldMap[columnFieldId] as ILinkField).property.foreignDatasheetId !== datasheetId,
-          prefixIcon: <LinktableOutlined color={colors.thirdLevelText} />,
+          prefixIcon: fieldMap[column.fieldId].type === FieldType.Link ?
+            <TwoWayLinkOutlined color={colors.thirdLevelText} /> : <OneWayLinkOutlined color={colors.thirdLevelText} />,
           disabledTip: t(Strings.org_chart_choose_a_self_link_field),
         });
       });
@@ -289,14 +320,14 @@ export const SettingPanel: FC<React.PropsWithChildren<ISettingPanelProps>> = mem
     onGanttStyleChange(styleKey, value);
   };
 
-  const onColorOptionSelect = (option: { value: any; }) => {
+  const onColorOptionSelect = (option: { value: any }) => {
     onGanttStyleChange(GanttStyleKeyType.ColorOption, {
       ...colorOption,
       type: option.value,
     });
   };
 
-  const onSingleFieldSelect = (option: { value: any; }) => {
+  const onSingleFieldSelect = (option: { value: any }) => {
     onGanttStyleChange(GanttStyleKeyType.ColorOption, {
       ...colorOption,
       fieldId: option.value,
@@ -403,9 +434,9 @@ export const SettingPanel: FC<React.PropsWithChildren<ISettingPanelProps>> = mem
     <div className={styles.settingPanelContainer}>
       <header className={styles.header}>
         <div className={styles.title}>
-          <Typography variant='body1'>{t(Strings.gantt_setting)}</Typography>
+          <Typography variant="body1">{t(Strings.gantt_setting)}</Typography>
           <Tooltip content={t(Strings.gantt_setting_help_tips)}>
-            <a href={t(Strings.gantt_setting_help_url)} target='_blank' rel='noopener noreferrer' className={styles.helpIcon}>
+            <a href={t(Strings.gantt_setting_help_url)} target="_blank" rel="noopener noreferrer" className={styles.helpIcon}>
               <QuestionCircleOutlined color={colors.thirdLevelText} />
             </a>
           </Tooltip>
@@ -414,20 +445,20 @@ export const SettingPanel: FC<React.PropsWithChildren<ISettingPanelProps>> = mem
       </header>
 
       {/* Video teaching button */}
-      {
-        getEnvVariables().GANTT_SETTING_GUIDE_VIDEO_VISIBLE && <div className={styles.guideWrap} onClick={onPlayGuideVideo}>
+      {getEnvVariables().GANTT_SETTING_GUIDE_VIDEO_VISIBLE && (
+        <div className={styles.guideWrap} onClick={onPlayGuideVideo}>
           <span className={styles.left}>
             <ClassOutlined size={16} color={colors.primaryColor} />
-            <Typography variant='body3' color={colors.secondLevelText}>
+            <Typography variant="body3" color={colors.secondLevelText}>
               {t(Strings.play_guide_video_of_gantt_view)}
             </Typography>
           </span>
           <ChevronRightOutlined size={16} color={colors.thirdLevelText} />
         </div>
-      }
+      )}
       {/* Set the start and end date fields */}
       <div className={classNames(styles.setting, styles.firstSetting)}>
-        <Typography className={styles.settingTitle} variant='h7'>
+        <Typography className={styles.settingTitle} variant="h7">
           {t(Strings.gantt_date_time_setting)}
         </Typography>
         <div className={styles.settingLayout}>
@@ -437,7 +468,7 @@ export const SettingPanel: FC<React.PropsWithChildren<ISettingPanelProps>> = mem
               <div key={fieldIndex} className={styles.selectField} style={{ marginLeft: isStartField ? 0 : 16 }}>
                 <Select
                   value={fieldId}
-                  onSelected={option =>
+                  onSelected={(option) =>
                     onFieldSelect(isStartField ? GanttStyleKeyType.StartFieldId : GanttStyleKeyType.EndFieldId, option.value as string)
                   }
                   placeholder={isStartField ? t(Strings.gantt_pick_start_time) : t(Strings.gantt_pick_end_time)}
@@ -472,7 +503,7 @@ export const SettingPanel: FC<React.PropsWithChildren<ISettingPanelProps>> = mem
           })}
         </div>
         {noRequiredField && <span className={styles.errorText}>{t(Strings.gantt_pick_two_dates_tips)}</span>}
-        {startFieldId && endFieldId && fieldMap[startFieldId]?.property.timeZone !== fieldMap[endFieldId]?.property.timeZone && (
+        {startFieldId && endFieldId && fieldMap[startFieldId]?.property?.timeZone !== fieldMap[endFieldId]?.property?.timeZone && (
           <div className={styles.timeZoneTip}>
             <WarnCircleOutlined color={colors.textCommonTertiary} />
             <span>{t(Strings.time_zone_inconsistent_tips)}</span>
@@ -483,16 +514,16 @@ export const SettingPanel: FC<React.PropsWithChildren<ISettingPanelProps>> = mem
       {/* Set taskbar colour */}
       <div className={styles.setting}>
         <div className={styles.settingHeader}>
-          <Typography className={styles.settingTitle} variant='h7'>
+          <Typography className={styles.settingTitle} variant="h7">
             {t(Strings.gantt_color_setting)}
           </Typography>
-          {
-            env.GANTT_CONFIG_COLOR_HELP_URL && <Tooltip content={t(Strings.gantt_config_color_help)}>
-              <a href={env.GANTT_CONFIG_COLOR_HELP_URL} target='_blank' rel='noopener noreferrer' className={styles.helpIcon}>
+          {env.GANTT_CONFIG_COLOR_HELP_URL && (
+            <Tooltip content={t(Strings.gantt_config_color_help)}>
+              <a href={env.GANTT_CONFIG_COLOR_HELP_URL} target="_blank" rel="noopener noreferrer" className={styles.helpIcon}>
                 <QuestionCircleOutlined color={colors.thirdLevelText} />
               </a>
             </Tooltip>
-          }
+          )}
         </div>
 
         <div className={styles.settingLayout}>
@@ -541,14 +572,29 @@ export const SettingPanel: FC<React.PropsWithChildren<ISettingPanelProps>> = mem
               }}
               mask
               triggerComponent={
-                <WrapperTooltip wrapper={isViewLock} tip={t(Strings.view_lock_setting_desc)}>
+                isViewLock ? (
+                  <WrapperTooltip wrapper={isViewLock} tip={t(Strings.view_lock_setting_desc)}>
+                    <div
+                      style={{
+                        display: 'inline-block',
+                        cursor: isViewLock ? 'not-allowed' : '',
+                        color: isViewLock ? colors.textCommonDisabled : '',
+                      }}
+                    >
+                      <Typography variant="body3" className={styles.more} component={'span'}>
+                        {t(Strings.gantt_color_more)}
+                      </Typography>
+                    </div>
+                  </WrapperTooltip>
+                ) : (
                   <div
-                    style={{ display: 'inline-block', cursor: isViewLock ? 'not-allowed' : '', color: isViewLock ? colors.textCommonDisabled : '' }}>
-                    <Typography variant='body3' className={styles.more} component={'span'}>
+                    style={{ display: 'inline-block', cursor: isViewLock ? 'not-allowed' : '', color: isViewLock ? colors.textCommonDisabled : '' }}
+                  >
+                    <Typography variant="body3" className={styles.more} component={'span'}>
                       {t(Strings.gantt_color_more)}
                     </Typography>
                   </div>
-                </WrapperTooltip>
+                )
               }
             />
           </>
@@ -557,17 +603,17 @@ export const SettingPanel: FC<React.PropsWithChildren<ISettingPanelProps>> = mem
 
       {/* Set working days */}
       <div className={styles.setting}>
-        <Typography className={styles.settingTitle} variant='h7'>
+        <Typography className={styles.settingTitle} variant="h7">
           {t(Strings.gantt_workdays_setting)}
         </Typography>
 
-        <Typography className={styles.settingDesc} variant='body4'>
+        <Typography className={styles.settingDesc} variant="body4">
           {t(Strings.gantt_config_workdays_a_week)}
         </Typography>
         <WrapperTooltip wrapper={isViewLock} tip={t(Strings.view_lock_setting_desc)}>
           <div className={styles.settingLayout}>
             <MultiSelect
-              mode='multiple'
+              mode="multiple"
               showArrow
               showSearch={false}
               className={classNames(styles.workDaySelect, { [styles.disabled]: isViewLock })}
@@ -582,7 +628,7 @@ export const SettingPanel: FC<React.PropsWithChildren<ISettingPanelProps>> = mem
               suffixIcon={<ChevronDownOutlined color={colors.black[500]} />}
               disabled={isViewLock}
             >
-              {weekOptions.map(item => {
+              {weekOptions.map((item) => {
                 return (
                   <MultiOption
                     key={item.value}
@@ -601,21 +647,23 @@ export const SettingPanel: FC<React.PropsWithChildren<ISettingPanelProps>> = mem
         </WrapperTooltip>
 
         <div className={styles.settingLayout} style={{ marginTop: 16 }}>
-          {
-            isViewLock ? <Tooltip content={t(Strings.view_lock_setting_desc)}>
+          {isViewLock ? (
+            <Tooltip content={t(Strings.view_lock_setting_desc)}>
               <Switch checked={Boolean(onlyCalcWorkDay)} onClick={onSwitchClick} disabled={isViewLock} />
-            </Tooltip> : <Switch checked={Boolean(onlyCalcWorkDay)} onClick={onSwitchClick} />
-          }
+            </Tooltip>
+          ) : (
+            <Switch checked={Boolean(onlyCalcWorkDay)} onClick={onSwitchClick} />
+          )}
           <span style={{ marginLeft: 4 }}>{t(Strings.gantt_config_only_count_workdays)}</span>
         </div>
       </div>
       <div className={styles.setting}>
         <div className={styles.settingHeader}>
-          <Typography className={styles.settingTitle} variant='h7'>
+          <Typography className={styles.settingTitle} variant="h7">
             {t(Strings.gantt_dependency_setting)}
           </Typography>
           <Tooltip content={t(Strings.gantt_config_color_help)}>
-            <a href={getEnvVariables().GANTT_SET_TASK_RELATION_HELP_URL} target='_blank' rel='noopener noreferrer' className={styles.helpIcon}>
+            <a href={getEnvVariables().GANTT_SET_TASK_RELATION_HELP_URL} target="_blank" rel="noopener noreferrer" className={styles.helpIcon}>
               <QuestionCircleOutlined color={colors.thirdLevelText} />
             </a>
           </Tooltip>
@@ -635,11 +683,13 @@ export const SettingPanel: FC<React.PropsWithChildren<ISettingPanelProps>> = mem
         </div>
         {linkField && (
           <div className={styles.settingLayout} style={{ marginTop: 16 }}>
-            {
-              isViewLock ? <Tooltip content={t(Strings.view_lock_setting_desc)}>
+            {isViewLock ? (
+              <Tooltip content={t(Strings.view_lock_setting_desc)}>
                 <Switch checked={Boolean(autoTaskLayout)} onClick={onSwitchAutoTaskLayoutClick} />
-              </Tooltip> : <Switch checked={Boolean(onlyCalcWorkDay)} onClick={onSwitchClick} />
-            }
+              </Tooltip>
+            ) : (
+              <Switch checked={Boolean(autoTaskLayout)} onClick={onSwitchAutoTaskLayoutClick} />
+            )}
             <span style={{ marginLeft: 4 }}>{t(Strings.gantt_open_auto_schedule_switch)}</span>
           </div>
         )}

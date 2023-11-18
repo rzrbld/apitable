@@ -17,7 +17,7 @@
  */
 
 import React from 'react';
-import { Select } from './index';
+import { Select, DropdownSelect, SearchSelect } from './index';
 import { Tooltip } from '../tooltip';
 import { StoryType } from '../../stories/constants';
 import { Story } from '@storybook/react';
@@ -56,8 +56,150 @@ WithData.args = {
   options: data
 };
 
+export const SearchSelectDemo = () => {
+  const [value, setValue] = React.useState('value1');
+  return (
+    <SearchSelect
+      value={value}
+      list={[
+        {
+          value: 'value1',
+          label: 'a1'
+        },
+        {
+          value: 'value2',
+          label: '3'
+        },
+        {
+          value: 'value5',
+          label: 'a5'
+        },
+        {
+          value: 'value1',
+          label: 'a'
+        },
+
+        {
+          value: 'value1',
+          label: 'a'
+        },
+
+        {
+          value: 'value1',
+          label: 'a'
+        },
+
+        {
+          value: 'value1',
+          label: 'a'
+        },
+
+        {
+          value: 'value1',
+          label: 'a'
+        },
+
+        {
+          value: 'value1',
+          label: 'a'
+        },
+
+        {
+          value: 'value1',
+          label: 'a'
+        },
+
+        {
+          value: 'value1',
+          label: 'a'
+        },
+
+        {
+          value: 'value1',
+          label: 'a'
+        },
+
+        {
+          value: 'value1',
+          label: 'a'
+        },
+
+        {
+          value: 'value1',
+          label: 'a'
+        },
+
+        {
+          value: 'value1',
+          label: 'a'
+        },
+
+        {
+          value: 'value1',
+          label: 'a'
+        },
+
+        {
+          value: 'value1',
+          label: 'a'
+        },
+
+        {
+          value: 'value1',
+          label: 'a'
+        },
+
+        {
+          value: 'value1',
+          label: 'a'
+        },
+        {
+          value: 'value2',
+          label: 'b'
+        }
+      ]}
+      onChange={(option) => {
+        setValue(option.value as string);
+      }}
+    >
+      <div
+        tabIndex={-1}
+      >
+        <button>dddddddddddddddddddddddddddddddddddddddddddddddddd: {value}</button>
+      </div>
+    </SearchSelect>
+  );
+};
+
+export const DropdownSelectDisabled = () => {
+  const [value, setValue] = React.useState('opt15');
+  return (
+    <DropdownSelect
+      disabled
+      options={data}
+      value={value}
+      onSelected={(option) => {
+        setValue(option.value as string);
+      }}
+    />
+  );
+};
+
+export const DropdownSelectItem = () => {
+  const [value, setValue] = React.useState('opt15');
+  return (
+    <DropdownSelect
+      options={data}
+      value={value}
+      onSelected={(option) => {
+        setValue(option.value as string);
+      }}
+    />
+  );
+};
+
 export const SelectItem = () => {
-  const [value, setValue] = React.useState('opt1');
+  const [value, setValue] = React.useState('opt15');
   return (
     <Select
       options={data}

@@ -20,6 +20,7 @@ package com.apitable.starter.oss.autoconfigure;
 
 import java.util.Optional;
 
+import com.apitable.starter.oss.core.OssSignatureTemplate;
 import com.qiniu.storage.UploadManager;
 import com.qiniu.util.Auth;
 
@@ -28,6 +29,7 @@ import com.apitable.starter.oss.autoconfigure.OssProperties.Qiniu;
 import com.apitable.starter.oss.core.OssClientRequestFactory;
 import com.apitable.starter.oss.core.qiniu.QiniuOssClientRequestFactory;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -48,6 +50,9 @@ public class QiniuCloudAutoConfiguration extends OssConnectionConfiguration {
         super(properties);
     }
 
+    @Autowired(required = false)
+    private OssSignatureTemplate ossSignatureTemplate;
+
     @Bean
     @ConditionalOnMissingBean(OssClientRequestFactory.class)
     OssClientRequestFactory ossClientRequestFactory() {
@@ -55,6 +60,7 @@ public class QiniuCloudAutoConfiguration extends OssConnectionConfiguration {
         Auth auth = Auth.create(qiniu.getAccessKey(), qiniu.getSecretKey());
         Callback callback = Optional.ofNullable(qiniu.getCallback()).orElseGet(Callback::new);
 
-        return new QiniuOssClientRequestFactory(auth, qiniu.getRegion(), qiniu.getDownloadDomain(), callback.getUrl(), callback.getBodyType(), qiniu.getUploadUrl());
+        return new QiniuOssClientRequestFactory(auth, qiniu.getRegion(),
+            qiniu.getDownloadDomain(), callback, qiniu.getUploadUrl(), ossSignatureTemplate);
     }
 }

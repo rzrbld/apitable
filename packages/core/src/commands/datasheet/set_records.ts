@@ -23,7 +23,7 @@ import { IJOTAction } from 'engine/ot';
 import { isEmpty, isEqual, isNumber, isString } from 'lodash';
 import { DatasheetActions, Field, handleEmptyCellValue, ICellValue } from 'model';
 import { IRecordAlarm, Selectors } from '../../exports/store';
-import { ResourceType, WithOptional } from 'types';
+import { ResourceType, SegmentType, WithOptional } from 'types';
 import { FieldType, IField, IUnitIds } from 'types/field_types';
 import { getNewId, IDPrefix, num2number, str2number } from 'utils';
 import { IInternalFix } from '../common/field';
@@ -45,7 +45,7 @@ export interface ISetRecordsOptions {
 }
 
 function collectMemberProperty(datasheetId: string, actions: IJOTAction[], context: ICollaCommandExecuteContext) {
-  const { model: state, memberFieldMaintainer } = context;
+  const { state: state, memberFieldMaintainer } = context;
   const fieldMap = Selectors.getFieldMap(state, datasheetId)!;
   const isAddFieldAction = actions.map(item => item.p[3]!).some(fieldId => !fieldMap[fieldId]);
   if (isAddFieldAction) {
@@ -94,7 +94,7 @@ export const setRecords: ICollaCommandDef<ISetRecordsOptions> = {
   undoable: true,
 
   execute: (context, options) => {
-    const { model: state, ldcMaintainer, fieldMapSnapshot } = context;
+    const { state: state, ldcMaintainer, fieldMapSnapshot } = context;
     const { data: _data, internalFix, alarm } = options;
     const datasheetId = options.datasheetId || Selectors.getActiveDatasheetId(state)!;
     const mirrorId = options.mirrorId;
@@ -139,7 +139,16 @@ export const setRecords: ICollaCommandDef<ISetRecordsOptions> = {
         }
       }
 
-      // There will be some data problems on the line, and brotherFieldId will also exist in the case of self-table association, 
+      if (field.type === FieldType.URL && Array.isArray(value)) {
+        value = value?.map((v: any) => ({
+          ...v,
+          type: SegmentType.Url,
+          text: v.link || v.text,
+          title: v.title || v.text,
+        })) as any;
+      }
+
+      // There will be some data problems on the line, and brotherFieldId will also exist in the case of self-table association,
       // resulting in the existence of redundant actions
       if (field.type === FieldType.Link && field.property.brotherFieldId && field.property.foreignDatasheetId !== datasheetId) {
         /**

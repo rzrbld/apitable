@@ -78,7 +78,6 @@ export const integerStringToArray = (value: string) => {
   return valueArray.filter(v => !isNull(v)).map(v => parseInt(v));
 };
 
-
 export const formulaToString = (value: string | string[]) => {
   return Array.isArray(value) ? value.join(',') : value;
 };
@@ -108,19 +107,21 @@ export const getAPINodeType = (nodeType: ConfigConstant.NodeType) => {
     [ConfigConstant.NodeType.FORM]: NodeTypeEnum.Form,
     [ConfigConstant.NodeType.DASHBOARD]: NodeTypeEnum.Dashboard,
     [ConfigConstant.NodeType.MIRROR]: NodeTypeEnum.Mirror,
+    [ConfigConstant.NodeType.AUTOMATION]: NodeTypeEnum.Automation,
   };
   return NODE_TYPE_MAP[nodeType] || 'ERROR NODE TYPE';
 };
 
 export const getApiNodePermission = (role: string) => {
   const NODE_PERMISSION_MAP = {
-    [ConfigConstant.permission.manager]: 0,
-    [ConfigConstant.permission.editor]: 1,
-    [ConfigConstant.permission.updater]: 2,
-    [ConfigConstant.permission.reader]: 3,
-  }
+    manager: 0,
+    owner: 0,
+    editor: 1,
+    updater: 2,
+    reader: 3,
+  };
   return NODE_PERMISSION_MAP[role] != undefined ? NODE_PERMISSION_MAP[role] : -1;
-}
+};
 
 export const getAPINodeTypeId = (nodeType: NodeTypeEnum): number => {
   const NODE_TYPE_MAP = {
@@ -129,9 +130,10 @@ export const getAPINodeTypeId = (nodeType: NodeTypeEnum): number => {
     [NodeTypeEnum.Form]: ConfigConstant.NodeType.FORM,
     [NodeTypeEnum.Dashboard]: ConfigConstant.NodeType.DASHBOARD,
     [NodeTypeEnum.Mirror]: ConfigConstant.NodeType.MIRROR,
+    [NodeTypeEnum.Automation]: ConfigConstant.NodeType.AUTOMATION,
   };
   return NODE_TYPE_MAP[nodeType];
-}
+};
 
 const EFFECTIVE_OPTION_ID_LENGTH = 13;
 export const isOptionId = (optionId: string) => {

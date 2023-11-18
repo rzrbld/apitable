@@ -22,6 +22,7 @@ export interface IParams {
   spaceId?: string | null;
   nodeId?: string;
   viewId?: string;
+  automationId?: string;
   recordId?: string;
   shareId?: string;
   categoryId?: string; // Template Category
@@ -31,16 +32,7 @@ export interface IParams {
   formId?: string;
   pathInSpace?: string;
   feiShuPath?: 'admin_login' | 'bind_space' | 'bind_user' | 'err';
-  invitePath?:
-    | 'mail/bindphone'
-    | 'mail/mismatch'
-    | 'mail/invalid'
-    | 'link/invalid'
-    | 'link/confirm'
-    | 'mail/login'
-    | 'link/login'
-    | 'link'
-    | 'mail';
+  invitePath?: 'mail/bindphone' | 'mail/mismatch' | 'mail/invalid' | 'link/invalid' | 'link/confirm' | 'mail/login' | 'link/login' | 'link' | 'mail';
   widgetId?: string;
   dingtalkPath?: 'login' | 'unbound_err' | 'social_login';
   dashboardId?: string;

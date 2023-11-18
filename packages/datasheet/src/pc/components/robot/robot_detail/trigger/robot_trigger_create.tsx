@@ -16,75 +16,138 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { useTheme } from '@apitable/components';
-import { t, Strings } from '@apitable/core';
-import { useMemo } from 'react';
-import { ITriggerType } from '../../interface';
-import { mutate } from 'swr';
+import { useAtomValue, useAtom, useSetAtom } from 'jotai';
+import { useEffect, useMemo } from 'react';
+import * as React from 'react';
+import styled, { css } from 'styled-components';
+import { applyDefaultTheme, SearchSelect } from '@apitable/components';
+import { ConfigConstant, Events, Player, Strings, t } from '@apitable/core';
+import { CONST_MAX_TRIGGER_COUNT } from 'pc/components/automation/config';
+import {
+  automationCurrentTriggerId,
+  automationPanelAtom,
+  automationStateAtom,
+  PanelName,
+  useAutomationController
+} from '../../../automation/controller';
+import { useAutomationResourcePermission } from '../../../automation/controller/use_automation_permission';
 import { createTrigger } from '../../api';
+import { getNodeTypeOptions } from '../../helper';
 import { useDefaultTriggerFormData } from '../../hooks';
-import { Select } from '../select';
+import { ITriggerType } from '../../interface';
+import { NewItem } from '../../robot_list/new_item';
+import itemStyle from './select_styles.module.less';
 
 interface IRobotTriggerCreateProps {
   robotId: string;
+  preTriggerId: string|undefined;
   triggerTypes: ITriggerType[];
 }
+
+export const StyledListContainer = styled.div.attrs(applyDefaultTheme)<{ width: string; minWidth: string }>`
+  width: ${(props) => props.width};
+  min-width: ${(props) => props.minWidth};
+  padding: 4px 0;
+  ${(props) => css`
+    background-color: ${props.theme.color.highestBg};
+    box-shadow: ${props.theme.color.shadowCommonHighest};
+  `}
+  border-radius: 4px;
+`;
 
 /**
  * Renders the form for creating a trigger when the robot is detected to have no trigger
  */
-export const RobotTriggerCreateForm = ({ robotId, triggerTypes }: IRobotTriggerCreateProps) => {
+export const RobotTriggerCreateForm = ({ robotId, triggerTypes, preTriggerId }: IRobotTriggerCreateProps) => {
   const defaultFormData = useDefaultTriggerFormData();
-  const theme = useTheme();
+
+  const permissions = useAutomationResourcePermission();
+  const {
+    api: { refresh },
+  } = useAutomationController();
+  const state = useAtomValue(automationStateAtom);
+  const [, setAutomationPanel] = useAtom(automationPanelAtom );
+  const setautomationCurrentTriggerId= useSetAtom(automationCurrentTriggerId);
+
+  const triggerList = state?.robot?.triggers ?? [];
+  const triggerTypeOptions = useMemo(() => {
+    return getNodeTypeOptions(triggerTypes);
+  }, [triggerTypes]);
+
+  useEffect(() => {
+    // TriggerCommands.open_guide_wizard?.(ConfigConstant.WizardIdConstant.AUTOMATION_TRIGGER);
+    setTimeout(() => Player.doTrigger(Events.guide_use_automation_first_time), 1000);
+  }, []);
 
   const createRobotTrigger = useMemo(() => {
-    return async(triggerTypeId: string) => {
+    return async (triggerTypeId: string) => {
       const triggerType = triggerTypes.find((item) => item.triggerTypeId === triggerTypeId);
       // When the trigger is created for a record, the default value needs to be filled in.
       const input = triggerType?.endpoint === 'record_created' ? defaultFormData : undefined;
-      const triggerRes = await createTrigger(robotId, triggerTypeId, input);
-      mutate(`/robots/${robotId}/trigger`);
-      return triggerRes.data;
+      if(!state?.resourceId) {
+        console.error('.resourceId unfound ');
+        return;
+      }
+      if (!state?.currentRobotId) {
+        console.error('currentRobotId unfound ');
+        return;
+      }
+      const triggerRes = await createTrigger(state?.resourceId,
+        {
+          robotId,
+          prevTriggerId: preTriggerId,
+          triggerTypeId,
+          input
+        });
+
+      if(triggerRes?.data?.data?.[0]) {
+        await refresh({
+          resourceId: state.resourceId,
+          robotId: state.currentRobotId,
+        });
+
+        setautomationCurrentTriggerId(triggerRes.data.data[0].triggerId);
+        setAutomationPanel({
+          panelName: PanelName.Trigger,
+          dataId: triggerRes.data.data?.[0]?.triggerId,
+          data: triggerRes.data.data
+        });
+
+        return triggerRes.data;
+      }
     };
-  }, [robotId, defaultFormData, triggerTypes]);
+  }, [triggerTypes, defaultFormData, state?.robot, state?.resourceId, state?.currentRobotId, robotId, preTriggerId, refresh, setautomationCurrentTriggerId, setAutomationPanel]);
 
   if (!triggerTypes) {
     return null;
   }
 
-  // const triggerCreateForm = {
-  //   type: 'object',
-  //   properties: {
-  //     triggerTypeId: {
-  //       type: 'string',
-  //       title: t(Strings.robot_no_step_config_1),
-  //       enum: triggerTypes.map(t => t.triggerTypeId),
-  //       enumNames: triggerTypes.map(t => t.name),
-  //     },
-  //   }
-  // };
   const handleCreateFormChange = (triggerTypeId: string) => {
     if (triggerTypeId) {
       createRobotTrigger(triggerTypeId);
     }
   };
 
-  const options = triggerTypes.map((v) => ({
-    label: v.name,
-    value: v.triggerTypeId,
-  }));
-
   return (
-    <div>
-      <div style={{ color: theme.color.fc3, fontSize: 12, paddingBottom: 8 }} >
-        {t(Strings.robot_no_step_config_1)}
-      </div>
-      <Select
-        options={options}
-        onChange={handleCreateFormChange}
-        placeholder={t(Strings.robot_select_option)}
-      />
-      {/* <Form schema={triggerCreateForm as any} children={<div />} onChange={handleCreateFormChange} /> */}
-    </div>
+    <SearchSelect
+      disabled={!permissions.editable || triggerList.length >= CONST_MAX_TRIGGER_COUNT}
+      clazz={{
+        item: itemStyle.item,
+        icon: itemStyle.icon,
+      }}
+      options={{
+        placeholder: t(Strings.search_field),
+        noDataText: t(Strings.empty_data),
+      }}
+      list={triggerTypeOptions}
+      onChange={(item) => {
+        // @ts-ignore
+        handleCreateFormChange(String(item.value));
+      }}
+    >
+      <NewItem disabled={
+        !permissions.editable
+      }>{t(Strings.add_a_trigger)}</NewItem>
+    </SearchSelect>
   );
 };

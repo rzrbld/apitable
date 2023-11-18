@@ -16,32 +16,30 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { ConfigConstant, Strings, t } from '@apitable/core';
 import { useMount } from 'ahooks';
 import { FC } from 'react';
-import styles from './style.module.less';
 import { Modal, Typography, colorVars } from '@apitable/components';
+import { ConfigConstant, Strings, t } from '@apitable/core';
 import { getEnvVariables } from 'pc/utils/env';
+import styles from './style.module.less';
 
-export const SliderVerification: FC<React.PropsWithChildren> = () => {
+export const SliderVerification: FC<React.PropsWithChildren<any>> = () => {
 
   useMount(() => {
     const env = getEnvVariables();
-    if (!env.DISABLE_AWSC) {
+    if (!env.IS_SELFHOST) {
       window['nvc']?.getNC({
         renderTo: ConfigConstant.CaptchaIds.DEFAULT,
         upLang: {
           cn: {
-            SLIDE: t(Strings.slider_verification_tips)
-          }
-        }
+            SLIDE: t(Strings.slider_verification_tips),
+          },
+        },
       });
     }
   });
 
-  return (
-    <div id="nc" />
-  );
+  return <div id="nc" />;
 };
 
 export const openSliderVerificationModal = () => {
@@ -49,13 +47,17 @@ export const openSliderVerificationModal = () => {
     className: styles.sliderVerificationModal,
     icon: '',
     title: t(Strings.safety_verification),
-    content: <div>
-      <Typography variant="body2" color={colorVars.fc1} className={styles.tip}>{t(Strings.safety_verification_tip)}</Typography>
-      <SliderVerification />
-    </div>,
+    content: (
+      <div>
+        <Typography variant="body2" color={colorVars.fc1} className={styles.tip}>
+          {t(Strings.safety_verification_tip)}
+        </Typography>
+        <SliderVerification />
+      </div>
+    ),
     width: 388,
-    cancelButtonProps: { style: { display: 'none' }},
-    okButtonProps: { style: { display: 'none' }},
+    cancelButtonProps: { style: { display: 'none' } },
+    okButtonProps: { style: { display: 'none' } },
     closable: true,
     footer: null,
   });

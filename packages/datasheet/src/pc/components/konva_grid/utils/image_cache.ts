@@ -18,48 +18,65 @@
 
 import { getEnvVariables } from 'pc/utils/env';
 
+interface IImageOption {
+  crossOrigin?: boolean;
+}
+
 export const imageCache = (() => {
-  const imageMap: { [name: string]: any } = {};
+  const imageMap: {
+    [name: string]: {
+      img: HTMLImageElement;
+      success: boolean;
+    };
+  } = {};
   const imgPromises: any = [];
 
-  function loadImage(name: string, src: string, crossOrigin?: boolean) {
-    imgPromises.push(new Promise((resolve, reject) => {
-      const img = new Image();
-      img.src = src;
-      img.referrerPolicy = 'no-referrer';
+  function loadImage(name: string, src: string, option?: IImageOption) {
+    imgPromises.push(
+      new Promise((resolve, reject) => {
+        const img = new Image();
+        img.src = src;
+        img.referrerPolicy = 'no-referrer';
 
-      if (!crossOrigin && getEnvVariables().IS_CANVAS_IMAGE_CROSS_ORIGIN) {
-        img.crossOrigin = 'Anonymous';
-      }
-      
-      try {
-        img.onload = () => {
-          imageMap[name] = {
-            img,
-            success: true
-          };
+        if (!option?.crossOrigin && getEnvVariables().IS_CANVAS_IMAGE_CROSS_ORIGIN) {
+          img.crossOrigin = 'Anonymous';
+        }
 
-          resolve({
-            name,
-            img
-          });
-        };
-      } catch (err) {
         imageMap[name] = {
           img,
-          success: false
+          success: false,
         };
-        reject(err);
-      }
-    }));
+
+        try {
+          img.onload = () => {
+            imageMap[name] = {
+              img,
+              success: true,
+            };
+
+            resolve({
+              name,
+              img,
+            });
+          };
+        } catch (err) {
+          // code never reach
+          imageMap[name] = {
+            img,
+            success: false,
+          };
+          reject(err);
+        }
+      }),
+    );
   }
 
-  function loadImageMap(urlMap: { [x: string]: string; }) {
-    Object.keys(urlMap).forEach(key => {
+  function loadImageMap(urlMap: { [x: string]: string }) {
+    Object.keys(urlMap).forEach((key) => {
       loadImage(key, urlMap[key]);
     });
   }
-  
+
   function imageMapOnload(callback: any) {
     Promise.all(imgPromises).then(callback);
   }
@@ -82,6 +99,6 @@ export const imageCache = (() => {
     loadImageMap,
     getImage,
     imageMapOnload,
-    imageMap
+    imageMap,
   };
 })();

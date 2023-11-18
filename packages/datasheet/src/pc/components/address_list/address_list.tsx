@@ -16,32 +16,35 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { Alert, ThemeName } from '@apitable/components';
-import { IReduxState, StoreActions, Strings, t } from '@apitable/core';
 import Image from 'next/image';
-import { Tooltip } from 'pc/components/common';
-import { useAppDispatch } from 'pc/hooks/use_app_dispatch';
 import * as React from 'react';
 import { useEffect } from 'react';
-import { shallowEqual, useSelector } from 'react-redux';
+import { shallowEqual } from 'react-redux';
 import SplitPane from 'react-split-pane';
-import OrgImageLight from 'static/icon/organization/contacts_empty_light.png';
+import { Alert, ThemeName } from '@apitable/components';
+import { IReduxState, StoreActions, Strings, t } from '@apitable/core';
+// eslint-disable-next-line no-restricted-imports
+import { Tooltip } from 'pc/components/common';
+import { useAppDispatch } from 'pc/hooks/use_app_dispatch';
 import OrgImageDark from 'static/icon/organization/contacts_empty_dark.png';
+import OrgImageLight from 'static/icon/organization/contacts_empty_light.png';
 import { ComponentDisplay } from '../common/component_display';
 import { ScreenSize } from '../common/component_display/enum';
 import { CommonSide } from '../common_side';
-// @ts-ignore
-import { isContactSyncing, isSocialDingTalk } from 'enterprise';
 import { MobileBar } from '../mobile_bar';
 import { MemberInfo } from './member_info';
 import { MemberList } from './member_list';
 import styles from './style.module.less';
+// @ts-ignore
+import { isContactSyncing, isSocialDingTalk } from 'enterprise';
+
+import {useAppSelector} from "pc/store/react-redux";
 
 const _SplitPane: any = SplitPane;
 
 export const AddressList: React.FC<React.PropsWithChildren<unknown>> = () => {
   const dispatch = useAppDispatch();
-  const { selectedTeamInfo, memberList, memberInfo, spaceInfo, user , memberListTotal } = useSelector(
+  const { selectedTeamInfo, memberList, memberInfo, spaceInfo, user, memberListTotal } = useAppSelector(
     (state: IReduxState) => ({
       selectedTeamInfo: state.addressList.selectedTeamInfo,
       memberList: state.addressList.memberList,
@@ -54,7 +57,7 @@ export const AddressList: React.FC<React.PropsWithChildren<unknown>> = () => {
     shallowEqual,
   );
   const contactSyncing = isSocialDingTalk?.(spaceInfo) && isContactSyncing?.(spaceInfo);
-  const themeName = useSelector(state => state.theme);
+  const themeName = useAppSelector((state) => state.theme);
   const OrgImage = themeName === ThemeName.Light ? OrgImageLight : OrgImageDark;
 
   useEffect(() => {
@@ -92,7 +95,7 @@ export const AddressList: React.FC<React.PropsWithChildren<unknown>> = () => {
       <div className={styles.memberWrapper}>
         {memberList.length > 0 ? (
           <>
-            <div className={styles.memberList} >
+            <div className={styles.memberList}>
               {contactSyncing && (
                 <div style={{ padding: '0 20px 24px' }}>
                   <Alert type="default" content={t(Strings.dingtalk_admin_contact_syncing_tips)} />

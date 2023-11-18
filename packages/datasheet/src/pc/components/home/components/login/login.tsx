@@ -16,31 +16,20 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+import { useBoolean, useMount } from 'ahooks';
+import { Form } from 'antd';
+import { useEffect, useState } from 'react';
 import { Typography, useThemeColors, Button, TextInput, Box, LinkButton } from '@apitable/components';
 import { Strings, t, isEmail, ConfigConstant, StatusCode, api, IReduxState } from '@apitable/core';
 import { EmailFilled, EyeCloseOutlined, EyeOpenOutlined, LockFilled } from '@apitable/icons';
-import { useBoolean, useMount } from 'ahooks';
-import { Form } from 'antd';
 import { WithTipWrapper } from 'pc/components/common';
 import { useRequest, useUserRequest } from 'pc/hooks';
 import { execNoTraceVerification, initNoTraceVerification } from 'pc/utils';
 import { clearStorage } from 'pc/utils/storage';
-import { useEffect, useState } from 'react';
 import { ActionType } from '../../pc_home';
 import styles from './style.module.less';
-import { useSelector } from 'react-redux';
-import { getEnvVariables } from 'pc/utils/env';
 
-
-const env = getEnvVariables();
-
-const oidcIsEnabled = env.OIDC_IMPLICIT_IS_ENABLED;
-const oidcUrl = env.OIDC_IMPLICIT_URL
-const oidcRedirectUrl = env.OIDC_IMPLICIT_REDIRECT_URL;
-const oidcClientId = env.OIDC_IMPLICIT_CLIENT_ID
-const oidcResponseType = env.OIDC_IMPLICIT_RESPONSE_TYPE
-const oidcScope = env.OIDC_IMPLICIT_SCOPE
-const oidcFinalUrl = oidcUrl+"?client_id="+oidcClientId+"&response_type="+oidcResponseType+"&scope="+oidcScope+"&response_mode=form_post&redirect_uri="+oidcRedirectUrl
+import {useAppSelector} from "pc/store/react-redux";
 
 interface ILoginErrorMsg {
   username?: string;
@@ -59,20 +48,19 @@ export const Login: React.FC<React.PropsWithChildren<ILoginProps>> = (props) => 
   const { loginOrRegisterReq } = useUserRequest();
   const { run: loginReq, loading } = useRequest(loginOrRegisterReq, { manual: true });
   const [noTraceVerification, setNoTraceVerification] = useState<string | null>(null);
-  
+
   const [errorMsg, setErrorMsg] = useState<ILoginErrorMsg>({});
   const [username, setUsername] = useState<string>(email);
   const [password, setPassword] = useState<string>();
-  
+
   const [isVisible, { toggle }] = useBoolean(false);
-  const inviteEmailInfo = useSelector((state: IReduxState) => state.invite.inviteEmailInfo);
+  const inviteEmailInfo = useAppSelector((state: IReduxState) => state.invite.inviteEmailInfo);
   const [emailDisable, setEmailDisable] = useState<boolean>(false);
   useEffect(() => {
-    if(inviteEmailInfo) {
+    if (inviteEmailInfo) {
       setUsername(inviteEmailInfo.data.inviteEmail);
       setEmailDisable(true);
     }
-   
   }, [inviteEmailInfo]);
 
   useMount(() => {
@@ -97,12 +85,12 @@ export const Login: React.FC<React.PropsWithChildren<ILoginProps>> = (props) => 
     execNoTraceVerification(signIn);
   };
 
-  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => { 
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setUsername(e.target.value.replace(/\s/g, ''));
     setEmail(e.target.value.replace(/\s/g, ''));
   };
 
-  const preCheckOnSubmit = (data: { username?: string; password?: string; }) => {
+  const preCheckOnSubmit = (data: { username?: string; password?: string }) => {
     const errorMsg: ILoginErrorMsg = {};
     const checkPassword = (): boolean => {
       if (!data.password) {
@@ -130,14 +118,14 @@ export const Login: React.FC<React.PropsWithChildren<ILoginProps>> = (props) => 
     return verifyUsername && verifyPassword;
   };
 
-  const signIn = async(data?: string) => {
+  const signIn = async (data?: string) => {
     clearStorage();
     const loginData: api.ISignIn = {
       username: username!,
       credential: password!,
       data,
-      type: ConfigConstant.LoginTypes.SSO_AUTH,
-      mode: ConfigConstant.LoginMode.OTHER,
+      type: ConfigConstant.LoginTypes.PASSWORD,
+      mode: ConfigConstant.LoginMode.PASSWORD,
     };
     const result = await loginReq(loginData);
     if (!result) {
@@ -162,30 +150,13 @@ export const Login: React.FC<React.PropsWithChildren<ILoginProps>> = (props) => 
         setErrorMsg({ username: message });
     }
   };
- 
+
   function handleKeyPress(event: React.KeyboardEvent<HTMLInputElement>) {
     if (event.key === ' ') {
       event.preventDefault();
     }
+    event.key === 'Enter' && handleSubmit();
   }
-
-  const handleOIDCClick = () => {
-    window.location.href = oidcFinalUrl;
-  };
-
-  if(oidcIsEnabled){
-    return (
-      <div className={styles.loginWrap}>
-        <Button className={styles.loginBtn} color="primary" size="large" block loading={loading} onClick={handleOIDCClick}>
-        {t(Strings.apitable_sign_in)}
-        </Button>
-      </div>
-    )
-
-  }else{
-
-  
-
   return (
     <div className={styles.loginWrap}>
       <Form onFinish={handleSubmit}>
@@ -198,8 +169,8 @@ export const Login: React.FC<React.PropsWithChildren<ILoginProps>> = (props) => 
               className={styles.input}
               value={username}
               onChange={handleEmailChange}
-              onKeyPress={handleKeyPress}
-              prefix={<EmailFilled color={colors.textCommonPrimary}/>}
+              onKeyDown={handleKeyPress}
+              prefix={<EmailFilled color={colors.textCommonPrimary} />}
               placeholder={t(Strings.email_placeholder)}
               error={Boolean(errorMsg.username)}
               block
@@ -216,15 +187,14 @@ export const Login: React.FC<React.PropsWithChildren<ILoginProps>> = (props) => 
               type={isVisible ? 'text' : 'password'}
               value={password}
               className={styles.input}
-              onChange={e => setPassword(e.target.value)}
-              prefix={<LockFilled color={colors.textCommonPrimary}/>}
-              suffix={<div
-                className={styles.suffixIcon}
-                onClick={() => toggle()}
-                style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
-              >
-                {isVisible ? <EyeOpenOutlined color={colors.textCommonTertiary}/> : <EyeCloseOutlined color={colors.textCommonTertiary}/>}
-              </div>}
+              onChange={(e) => setPassword(e.target.value)}
+              prefix={<LockFilled color={colors.textCommonPrimary} />}
+              suffix={
+                <div className={styles.suffixIcon} onClick={() => toggle()} style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                  {isVisible ? <EyeOpenOutlined color={colors.textCommonTertiary} /> : <EyeCloseOutlined color={colors.textCommonTertiary} />}
+                </div>
+              }
+              onKeyDown={handleKeyPress}
               placeholder={t(Strings.placeholder_input_password)}
               error={Boolean(errorMsg.password)}
               block
@@ -232,28 +202,26 @@ export const Login: React.FC<React.PropsWithChildren<ILoginProps>> = (props) => 
           </WithTipWrapper>
         </div>
         <Box textAlign={'right'}>
-          <Typography 
-            className={styles.forgetPassword} 
-            variant="body2" 
-            color={colors.textCommonPrimary} 
+          <Typography
+            className={styles.forgetPassword}
+            variant="body2"
+            color={colors.textCommonPrimary}
             onClick={() => switchClick(ActionType.ForgetPassword)}
           >
             {t(Strings.apitable_forget_password_button)}
           </Typography>
         </Box>
       </Form>
-     
+
       <Button className={styles.loginBtn} color="primary" size="large" block loading={loading} onClick={handleSubmit}>
         {t(Strings.apitable_sign_in)}
       </Button>
       <div className={styles.switchContent}>
         <p>{t(Strings.apitable_no_account)}</p>
-        <LinkButton underline={false} component='button' 
-          onClick={() => switchClick(ActionType.SignUp)} style={{ paddingRight: 0 }}>{t(Strings.apitable_sign_up)}
+        <LinkButton underline={false} component="button" onClick={() => switchClick(ActionType.SignUp)} style={{ paddingRight: 0 }}>
+          {t(Strings.apitable_sign_up)}
         </LinkButton>
       </div>
-      
     </div>
   );
-              }
 };

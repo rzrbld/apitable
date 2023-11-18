@@ -277,8 +277,8 @@ public class PlayerNotificationServiceImpl
     }
 
     @Override
-    public boolean createNotifyWithoutVerify(List<Long> userIds, NotificationTemplate template,
-                                             NotificationCreateRo ro) {
+    public void createNotifyWithoutVerify(List<Long> userIds,
+        NotificationTemplate template, NotificationCreateRo ro) {
         // todo message middle key
         List<PlayerNotificationEntity> creatEntities = new ArrayList<>();
         List<PlayerNotificationEntity> notifyEntities = new ArrayList<>();
@@ -309,7 +309,7 @@ public class PlayerNotificationServiceImpl
             TaskManager.me()
                 .execute(() -> sendMailNotifyBatch(template, mailUserIds, formatEmailDetailVo(ro)));
         }
-        return createBatch(notifyEntities, creatEntities);
+        createBatch(notifyEntities, creatEntities);
     }
 
     @Override
@@ -379,7 +379,7 @@ public class PlayerNotificationServiceImpl
             return notificationRecordList;
         }
         dtos = dtos.stream().filter(dto -> {
-            if (ro.getIsRead() == 1) {
+            if (Boolean.TRUE.equals(ro.getIsRead())) {
                 return true;
             }
             // check expired
@@ -400,7 +400,7 @@ public class PlayerNotificationServiceImpl
 
     @Override
     public List<NotificationModelDTO> getUserNotificationByTypeAndIsRead(Long toUser,
-                                                                         Integer isRead) {
+                                                                         Boolean isRead) {
         return baseMapper.selectDtoByTypeAndIsRead(toUser, isRead);
     }
 
@@ -500,7 +500,7 @@ public class PlayerNotificationServiceImpl
         notificationModelDTOList.forEach(dto -> {
             NotificationDetailVo detailVo =
                 NotificationDetailVo.builder().id(dto.getId().toString())
-                    .rowNo(dto.getRowNo()).toUserId(uuid).toUuid(uuid).createdAt(dto.getCreatedAt())
+                    .rowNo(dto.getRowNo()).toUuid(uuid).createdAt(dto.getCreatedAt())
                     .updatedAt(dto.getUpdatedAt()).isRead(dto.getIsRead())
                     .notifyType(dto.getNotifyType())
                     .templateId(dto.getTemplateId())
@@ -515,7 +515,7 @@ public class PlayerNotificationServiceImpl
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public boolean setNotificationIsRead(String[] ids, Integer isAll) {
+    public boolean setNotificationIsRead(String[] ids, Boolean isAll) {
         Long userId = SessionContext.getUserId();
         if (ArrayUtil.isNotEmpty(ids)) {
             // It may be jumped by mail, you need to find the specific ID in redis, and then mark it as read
@@ -530,7 +530,7 @@ public class PlayerNotificationServiceImpl
             if (NumberUtil.isLong(ids[0])) {
                 return baseMapper.updateReadIsTrueByIds(ids);
             }
-        } else if (isAll != 0) {
+        } else if (Boolean.TRUE.equals(isAll)) {
             return baseMapper.updateReadIsTrueByUserId(userId);
         }
         return true;
@@ -584,8 +584,9 @@ public class PlayerNotificationServiceImpl
                 spaceRoleService.getSpaceAdminsWithWorkbenchManage(spaceId), spaceId);
         }
         if (toTag.equals(NotificationToTag.SPACE_MEMBER_ADMINS)) {
-            List<Long> memberAdminIds = spaceMemberRoleRelService.getMemberId(spaceId,
-                ListUtil.toList(NotificationConstants.TO_MANAGE_MEMBER_RESOURCE_CODE));
+            List<Long> memberAdminIds =
+                spaceMemberRoleRelService.getMemberIdListByResourceGroupCodes(spaceId,
+                    ListUtil.toList(NotificationConstants.TO_MANAGE_MEMBER_RESOURCE_CODE));
             memberAdminIds.add(notificationFactory.getSpaceSuperAdmin(spaceId));
             if (CollUtil.isNotEmpty(memberAdminIds)) {
                 return notificationFactory.getMemberUserIdExcludeDeleted(memberAdminIds);
@@ -723,11 +724,16 @@ public class PlayerNotificationServiceImpl
                     dict.set(EMAIL_CREATED_AT,
                         ClockManager.me().getUtcNow().toInstant().toEpochMilli());
                 } else {
+                    notifyUr.append(notifyPath.build(CharsetUtil.CHARSET_UTF_8));
                     dict.set(EMAIL_DATASHEET_URL, notifyUr.toString());
+                    dict.set(EMAIL_URL, notifyUr.toString());
+                    dict.set(EMAIL_CREATED_AT,
+                        ClockManager.me().getUtcNow().toInstant().toEpochMilli());
                 }
             }
         } else {
-            String url = constProperties.getServerDomain() + template.getUrl();
+            String url = template.getUrl() == null ? constProperties.getServerDomain()
+                : constProperties.getServerDomain() + template.getUrl();
             dict.set(EMAIL_URL, url);
         }
         return dict;

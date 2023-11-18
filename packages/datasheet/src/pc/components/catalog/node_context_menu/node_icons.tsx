@@ -18,6 +18,7 @@
 
 import * as React from 'react';
 
+import { colorVars } from '@apitable/components';
 import {
   DashboardOutlined,
   SearchOutlined,
@@ -45,11 +46,15 @@ import {
   FormOutlined,
   FolderEmptyFilled,
   DatasheetOutlined,
-  IIconProps, MirrorOutlined, InfoCircleOutlined,
+  IIconProps,
+  MirrorOutlined,
+  InfoCircleOutlined,
   ChevronRightOutlined,
-  FolderRightOutlined
+  AutomationOutlined,
+  FolderRightOutlined,
+  RobotOutlined,
+  RefreshOutlined,
 } from '@apitable/icons';
-import { colorVars } from '@apitable/components';
 
 /**
  * Node icon type, external use of this enumeration as configuration
@@ -93,11 +98,14 @@ export enum NodeIcon {
   Dashboard = 'dashboard',
   Mirror = 'Mirror',
   MoveTo = 'MoveTo',
+  Ai = 'Ai',
+  AddAutomation = 'add_automation',
+  CreateBackup = 'CreateBackup',
 }
 
 // Enumeration and Resource Location Matching Table
 export const nodeIconImportMap: {
-  [iconName: string]: React.FC<React.PropsWithChildren<IIconProps>>
+  [iconName: string]: React.FC<React.PropsWithChildren<IIconProps>>;
 } = {
   [NodeIcon.Search]: SearchOutlined,
   [NodeIcon.Add]: AddOutlined,
@@ -110,6 +118,9 @@ export const nodeIconImportMap: {
   [NodeIcon.Export]: DownloadOutlined,
   [NodeIcon.ExportCsv]: FileAddOutlined,
   [NodeIcon.ExportXlsx]: FileAddOutlined,
+
+  // TODO Node Icon
+  [NodeIcon.AddAutomation]: AutomationOutlined,
   [NodeIcon.AddDatasheet]: FileAddOutlined,
   [NodeIcon.AddForm]: FormAddOutlined,
   [NodeIcon.Copy]: DuplicateOutlined,
@@ -132,7 +143,9 @@ export const nodeIconImportMap: {
   [NodeIcon.Mirror]: MirrorOutlined,
   [NodeIcon.NodeInfo]: InfoCircleOutlined,
   [NodeIcon.Arrow]: ChevronRightOutlined,
-  [NodeIcon.MoveTo]: FolderRightOutlined
+  [NodeIcon.MoveTo]: FolderRightOutlined,
+  [NodeIcon.Ai]: RobotOutlined,
+  [NodeIcon.CreateBackup]: RefreshOutlined,
 };
 
 /**

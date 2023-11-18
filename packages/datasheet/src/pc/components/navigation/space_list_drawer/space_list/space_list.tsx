@@ -16,26 +16,29 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { Button, Skeleton, ThemeName } from '@apitable/components';
-import { getMaxManageableSpaceCount, ISpaceInfo, Strings, t } from '@apitable/core';
-import { useRequest } from 'ahooks';
+import { useDebounce, useRequest } from 'ahooks';
 import { Space, Tabs } from 'antd';
 import classnames from 'classnames';
 import Image from 'next/image';
-import { Tooltip } from 'pc/components/common';
-// @ts-ignore
-import { isSocialWecom } from 'enterprise';
-import { useSpaceRequest } from 'pc/hooks';
 import { FC, useCallback, useContext, useEffect, useState } from 'react';
-import { useSelector } from 'react-redux';
-import CreateSpaceIconLight from 'static/icon/space/space_add_name_light.png';
-import CreateSpaceIconDark from 'static/icon/space/space_add_name_dark.png';
-import EmptyIntrantListPngLight from 'static/icon/datasheet/space_img_empty_light.png';
+import { Button, Skeleton, ThemeName, TextInput, Typography } from '@apitable/components';
+import { getMaxManageableSpaceCount, ISpaceInfo, Strings, t } from '@apitable/core';
+import { SearchOutlined, CloseCircleFilled } from '@apitable/icons';
+import { useSpaceRequest } from 'pc/hooks';
+import EmptyPngDark from 'static/icon/datasheet/empty_state_dark.png';
+import EmptyPngLight from 'static/icon/datasheet/empty_state_light.png';
 import EmptyIntrantListPngDark from 'static/icon/datasheet/space_img_empty_dark.png';
+import EmptyIntrantListPngLight from 'static/icon/datasheet/space_img_empty_light.png';
+import CreateSpaceIconDark from 'static/icon/space/space_add_name_dark.png';
+import CreateSpaceIconLight from 'static/icon/space/space_add_name_light.png';
 import AddIcon from 'static/icon/space/space_icon_add@2x.png';
 import { NavigationContext } from '../../navigation_context';
 import { SpaceListItem } from './space_list_item';
 import styles from './style.module.less';
+// @ts-ignore
+import { isSocialWecom } from 'enterprise';
+
+import {useAppSelector} from "pc/store/react-redux";
 
 enum TabPaneKeys {
   MANAGABLE = 'MANAGABLE',
@@ -52,29 +55,37 @@ export const SpaceList: FC<React.PropsWithChildren<unknown>> = () => {
   /* The currently active tab key */
   const [activeKey, setActiveKey] = useState<string>('');
   const { openCreateSpaceModal, closeSpaceListDrawer } = useContext(NavigationContext);
-  const spaceId = useSelector(state => state.space.activeId);
+  const spaceId = useAppSelector((state) => state.space.activeId);
   const { getSpaceListReq } = useSpaceRequest();
   const { data: spaceList, loading, run: runGetSpaceListReq } = useRequest(getSpaceListReq);
   // const { screenIsAtMost } = useResponsive();
   // const isMobile = screenIsAtMost(ScreenSize.md);
-  const themeName = useSelector(state => state.theme);
+  const themeName = useAppSelector((state) => state.theme);
   const EmptyIntrantListPng = themeName === ThemeName.Light ? EmptyIntrantListPngLight : EmptyIntrantListPngDark;
   const EmptyManagableListPng = themeName === ThemeName.Light ? CreateSpaceIconLight : CreateSpaceIconDark;
-  const spaceInfo = useSelector(state => state.space.curSpaceInfo);
+  const EmptyPng = themeName === ThemeName.Light ? EmptyPngLight : EmptyPngDark;
+  const spaceInfo = useAppSelector((state) => state.space.curSpaceInfo);
   const isWecom = isSocialWecom?.(spaceInfo);
+
+  const [searchKeyword, setSearchKeyword] = useState('');
+
+  const _keyword = useDebounce(searchKeyword, { wait: 300 });
 
   useEffect(() => {
     if (spaceList && spaceList.length) {
-      setManagableList(spaceList.filter((space: { admin: ISpaceInfo; }) => space.admin));
-      setIntrantList(spaceList.filter((space: { admin: ISpaceInfo; }) => !space.admin));
+      setManagableList(spaceList.filter((space: { admin: ISpaceInfo }) => space.admin));
+      setIntrantList(spaceList.filter((space: { admin: ISpaceInfo }) => !space.admin));
     }
   }, [spaceList]);
+
+  const filterManagableList = managableList.filter((space) => (_keyword ? space.name.includes(_keyword) : true));
+  const filterIntrantList = intrantList.filter((space) => (_keyword ? space.name.includes(_keyword) : true));
 
   useEffect(() => {
     if (!intrantList.length && !managableList.length) {
       return;
     }
-    if (intrantList.findIndex(space => space.spaceId === spaceId) !== -1) {
+    if (intrantList.findIndex((space) => space.spaceId === spaceId) !== -1) {
       setActiveKey(TabPaneKeys.INTRANT);
     } else {
       setActiveKey(TabPaneKeys.MANAGABLE);
@@ -86,7 +97,8 @@ export const SpaceList: FC<React.PropsWithChildren<unknown>> = () => {
     runGetSpaceListReq();
   }, [runGetSpaceListReq]);
 
-  const disable = managableList.length >= getMaxManageableSpaceCount();
+  const maxManageableSpaceCount = getMaxManageableSpaceCount();
+  const disable = managableList.length >= maxManageableSpaceCount;
 
   const openCreateSpaceModalHandler = () => {
     if (disable) {
@@ -102,18 +114,11 @@ export const SpaceList: FC<React.PropsWithChildren<unknown>> = () => {
 
   const CreateSpaceBtn = () => {
     return (
-      <div
-        className={classnames(styles.addSpace, disable && styles.disabled)}
-        onClick={openCreateSpaceModalHandler}
-      >
+      <div className={classnames(styles.addSpace, disable && styles.disabled)} onClick={openCreateSpaceModalHandler}>
         <span className={styles.addIcon}>
           <Image src={AddIcon} alt={t(Strings.new_space)} />
         </span>
-        <div
-          className={styles.name}
-        >
-          {t(Strings.new_space)}
-        </div>
+        <div className={styles.name}>{t(Strings.new_space)}</div>
       </div>
     );
   };
@@ -152,10 +157,19 @@ export const SpaceList: FC<React.PropsWithChildren<unknown>> = () => {
     );
   };
 
+  const EmptySearch = () => {
+    return (
+      <div className={styles.emptyList}>
+        <Image src={EmptyPng} alt="empty" width={240} height={180} />
+        <div className={styles.tip}>{t(Strings.space_search_empty)}</div>
+      </div>
+    );
+  };
+
   const EmptyIntrantList = () => {
     return (
       <div className={styles.emptyList}>
-        <Image src={EmptyIntrantListPng} alt="empty" width={240} height={180}/>
+        <Image src={EmptyIntrantListPng} alt="empty" width={240} height={180} />
         <div className={styles.tip}>{t(Strings.intrant_space_empty_tip)}</div>
       </div>
     );
@@ -166,14 +180,11 @@ export const SpaceList: FC<React.PropsWithChildren<unknown>> = () => {
       <div className={styles.emptyList}>
         <Image src={EmptyManagableListPng} alt="empty" width={240} height={180} />
         {!isWecom && <div className={styles.tip}>{t(Strings.managable_space_empty_tip)}</div>}
-        {!isWecom && <Button
-          className={styles.newSpace}
-          onClick={openCreateSpaceModalHandler}
-          color="primary"
-          block
-        >
-          {t(Strings.new_space)}
-        </Button>}
+        {!isWecom && (
+          <Button className={styles.newSpace} onClick={openCreateSpaceModalHandler} color="primary" block>
+            {t(Strings.new_space)}
+          </Button>
+        )}
       </div>
     );
   };
@@ -182,52 +193,62 @@ export const SpaceList: FC<React.PropsWithChildren<unknown>> = () => {
     return skeleton();
   }
 
+  const search = (
+    <div className={styles.search}>
+      <TextInput
+        size="small"
+        placeholder={t(Strings.search)}
+        prefix={<SearchOutlined />}
+        suffix={_keyword && <CloseCircleFilled className={styles.searchClose} onClick={() => setSearchKeyword('')} />}
+        block
+        onChange={(evt) => {
+          setSearchKeyword(evt.target.value);
+        }}
+        value={searchKeyword}
+      />
+    </div>
+  );
+
   return (
     <div className={styles.spaceList}>
-      <Tabs className={styles.tab} defaultActiveKey={activeKey} onTabClick={tabClickHandler} centered>
-        <TabPane tab={t(Strings.managable_space_list)} key={TabPaneKeys.MANAGABLE}>
-          {
-            managableList.length ? (
-              <div className={styles.scrollContainer}>
-                {managableList.map(space => (
-                  <SpaceListItem
-                    key={space.spaceId}
-                    spaceInfo={space}
-                    actived={space.spaceId === spaceId}
-                    managable
-                  />
-                ))}
-                {!isWecom && (
-                  disable ? <Tooltip
-                    title={t(Strings.tooltip_workspace_up_to_bound_no_new, {
+      <Tabs hideAdd className={styles.tab} defaultActiveKey={activeKey} onTabClick={tabClickHandler} centered>
+        <TabPane tab={`${t(Strings.managable_space_list)}(${managableList.length}/${maxManageableSpaceCount})`} key={TabPaneKeys.MANAGABLE}>
+          {search}
+          {filterManagableList.length ? (
+            <div className={styles.scrollContainer}>
+              {filterManagableList.map((space) => (
+                <SpaceListItem key={space.spaceId} spaceInfo={space} actived={space.spaceId === spaceId} managable />
+              ))}
+              {!isWecom &&
+                (disable ? (
+                  <Typography variant="body4" className={styles.maxCountTips}>
+                    {t(Strings.tooltip_workspace_up_to_bound_no_new, {
                       count: getMaxManageableSpaceCount(),
                     })}
-                    trigger="click"
-                    placement="top"
-                  >
-                    <span><CreateSpaceBtn /></span>
-                  </Tooltip> : <CreateSpaceBtn />
-                )
-                }
-              </div>
-            ) : <EmptyManagableList />
-          }
-        </TabPane>
-        <TabPane tab={t(Strings.intrant_space_list)} key={TabPaneKeys.INTRANT}>
-          {
-            intrantList.length ? (
-              <div className={styles.scrollContainer}>
-                {intrantList.map(space => (
-                  <SpaceListItem
-                    key={space.spaceId}
-                    spaceInfo={space}
-                    actived={space.spaceId === spaceId}
-                    refreshList={refreshList}
-                  />
+                  </Typography>
+                ) : (
+                  <CreateSpaceBtn />
                 ))}
-              </div>
-            ) : <EmptyIntrantList />
-          }
+            </div>
+          ) : _keyword ? (
+            <EmptySearch />
+          ) : (
+            <EmptyManagableList />
+          )}
+        </TabPane>
+        <TabPane tab={`${t(Strings.intrant_space_list)}(${intrantList.length})`} key={TabPaneKeys.INTRANT}>
+          {search}
+          {filterIntrantList.length ? (
+            <div className={styles.scrollContainer}>
+              {filterIntrantList.map((space) => (
+                <SpaceListItem key={space.spaceId} spaceInfo={space} actived={space.spaceId === spaceId} refreshList={refreshList} />
+              ))}
+            </div>
+          ) : _keyword ? (
+            <EmptySearch />
+          ) : (
+            <EmptyIntrantList />
+          )}
         </TabPane>
       </Tabs>
     </div>

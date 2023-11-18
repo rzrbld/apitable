@@ -31,6 +31,7 @@ import { CommandOptionsService } from 'database/command/services/command.options
 import { CommandService } from 'database/command/services/command.service';
 import { UnitService } from 'unit/services/unit.service';
 import { UnitInfoDto } from '../../../unit/dtos/unit.info.dto';
+import { IdWorker } from '../../../shared/helpers';
 
 @Injectable()
 export class DatasheetChangesetService {
@@ -40,6 +41,31 @@ export class DatasheetChangesetService {
     private readonly commandService: CommandService,
     private readonly unitService: UnitService,
   ) {}
+
+  async getAllCommentChangeSetByDstId(dstId: string) {
+    return await this.datasheetChangesetRepository.find({
+      where:  (qb: any) => {
+        qb.where(`dst_id = '${dstId}' `);
+        qb.andWhere('operations->\'$[0].cmd\' = \'InsertComment\'');
+      }
+    });
+  }
+
+  async recoverChangeSets(dstId: string, changeSets: DatasheetChangesetEntity[]) {
+    if (!changeSets || !changeSets.length) {
+      return;
+    }
+    changeSets.forEach(item => {
+      item.dstId = dstId;
+      item.id = IdWorker.nextId() + '';
+      item.revision = 0;
+    });
+    await this.datasheetChangesetRepository
+      .createQueryBuilder()
+      .insert()
+      .values(changeSets)
+      .execute();
+  }
 
   /**
    *
@@ -72,7 +98,7 @@ export class DatasheetChangesetService {
       const fieldMap = Selectors.getFieldMap(store.getState(), nodeId);
       Object.values(fieldMap!).map(field => {
         // Is linked field and linked datasheet is deleted, convert this field to multi-line text field
-        if (field.type === FieldType.Link && ro.linkNodeId.includes(field.property.foreignDatasheetId)) {
+        if ((field.type === FieldType.Link || field.type === FieldType.OneWayLink) && ro.linkNodeId.includes(field.property.foreignDatasheetId)) {
           const options = this.commandOption.getSetFieldAttrOptions(nodeId, { ...field, property: null, type: FieldType.Text }, false);
           const { result, changeSets } = this.commandService.execute(options, store);
           if (result && result.result == ExecuteResult.Success) {
@@ -275,7 +301,8 @@ export class DatasheetChangesetService {
             (action.p[1] == recordId && action.p[2] == 'data' && fieldIds.includes(action.p[3]!.toString())) ||
             (action.p[1] == recordId && action.p[2] == 'comments') ||
             // Only record creation with default values contains oi.data
-            (action.p[0] == 'recordMap' && action.p[1] == recordId && 'oi' in action && action.oi?.data && Object.keys(action.oi.data).length)
+            (action.p[0] == 'recordMap' && action.p[1] == recordId && 'oi' in action && action.oi?.data && Object.keys(action.oi.data).length) ||
+            (action.p[0] == 'recordMap' && action.p[1] == recordId && 'od' in action)
           );
         });
         if (actions.length) {

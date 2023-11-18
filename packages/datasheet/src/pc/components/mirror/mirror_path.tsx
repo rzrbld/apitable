@@ -16,18 +16,19 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { Message, useThemeColors } from '@apitable/components';
-import { ConfigConstant, INodeMeta, IPermissions, ISourceDatasheetInfo, Navigation, Selectors, Strings, t } from '@apitable/core';
 import { Tooltip } from 'antd';
 import throttle from 'lodash/throttle';
+import * as React from 'react';
+import { Message, useThemeColors } from '@apitable/components';
+import { ConfigConstant, INodeMeta, IPermissions, ISourceDatasheetInfo, Navigation, Selectors, Strings, t } from '@apitable/core';
 import { InlineNodeName } from 'pc/components/common/inline_node_name';
 import { NodeInfoBar } from 'pc/components/common/node_info_bar';
 import { Router } from 'pc/components/route_manager/router';
 import { useSideBarVisible } from 'pc/hooks';
-import * as React from 'react';
-import { useSelector } from 'react-redux';
 import { gstMirrorIconByViewType } from './mirror_list/utils';
 import styles from './style.module.less';
+
+import {useAppSelector} from "pc/store/react-redux";
 
 interface IMirrorPath {
   breadInfo: ISourceDatasheetInfo;
@@ -35,22 +36,22 @@ interface IMirrorPath {
   nodeInfo: INodeMeta;
 }
 
-export const MirrorPath: React.FC<React.PropsWithChildren<IMirrorPath>> = props => {
+export const MirrorPath: React.FC<React.PropsWithChildren<IMirrorPath>> = (props) => {
   const colors = useThemeColors();
   const { breadInfo, permission, nodeInfo } = props;
   const { sideBarVisible } = useSideBarVisible();
-  const { shareId, templateId } = useSelector(state => state.pageParams);
-  const view = useSelector(state => {
+  const { shareId, templateId } = useAppSelector((state) => state.pageParams);
+  const view = useAppSelector((state) => {
     const snapshot = Selectors.getSnapshot(state, breadInfo.datasheetId)!;
     if (!snapshot) {
       return;
     }
     return Selectors.getViewById(snapshot, breadInfo.viewId);
   });
-  const isGhostNode = useSelector(state => {
+  const isGhostNode = useAppSelector((state) => {
     return Selectors.getDatasheet(state, breadInfo.datasheetId)?.isGhostNode;
   });
-  const isOriginDstReadable = useSelector(state => {
+  const isOriginDstReadable = useAppSelector((state) => {
     return Boolean(Selectors.getDatasheet(state, breadInfo.datasheetId)?.permissions.readable);
   });
 
@@ -67,7 +68,7 @@ export const MirrorPath: React.FC<React.PropsWithChildren<IMirrorPath>> = props 
       });
     }
 
-    Router.push(Navigation.WORKBENCH, { params: { nodeId: breadInfo.datasheetId, viewId: breadInfo.viewId }});
+    Router.push(Navigation.WORKBENCH, { params: { nodeId: breadInfo.datasheetId, viewId: breadInfo.viewId } });
   }, 5000);
 
   if (!view) {

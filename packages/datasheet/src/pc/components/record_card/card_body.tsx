@@ -16,22 +16,24 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { BasicValueType, Field, FieldType, getTextFieldType, ICellValue, IField, IViewColumn, Selectors, Strings, t } from '@apitable/core';
+import { isNull } from 'util';
 import classNames from 'classnames';
+import * as React from 'react';
+import { shallowEqual } from 'react-redux';
+import { useThemeColors } from '@apitable/components';
+import { BasicValueType, Field, FieldType, getTextFieldType, ICellValue, IField, IViewColumn, Selectors, Strings, t } from '@apitable/core';
 import { expandRecordIdNavigate } from 'pc/components/expand_record';
+import { UrlDiscern } from 'pc/components/multi_grid/cell/cell_text/url_discern';
 import { CellValue } from 'pc/components/multi_grid/cell/cell_value';
 import { getFieldTypeIcon } from 'pc/components/multi_grid/field_setting';
-import { useThemeColors } from '@apitable/components';
-import * as React from 'react';
-import { shallowEqual, useSelector } from 'react-redux';
-import { isNull } from 'util';
+import { useResponsive } from 'pc/hooks';
+import { store } from 'pc/store';
+import { ScreenSize } from '../common/component_display';
 import { getFieldHeight, getShowFieldType, getVietualFieldHeight } from '../gallery_view/utils';
 import { CardText } from './card_text';
 import styles from './style.module.less';
-import { store } from 'pc/store';
-import { ScreenSize } from '../common/component_display';
-import { useResponsive } from 'pc/hooks';
-import { UrlDiscern } from 'pc/components/multi_grid/cell/cell_text/url_discern';
+
+import {useAppSelector} from "pc/store/react-redux";
 
 const showTitle = (cellValue: ICellValue, field: IField) => {
   if (isNull(cellValue)) return t(Strings.record_unnamed);
@@ -52,9 +54,9 @@ interface IGalleryCardBodyProps {
 
 const SINGLE_TEXT_TYPE = [FieldType.Formula, FieldType.Number, FieldType.Currency, FieldType.Percent, FieldType.DateTime];
 
-export const CardBody: React.FC<React.PropsWithChildren<IGalleryCardBodyProps>> = props => {
+export const CardBody: React.FC<React.PropsWithChildren<IGalleryCardBodyProps>> = (props) => {
   const { visibleFields, recordId, showEmptyField, multiTextMaxLine, isColNameVisible, className, isVirtual, isGallery, datasheetId } = props;
-  const recordSnapshot = useSelector(state => Selectors.getRecordSnapshot(state, datasheetId, recordId), shallowEqual);
+  const recordSnapshot = useAppSelector((state) => Selectors.getRecordSnapshot(state, datasheetId, recordId), shallowEqual);
   const { screenIsAtMost } = useResponsive();
   const isMobile = screenIsAtMost(ScreenSize.md);
   const colors = useThemeColors();

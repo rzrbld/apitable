@@ -21,11 +21,7 @@ package com.apitable.internal.controller;
 import com.apitable.core.support.ResponseData;
 import com.apitable.internal.ro.SpaceStatisticsRo;
 import com.apitable.internal.service.InternalSpaceService;
-import com.apitable.internal.vo.InternalSpaceApiUsageVo;
-import com.apitable.internal.vo.InternalSpaceCapacityVo;
-import com.apitable.internal.vo.InternalSpaceInfoVo;
-import com.apitable.internal.vo.InternalSpaceSubscriptionVo;
-import com.apitable.internal.vo.InternalSpaceUsageVo;
+import com.apitable.internal.vo.*;
 import com.apitable.organization.service.IMemberService;
 import com.apitable.shared.component.scanner.annotation.ApiResource;
 import com.apitable.shared.component.scanner.annotation.GetResource;
@@ -98,6 +94,30 @@ public class InternalSpaceController {
     }
 
     /**
+     * Get space used usage information.
+     */
+    @GetResource(path = "/space/{spaceId}/credit/usages", requiredLogin = false)
+    @Operation(summary = "get space credit used usage")
+    @Parameter(name = "spaceId", description = "space id", required = true,
+        schema = @Schema(type = "string"), in = ParameterIn.PATH, example = "spczJrh2i3tLW")
+    public ResponseData<InternalCreditUsageVo> getCreditUsages(
+        @PathVariable("spaceId") String spaceId) {
+        return ResponseData.success(internalSpaceService.getSpaceCreditUsageVo(spaceId));
+    }
+
+    /**
+     * Get space used usage information.
+     */
+    @GetResource(path = "/space/{spaceId}/automation/run/message", requiredLogin = false)
+    @Operation(summary = "get space automation run message")
+    @Parameter(name = "spaceId", description = "space id", required = true,
+            schema = @Schema(type = "string"), in = ParameterIn.PATH, example = "spczJrh2i3tLW")
+    public ResponseData<InternalSpaceAutomationRunMessageV0> getAutomationRunMessage(
+            @PathVariable("spaceId") String spaceId) {
+        return ResponseData.success(internalSpaceService.getAutomationRunMessageV0(spaceId));
+    }
+
+    /**
      * Get api usage information of a specified space.
      */
     @GetResource(path = "/space/{spaceId}/apiUsages", requiredPermission = false)
@@ -110,6 +130,21 @@ public class InternalSpaceController {
         Long userId = SessionContext.getUserId();
         iMemberService.checkUserIfInSpace(userId, spaceId);
         return ResponseData.success(internalSpaceService.getSpaceEntitlementApiUsageVo(spaceId));
+    }
+
+    /**
+     * Get api qps information of a specified space.
+     */
+    @GetResource(path = "/space/{spaceId}/apiRateLimit", requiredPermission = false)
+    @Operation(summary = "get api qps information of a specified space", description =
+        "Provides the authentication function of the middle layer request, and queries the API "
+            + "aps information in the subscription plan corresponding to the space.")
+    public ResponseData<InternalSpaceApiRateLimitVo> apiRateLimit(
+        @PathVariable("spaceId") String spaceId) {
+        iSpaceService.checkExist(spaceId);
+        Long userId = SessionContext.getUserId();
+        iMemberService.checkUserIfInSpace(userId, spaceId);
+        return ResponseData.success(internalSpaceService.getSpaceEntitlementApiRateLimitVo(spaceId));
     }
 
     /**

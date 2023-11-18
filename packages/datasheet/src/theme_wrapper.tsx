@@ -16,19 +16,23 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+import { useKeyPress, useLocalStorageState } from 'ahooks';
+import { useEffect } from 'react';
+import { useDispatch } from 'react-redux';
 import { ThemeName, ThemeProvider } from '@apitable/components';
 import { Selectors, StoreActions } from '@apitable/core';
-import { useKeyPress, useLocalStorageState } from 'ahooks';
 import { SystemTheme } from 'pc/common/theme';
 import { getEnvVariables } from 'pc/utils/env';
-import { useEffect } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+
+import {useAppSelector} from "pc/store/react-redux";
 
 const ThemeWrapper: React.FC<React.PropsWithChildren<unknown>> = (props) => {
-  const [theme, setTheme] = useLocalStorageState<ThemeName>('theme', { defaultValue: (getEnvVariables().SYSTEM_CONFIGURATION_DEFAULT_THEME as ThemeName) || ThemeName.Light });
+  const [theme, setTheme] = useLocalStorageState<ThemeName>('theme', {
+    defaultValue: (getEnvVariables().SYSTEM_CONFIGURATION_DEFAULT_THEME as ThemeName) || ThemeName.Light,
+  });
   const [systemTheme, setSystemTheme] = useLocalStorageState<SystemTheme>('systemTheme', { defaultValue: SystemTheme.Close });
   const dispatch = useDispatch();
-  const cacheTheme = useSelector(Selectors.getTheme);
+  const cacheTheme = useAppSelector(Selectors.getTheme);
 
   useEffect(() => {
     const curTheme = theme || ThemeName.Light;
@@ -39,7 +43,10 @@ const ThemeWrapper: React.FC<React.PropsWithChildren<unknown>> = (props) => {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      const newSystemTheme = (localStorage.getItem('systemTheme'));
+      let newSystemTheme: null | string = null;
+      try {
+        newSystemTheme = localStorage.getItem('systemTheme');
+      } catch (e) {}
       if (newSystemTheme && JSON.parse(newSystemTheme) !== systemTheme) {
         setSystemTheme(systemTheme === SystemTheme.Close ? SystemTheme.Open : SystemTheme.Close);
       }
@@ -71,9 +78,7 @@ const ThemeWrapper: React.FC<React.PropsWithChildren<unknown>> = (props) => {
     theme === ThemeName.Light ? setTheme(ThemeName.Dark) : setTheme(ThemeName.Light);
   });
 
-  return <ThemeProvider theme={cacheTheme}>
-    {props.children}
-  </ThemeProvider>;
+  return <ThemeProvider theme={cacheTheme}>{props.children}</ThemeProvider>;
 };
 
 export default ThemeWrapper;

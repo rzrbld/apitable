@@ -20,6 +20,10 @@ package com.apitable.interfaces.billing.model;
 
 import com.apitable.interfaces.billing.model.SubscriptionFeatures.ConsumeFeatures.AdminNums;
 import com.apitable.interfaces.billing.model.SubscriptionFeatures.ConsumeFeatures.ApiCallNums;
+import com.apitable.interfaces.billing.model.SubscriptionFeatures.ConsumeFeatures.MessageWidgetNums;
+import com.apitable.interfaces.billing.model.SubscriptionFeatures.ConsumeFeatures.MessageAutomationRunNums;
+import com.apitable.interfaces.billing.model.SubscriptionFeatures.ConsumeFeatures.ApiQps;
+import com.apitable.interfaces.billing.model.SubscriptionFeatures.ConsumeFeatures.ArchivedRowsPerSheet;
 import com.apitable.interfaces.billing.model.SubscriptionFeatures.ConsumeFeatures.CalendarViews;
 import com.apitable.interfaces.billing.model.SubscriptionFeatures.ConsumeFeatures.CapacitySize;
 import com.apitable.interfaces.billing.model.SubscriptionFeatures.ConsumeFeatures.FieldPermissionNums;
@@ -43,6 +47,7 @@ import com.apitable.interfaces.billing.model.SubscriptionFeatures.SubscribeFeatu
 import com.apitable.interfaces.billing.model.SubscriptionFeatures.SubscribeFeatures.AllowEmbed;
 import com.apitable.interfaces.billing.model.SubscriptionFeatures.SubscribeFeatures.AllowExport;
 import com.apitable.interfaces.billing.model.SubscriptionFeatures.SubscribeFeatures.AllowInvitation;
+import com.apitable.interfaces.billing.model.SubscriptionFeatures.SubscribeFeatures.AllowOrgApi;
 import com.apitable.interfaces.billing.model.SubscriptionFeatures.SubscribeFeatures.AllowShare;
 import com.apitable.interfaces.billing.model.SubscriptionFeatures.SubscribeFeatures.ContactIsolation;
 import com.apitable.interfaces.billing.model.SubscriptionFeatures.SubscribeFeatures.ForbidCreateOnCatalog;
@@ -77,6 +82,11 @@ public class DefaultSubscriptionFeature implements SubscriptionFeature {
     }
 
     @Override
+    public ArchivedRowsPerSheet getArchivedRowsPerSheet() {
+        return new ArchivedRowsPerSheet(-1L);
+    }
+
+    @Override
     public RowNums getRowNums() {
         return new RowNums(-1L);
     }
@@ -94,6 +104,17 @@ public class DefaultSubscriptionFeature implements SubscriptionFeature {
     @Override
     public ApiCallNums getApiCallNums() {
         return new ApiCallNums(-1L);
+    }
+
+
+    @Override
+    public MessageWidgetNums getMessageWidgetNums() {
+        return new MessageWidgetNums(-1L);
+    }
+
+    @Override
+    public MessageAutomationRunNums getMessageAutomationRunNums() {
+        return new MessageAutomationRunNums(-1L);
     }
 
     @Override
@@ -129,6 +150,11 @@ public class DefaultSubscriptionFeature implements SubscriptionFeature {
     @Override
     public NodePermissionNums getNodePermissionNums() {
         return new NodePermissionNums(-1L);
+    }
+
+    @Override
+    public ApiQps getApiQps() {
+        return new ApiQps(5L);
     }
 
     @Override
@@ -214,5 +240,10 @@ public class DefaultSubscriptionFeature implements SubscriptionFeature {
     @Override
     public AuditQueryDays getAuditQueryDays() {
         return new AuditQueryDays(-1L);
+    }
+
+    @Override
+    public AllowOrgApi getAllowOrgApi() {
+        return new AllowOrgApi(false);
     }
 }

@@ -26,6 +26,15 @@ type IRefMap = Map<string, Set<string>>;
 export class ComputeRefManager {
   public reRefMap: IRefMap; // Back reference, that is, forward dependency. B depends on A, C depends on A. Calculated field as key
   public refMap: IRefMap; // A is referenced by [B,C]. Calculate field value
+  private toComputeMap: IRefMap = new Map();
+
+  public getToComputeDsts(dstId: string) {
+    return Array.from(this.toComputeMap.get(dstId)?.values() ?? []);
+  }
+
+  public setDstComputed(dstId: string) {
+    this.toComputeMap.delete(dstId);
+  }
 
   constructor(refMap?: IRefMap, reRefMap?: IRefMap) {
     this.refMap = refMap || new Map();
@@ -124,6 +133,7 @@ export class ComputeRefManager {
   public clear() {
     this.refMap.clear();
     this.reRefMap.clear();
+    this.toComputeMap.clear();
   }
 
   /*
@@ -137,7 +147,7 @@ export class ComputeRefManager {
    */
   public computeRefMap(fieldMap: IFieldMap, datasheetId: string, state: IReduxState, shouldSyncCache = true) {
     Object.values(fieldMap)
-      .filter(field => Field.bindContext(field, state).isComputed || field.type === FieldType.Link)
+      .filter(field => Field.bindContext(field, state).isComputed || field.type === FieldType.Link || field.type === FieldType.OneWayLink)
       .forEach((field: IField) => {
         switch (field.type) {
           case FieldType.Formula:
@@ -178,6 +188,7 @@ export class ComputeRefManager {
             break;
           // The link field depends on the first field of the foreign key table
           case FieldType.Link:
+          case FieldType.OneWayLink:
             const linkDstId = field.property.foreignDatasheetId;
             const linkSnapshot = Selectors.getSnapshot(state, linkDstId);
             if (linkSnapshot) {
@@ -185,6 +196,10 @@ export class ComputeRefManager {
               const key = `${linkDstId}-${linkPrimaryField!.id}`;
               this.addReRef(`${datasheetId}-${field.id}`, new Set([key]));
               this.addRef(key, `${datasheetId}-${field.id}`);
+            } else {
+              const list = this.toComputeMap.get(linkDstId) || new Set<string>();
+              list.add(`${datasheetId}`);
+              this.toComputeMap.set(linkDstId, list);
             }
             break;
           default:

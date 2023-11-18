@@ -51,6 +51,7 @@ interface IAppendRowsOption {
 
 export function appendRow(option: IAppendRowsOption = {}): Promise<ICollaCommandExecuteResult<string[]>> {
   const state = store.getState();
+
   const activeCell = Selectors.getActiveCell(state)!;
   const { recordId = activeCell?.recordId, direction = Direction.Down, isDuplicate, recordData, count = 1 } = option;
   const view = Selectors.getCurrentView(state)!;
@@ -138,7 +139,7 @@ export const appendRowCallback = (newRecordId: string) => {
   }
 };
 
-export const prependRow = async(): Promise<ICollaCommandExecuteResult<string[]>> => {
+export const prependRow = async (): Promise<ICollaCommandExecuteResult<string[]>> => {
   return await appendRow({ direction: Direction.Up });
 };
 
@@ -167,7 +168,7 @@ export const getCellValuesForGroupRecord = (recordId?: string) => {
 export const findRowsIndexById = (recordId: string) => {
   const state = store.getState();
   const view = Selectors.getCurrentView(state)!;
-  return view.rows.findIndex(item => item.recordId === recordId);
+  return view.rows.findIndex((item) => item.recordId === recordId);
 };
 
 export const getRecordCellValue = (state: IReduxState, recordId: string) => {

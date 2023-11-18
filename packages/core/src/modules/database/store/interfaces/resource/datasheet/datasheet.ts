@@ -349,6 +349,7 @@ export interface IDatasheetState extends INodeMeta {
    */
 
   preview?: string;
+  type?: string;
 }
 
 export interface ILoadingRecord {
@@ -473,6 +474,7 @@ export interface IDatasheetClientState {
   isRobotPanelOpen?: boolean;
   operateViewIds?: string[] | null;
   isTimeMachinePanelOpen?: boolean;
+  isArchivedRecordsPanelOpen?: boolean;
   exportViewId?: string | null;
   // View-derived data, all content obtained by calculation, is uniformly maintained here.
   viewDerivation: { [viewId: string]: IViewDerivation };
@@ -804,6 +806,7 @@ export interface IPageParams {
   // spaceId?: string;
   shareId?: string;
   datasheetId?: string;
+  automationId?: string;
   viewId?: string;
   recordId?: string;
   fieldId?: string;
@@ -819,6 +822,7 @@ export interface IPageParams {
   nodeId?: string;
   mirrorId?: string;
   embedId?: string;
+  aiId?: string;
 }
 
 export interface ICollaboratorParams {
@@ -1019,6 +1023,15 @@ export interface IAddDatasheetAction {
   type: typeof actions.ADD_DATASHEET;
   datasheetId: string;
   payload: IDatasheetPack;
+}
+
+export interface ISetViewPropertyAction {
+  datasheetId: string;
+  type: typeof actions.SET_VIEW_PROPERTY;
+  payload: {
+    viewId: string;
+    viewProperty: IViewProperty;
+  };
 }
 
 export interface ISetPageParamsAction {
@@ -1222,7 +1235,7 @@ export interface IRecordAlarm {
   alarmUsers?: IAlarmUser[];
   recordId?: string;
   fieldId?: string;
-  alarmAt?: string
+  alarmAt?: string;
 }
 
 /**

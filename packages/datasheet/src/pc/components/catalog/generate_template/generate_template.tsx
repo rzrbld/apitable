@@ -16,33 +16,30 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { ConfigConstant, IReduxState, Navigation, Selectors, Strings, t } from '@apitable/core';
 import { useUpdateEffect } from 'ahooks';
 import { Form, Input } from 'antd';
-import { BaseModal, Message, Modal } from 'pc/components/common';
-import { getModalConfig } from 'pc/components/common/modal/qr_code_modal_content';
-import { Router } from 'pc/components/route_manager/router';
-import { useRequest, useTemplateRequest } from 'pc/hooks';
 import * as React from 'react';
 import { FC, useState } from 'react';
-import { useSelector } from 'react-redux';
+import { ConfigConstant, IReduxState, Navigation, Selectors, Strings, t } from '@apitable/core';
+import { BaseModal, Message, Modal } from 'pc/components/common';
+import { Router } from 'pc/components/route_manager/router';
+import { useRequest, useTemplateRequest } from 'pc/hooks';
 import styles from './style.module.less';
+
+import {useAppSelector} from "pc/store/react-redux";
 
 export interface IGenerateTemplateProps {
   nodeId?: string;
   onCancel: () => void;
 }
 
-export const GenerateTemplate: FC<React.PropsWithChildren<IGenerateTemplateProps>> = ({
-  nodeId,
-  onCancel,
-}) => {
-  const treeNodesMap = useSelector((state: IReduxState) => state.catalogTree.treeNodesMap);
-  const activeNodeId = useSelector((state: IReduxState) => Selectors.getNodeId(state));
+export const GenerateTemplate: FC<React.PropsWithChildren<IGenerateTemplateProps>> = ({ nodeId, onCancel }) => {
+  const treeNodesMap = useAppSelector((state: IReduxState) => state.catalogTree.treeNodesMap);
+  const activeNodeId = useAppSelector((state: IReduxState) => Selectors.getNodeId(state));
   nodeId = nodeId || activeNodeId;
   const [name, setName] = useState(treeNodesMap[nodeId!].nodeName);
   const [errorMsg, setErrorMsg] = useState('');
-  const spaceId = useSelector(state => state.space.activeId);
+  const spaceId = useAppSelector((state) => state.space.activeId);
   const { createTemplateReq, templateNameValidateReq } = useTemplateRequest();
   const { run: createTemplate, data: createTemplateData, loading } = useRequest(createTemplateReq, { manual: true });
   const { run: templateNameValidate } = useRequest(templateNameValidateReq, { manual: true });
@@ -57,13 +54,15 @@ export const GenerateTemplate: FC<React.PropsWithChildren<IGenerateTemplateProps
           <>
             {t(Strings.template_created_successfully)}
             <i
-              onClick={() => Router.push(Navigation.TEMPLATE, {
-                params: {
-                  spaceId,
-                  categoryId: 'tpcprivate',
-                  templateId: createTemplateData.data,
-                },
-              })}
+              onClick={() =>
+                Router.push(Navigation.TEMPLATE, {
+                  params: {
+                    spaceId,
+                    categoryId: 'tpcprivate',
+                    templateId: createTemplateData.data,
+                  },
+                })
+              }
             >
               {t(Strings.click_to_view)}
             </i>
@@ -73,15 +72,14 @@ export const GenerateTemplate: FC<React.PropsWithChildren<IGenerateTemplateProps
       onCancel();
     } else {
       if (createTemplateData.code === 430) {
-        const modalConfig = getModalConfig({
+        const modalConfig = {
           title: t(Strings.save_template_disabled),
-          content:  createTemplateData.message,
+          content: createTemplateData.message,
           onOk: () => {
             customModal.destroy();
           },
-          modalButtonType: 'warning',
           okText: t(Strings.submit),
-        });
+        };
         const customModal = Modal.warning(modalConfig);
       } else {
         setErrorMsg(createTemplateData.message);
@@ -102,7 +100,7 @@ export const GenerateTemplate: FC<React.PropsWithChildren<IGenerateTemplateProps
     setName(e.target.value);
   };
 
-  const handleOk = async() => {
+  const handleOk = async () => {
     const result = await templateNameValidate(name);
     if (result) {
       Modal.confirm({
@@ -132,16 +130,8 @@ export const GenerateTemplate: FC<React.PropsWithChildren<IGenerateTemplateProps
       <Form onFinish={handleOk}>
         <div className={styles.generateTemplateContent}>
           <div className={styles.tip}>{t(Strings.template_name)}</div>
-          <Input
-            className={errorMsg ? 'error' : ''}
-            value={name}
-            onChange={handleChange}
-            placeholder={t(Strings.enter_template_name)}
-            autoFocus
-          />
-          <div className={styles.errorMsg}>
-            {errorMsg}
-          </div>
+          <Input className={errorMsg ? 'error' : ''} value={name} onChange={handleChange} placeholder={t(Strings.enter_template_name)} autoFocus />
+          <div className={styles.errorMsg}>{errorMsg}</div>
         </div>
       </Form>
     </BaseModal>

@@ -52,4 +52,6 @@ export const FieldTypeEnum = new Enum([
   { key: 'CreatedBy', name: 'CreatedByField', value: FieldType.CreatedBy },
   { key: 'LastModifiedBy', name: 'LastModifiedByField', value: FieldType.LastModifiedBy },
   { key: 'Cascader', name: 'CascaderField', value: FieldType.Cascader },
+  { key: 'OneWayLink', name: 'OneWayLinkField', value: FieldType.OneWayLink },
+  { key: 'WorkDoc', name: 'WorkDocField', value: FieldType.WorkDoc },
 ]);

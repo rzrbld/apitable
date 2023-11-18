@@ -14,7 +14,7 @@
     <!-- Java -->
     <img src="https://img.shields.io/badge/Java-ED8B00?logo=spring&logoColor=white" alt="Java Language, Spring Framework" />
     <!-- hub.docker.com-->
-    <a target="_blank" href="#installation">
+    <a target="_blank" href="#Installazione">
         <img src="https://img.shields.io/docker/pulls/apitable/init-db" />
     </a>
     <!-- Github Release Latest -->
@@ -70,7 +70,7 @@ Se vuoi solo provare API Table[^info], usa la versione ospitata sul cloud sul si
 
 Se vuoi provare questo progetto open-source APITable, clicca qui per [⚡️Gitpod Online Demo](https://gitpod.io/#https://github.com/apitable/apitable).
 
-Se vuoi installare APITable in locale o in un ambiente di cloud computing, guarda [💾 Installation](#installation)
+Se vuoi installare APITable in locale o in un ambiente di cloud computing, guarda [💾 Installazione](#Installazione)
 
 Se si vuole configurare l'ambiente di sviluppo locale, leggi la nostra ì [🧑‍💻 Guida per sviluppatori](./docs/contribute/developer-guide.md)
 
@@ -157,7 +157,7 @@ APITable offre una serie di funzioni sorprendenti, da quelle personali a quelle 
   - Oltre 100k righe di dati con collaborazione in tempo reale.
   - Accesso API full-stack, dai dati ai metadati.
   - Collegamento tra tabelle a una o due direzioni e collegamenti incrociati infiniti.
-  - Linguaggi di programmazione e framework compatibili con la community, TypeScript ([NextJS](https://nextjs.org/) + [NestJS](https://nestjs.com/)) e Java ([Spring Boot](https://spring.io/projects/spring-boot)) e stiamo passando gradualmente a Rust.
+  - Linguaggi di programmazione e framework compatibili con la community, TypeScript ([NextJS](https://nextjs.org/) + [NestJS](https://nestjs.com/)) e Java ([Spring Boot](https://spring.io/projects/spring-boot)).
 - Bella e ricca interfaccia database-foglio di calcolo
   - CRUD: Creazione, lettura, aggiornamento, cancellazione di tabelle, colonne e righe
   - Operazioni sui campi: ordinamento, filtro, raggruppamento, nascondimento, impostazione dell'altezza.
@@ -317,7 +317,6 @@ APITable utilizza queste convenzioni comuni:
 - Come si fa il versioning e il tagging? [Versione semantica](https://semver.org/)
 - Cos'è la Java Coding Guideline? [Java Coding Guideline](https://google.github.io/styleguide/javaguide.html) | [Intellij IDEA Plugin](https://plugins.jetbrains.com/plugin/8527)
 - Cos'è la linea guida per la codifica di TypeScript? -> [TypeScript Style Guide](https://google.github.io/styleguide/tsguide.html) | [ESLint](https://www.npmjs.com/package/@typescript-eslint/eslint-plugin)
-- What is the Rust Coding Guideline? -> [Rust API Guidelines](https://rust-lang.github.io/api-guidelines/about.html)
 
 ### Documentazione
 

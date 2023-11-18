@@ -50,6 +50,9 @@ export class FieldCreateRo {
   @IsString()
   type: string;
 
+  /**
+   * In Lookup field, `filterInfo.conditions[*].fieldType` is not required.
+   */
   @ApiPropertyOptional({
     type: Object,
     required: false,
@@ -86,7 +89,7 @@ export class FieldCreateRo {
 
   foreignDatasheetId(): string | null {
     const fieldType = getFieldTypeByString(this.type as any)!;
-    if (fieldType === FieldType.Link && this.property) {
+    if ((fieldType === FieldType.Link || fieldType === FieldType.OneWayLink) && this.property) {
       return this.property['foreignDatasheetId'];
     }
     return null;

@@ -16,6 +16,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+import { isEmpty } from 'lodash';
+import * as React from 'react';
+import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { shallowEqual } from 'react-redux';
 import { Button, useThemeColors } from '@apitable/components';
 import { ILinkField, ILinkIds, IReduxState, Selectors, StoreActions, Strings, t } from '@apitable/core';
 import { AddOutlined, ChevronDownOutlined } from '@apitable/icons';
@@ -33,11 +37,10 @@ import { useDispatch, useGetViewByIdWithDefault, useResponsive } from 'pc/hooks'
 import { store } from 'pc/store';
 import { DEFAULT_LINK_RECORD_COUNT, KeyCode, stopPropagation } from 'pc/utils';
 import { getDatasheetOrLoad } from 'pc/utils/get_datasheet_or_load';
-import * as React from 'react';
-import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
-import { shallowEqual, useSelector } from 'react-redux';
 import { IExpandFieldEditRef } from '../field_editor';
 import style from './style.module.less';
+
+import {useAppSelector} from "pc/store/react-redux";
 
 export interface IExpandLinkProps extends IBaseEditorProps {
   field: ILinkField;
@@ -61,7 +64,17 @@ export enum FetchForeignTimes {
 
 const ExpandLinkBase: React.ForwardRefRenderFunction<IExpandFieldEditRef, IExpandLinkProps> = (props, ref) => {
   const {
-    field, recordId, onClick, editable, keyPrefix, addBtnText, rightLayout = true, onSave, datasheetId, manualFetchForeignDatasheet, mirrorId,
+    field,
+    recordId,
+    onClick,
+    editable,
+    keyPrefix,
+    addBtnText,
+    rightLayout = true,
+    onSave,
+    datasheetId,
+    manualFetchForeignDatasheet,
+    mirrorId,
   } = props;
   const colors = useThemeColors();
   const focusRef = useRef<HTMLDivElement>(null);
@@ -79,14 +92,20 @@ const ExpandLinkBase: React.ForwardRefRenderFunction<IExpandFieldEditRef, IExpan
     : manualFetchForeignDatasheet === FetchForeignTimes.OnlyOnce
       ? !manualFetch.current
       : false;
-  const { foreignDatasheet, foreignDatasheetErrorCode } = useSelector((state: IReduxState) => {
+  const { foreignDatasheet, foreignDatasheetErrorCode } = useAppSelector((state: IReduxState) => {
     return {
       foreignDatasheet: Selectors.getDatasheet(state, field.property.foreignDatasheetId)!,
       foreignDatasheetErrorCode: Selectors.getDatasheetErrorCode(state, field.property.foreignDatasheetId),
     };
   });
 
-  const { foreignSnapshot, foreignDatasheetName } = useSelector((state: IReduxState) => {
+  const { foreignSnapshot, foreignDatasheetName } = useAppSelector((state: IReduxState) => {
+    if (!editing && isEmpty(showCellValues)) {
+      return {
+        foreignSnapshot: undefined,
+        foreignDatasheetName: undefined,
+      };
+    }
     const forceFetch = manualFetchForeignDatasheet && lastFetch.current !== manualFetch.current;
     if (forceFetch) {
       lastFetch.current = manualFetch.current;
@@ -107,7 +126,7 @@ const ExpandLinkBase: React.ForwardRefRenderFunction<IExpandFieldEditRef, IExpan
   }, shallowEqual);
   const foreignActiveView = useGetViewByIdWithDefault(field.property.foreignDatasheetId, field.property.limitToView);
 
-  const datasheetLoading = useSelector(state => {
+  const datasheetLoading = useAppSelector((state) => {
     return Selectors.getDatasheetLoading(state, field.property.foreignDatasheetId);
   });
 
@@ -127,30 +146,27 @@ const ExpandLinkBase: React.ForwardRefRenderFunction<IExpandFieldEditRef, IExpan
     };
   }, [editing]);
 
-  useImperativeHandle(
-    ref,
-    (): IExpandFieldEditRef => {
-      const editor = focusRef.current;
-      const noop = () => {
-        return;
-      };
-      if (!editor) {
-        return {
-          focus: noop,
-          setValue: noop,
-          saveValue: noop,
-        };
-      }
-
+  useImperativeHandle(ref, (): IExpandFieldEditRef => {
+    const editor = focusRef.current;
+    const noop = () => {
+      return;
+    };
+    if (!editor) {
       return {
-        focus: (preventScroll?: boolean) => {
-          editor.focus({ preventScroll });
-        },
+        focus: noop,
         setValue: noop,
         saveValue: noop,
       };
-    },
-  );
+    }
+
+    return {
+      focus: (preventScroll?: boolean) => {
+        editor.focus({ preventScroll });
+      },
+      setValue: noop,
+      saveValue: noop,
+    };
+  });
 
   const toggleEditing = useCallback(() => setEditing(false), []);
 
@@ -194,14 +210,14 @@ const ExpandLinkBase: React.ForwardRefRenderFunction<IExpandFieldEditRef, IExpan
     expandPreviewModalClose();
     expandRecordInCenter({
       activeRecordId: recordId,
-      recordIds: showCellValues.map(recordId => recordId),
+      recordIds: showCellValues.map((recordId) => recordId),
       viewId: foreignActiveView?.id,
       datasheetId: field.property.foreignDatasheetId,
     });
   }
 
   function deleteRecord(recordId: string) {
-    const value = cellValue && cellValue.filter(r => r !== recordId);
+    const value = cellValue && cellValue.filter((r) => r !== recordId);
     onSave && onSave(value);
   }
 
@@ -210,13 +226,12 @@ const ExpandLinkBase: React.ForwardRefRenderFunction<IExpandFieldEditRef, IExpan
       return <></>;
     }
     return (
-      <Button className={style.addLinkRecordBtn} size='small' onClick={onAddRecord} disabled={!editable}>
+      <Button className={style.addLinkRecordBtn} size="small" onClick={onAddRecord} disabled={!editable}>
         <span className={style.inner}>
           {editable && <AddOutlined className={style.addIcon} color={colors.secondLevelText} />}
           {!editable
             ? t(Strings.add_link_record_button_disable)
-            : addBtnText ||
-            (
+            : addBtnText || (
               <TComponent
                 tkey={t(Strings.add_link_record_button)}
                 params={{
@@ -240,7 +255,7 @@ const ExpandLinkBase: React.ForwardRefRenderFunction<IExpandFieldEditRef, IExpan
       <div className={style.addLinkRecord}>{renderButton()}</div>
       {foreignSnapshot && (
         <>
-          <div className={style.recordList} onMouseDown={e => stopPropagation(e)}>
+          <div className={style.recordList} onMouseDown={(e) => stopPropagation(e)}>
             {showCellValues &&
               showCellValues.map((recordId, index) => {
                 const record = foreignSnapshot.recordMap[recordId];
@@ -252,7 +267,7 @@ const ExpandLinkBase: React.ForwardRefRenderFunction<IExpandFieldEditRef, IExpan
                   <ExpandLinkContext.Provider
                     value={{
                       ignoreMirror: true,
-                      baseDatasheetId: field.property.foreignDatasheetId
+                      baseDatasheetId: field.property.foreignDatasheetId,
                     }}
                     key={keyPrefix ? `${keyPrefix}-${index}` : recordId}
                   >

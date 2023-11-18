@@ -16,29 +16,32 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { isNil } from '@nestjs/common/utils/shared.utils';
+import { BackendGrpcClient } from 'grpc/client/backend.grpc.client';
 import { SocketConstants } from 'shared/common/constants/socket.module.constants';
 import { NotificationTypes } from 'shared/enums/request-types.enum';
 import { Socket } from 'socket.io';
-import { GrpcClient } from 'socket/grpc/client/grpc.client';
-import { AuthenticatedSocket } from 'socket/interface/socket/authenticated-socket.interface';
+import { IAuthenticatedSocket } from 'socket/interface/socket/authenticated-socket.interface';
 import { NodeChangeRo } from 'socket/ros/notification/node-change.ro';
-import { NotificationRo } from 'socket/ros/notification/notification.ro';
+import { INotificationRo } from 'socket/ros/notification/notification.ro';
 import { WatchSpaceRo } from 'socket/ros/notification/watch-space.ro';
 
 @Injectable()
 export class NotificationService {
   private readonly logger = new Logger(NotificationService.name);
 
-  constructor(private readonly grpcClient: GrpcClient) {}
+  constructor(
+    private readonly backendGrpcClient: BackendGrpcClient
+  ) {}
 
-  broadcastNotify(message: NotificationRo, client: Socket): boolean {
-    if (isNil(message.toUserId)) {
-      throw new ForbiddenException('Forbidden:403', 'User mismatch');
+  broadcastNotify(message: INotificationRo, client: Socket): boolean {
+    if (isNil(message.toUuid)) {
+      this.logger.error('NotNotify:UserMismatch');
+      return false;
     }
     try {
-      client.in(SocketConstants.USER_SOCKET_ROOM + message.toUserId).emit(message.event, message);
+      client.in(SocketConstants.USER_SOCKET_ROOM + message.toUuid).emit(message.event, message);
       this.logger.debug(message);
       return true;
     } catch (e) {
@@ -47,7 +50,7 @@ export class NotificationService {
     }
   }
 
-  async watchSpace(message: WatchSpaceRo, client: AuthenticatedSocket): Promise<boolean> {
+  async watchSpace(message: WatchSpaceRo, client: IAuthenticatedSocket): Promise<boolean> {
     try {
       await client.join(this.getSpaceRoom(message.spaceId));
       return true;
@@ -57,7 +60,7 @@ export class NotificationService {
     }
   }
 
-  nodeChange(message: NodeChangeRo, client: AuthenticatedSocket): boolean {
+  nodeChange(message: NodeChangeRo, client: IAuthenticatedSocket): boolean {
     try {
       let room = this.getSpaceRoom(message.spaceId);
       if (message.uuid) {
@@ -74,7 +77,7 @@ export class NotificationService {
 
   async nodeBrowsed(nodeId: string, uuid: string): Promise<boolean> {
     try {
-      const result = await this.grpcClient.recordNodeBrowsing({ nodeId, uuid });
+      const result = await this.backendGrpcClient.recordNodeBrowsing({ nodeId, uuid });
       return result.success;
     } catch (e) {
       this.logger.error('Error:nodeBrowsed', (e as Error)?.stack);

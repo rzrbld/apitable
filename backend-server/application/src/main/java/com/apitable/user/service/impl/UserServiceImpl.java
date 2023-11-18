@@ -46,14 +46,15 @@ import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.PageUtil;
 import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
-import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.apitable.asset.service.IAssetService;
 import com.apitable.base.enums.DatabaseException;
 import com.apitable.core.exception.BusinessException;
 import com.apitable.core.util.ExceptionUtil;
 import com.apitable.core.util.HttpContextUtil;
+import com.apitable.core.util.SpringContextHolder;
 import com.apitable.core.util.SqlTool;
+import com.apitable.interfaces.billing.facade.EntitlementServiceFacade;
 import com.apitable.interfaces.social.enums.SocialNameModified;
 import com.apitable.interfaces.social.facade.SocialServiceFacade;
 import com.apitable.interfaces.social.model.SocialUserBind;
@@ -61,13 +62,12 @@ import com.apitable.interfaces.user.facade.UserLinkServiceFacade;
 import com.apitable.interfaces.user.facade.UserServiceFacade;
 import com.apitable.interfaces.user.model.RewardedUser;
 import com.apitable.organization.dto.MemberDTO;
+import com.apitable.organization.dto.MemberUserDTO;
 import com.apitable.organization.entity.MemberEntity;
 import com.apitable.organization.mapper.MemberMapper;
 import com.apitable.organization.service.IMemberService;
 import com.apitable.player.mapper.PlayerActivityMapper;
-import com.apitable.player.ro.NotificationCreateRo;
 import com.apitable.player.service.IPlayerActivityService;
-import com.apitable.player.service.IPlayerNotificationService;
 import com.apitable.shared.cache.bean.LoginUserDto;
 import com.apitable.shared.cache.bean.OpenedSheet;
 import com.apitable.shared.cache.bean.UserLinkInfo;
@@ -84,7 +84,6 @@ import com.apitable.shared.component.notification.NotificationManager;
 import com.apitable.shared.component.notification.NotificationTemplateId;
 import com.apitable.shared.config.properties.ConstProperties;
 import com.apitable.shared.constants.LanguageConstants;
-import com.apitable.shared.constants.NotificationConstants;
 import com.apitable.shared.context.LoginContext;
 import com.apitable.shared.security.PasswordService;
 import com.apitable.shared.sysconfig.notification.NotificationTemplate;
@@ -96,6 +95,7 @@ import com.apitable.space.service.ISpaceInviteLinkService;
 import com.apitable.space.service.ISpaceService;
 import com.apitable.user.dto.UserInPausedDto;
 import com.apitable.user.dto.UserLangDTO;
+import com.apitable.user.dto.UserSensitiveDTO;
 import com.apitable.user.entity.UserEntity;
 import com.apitable.user.entity.UserHistoryEntity;
 import com.apitable.user.enums.UserClosingException;
@@ -107,6 +107,7 @@ import com.apitable.user.service.IUserHistoryService;
 import com.apitable.user.service.IUserService;
 import com.apitable.user.vo.UserInfoVo;
 import com.apitable.user.vo.UserLinkVo;
+import com.apitable.user.vo.UserSimpleVO;
 import com.apitable.workspace.service.INodeShareService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.baomidou.mybatisplus.extension.toolkit.SqlHelper;
@@ -115,7 +116,9 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import javax.annotation.Resource;
 import javax.servlet.http.HttpSession;
@@ -145,6 +148,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserEntity>
     private LoginUserCacheService loginUserCacheService;
 
     @Resource
+    private LanguageManager languageManager;
+
+    @Resource
     private IAssetService iAssetService;
 
     @Resource
@@ -172,7 +178,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserEntity>
     private ISpaceInviteLinkService spaceInviteLinkService;
 
     @Resource
-    private IPlayerNotificationService notificationService;
+    private IMemberService iMemberService;
 
     @Resource
     private MemberMapper memberMapper;
@@ -193,9 +199,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserEntity>
     private SocialServiceFacade socialServiceFacade;
 
     @Resource
-    private IMemberService iMemberService;
-
-    @Resource
     private INotificationFactory notificationFactory;
 
     @Resource
@@ -203,6 +206,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserEntity>
 
     @Resource
     private UserLinkServiceFacade userLinkServiceFacade;
+
+    @Resource
+    private EntitlementServiceFacade entitlementServiceFacade;
 
     @Resource
     private PasswordService passwordService;
@@ -225,7 +231,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserEntity>
 
     @Override
     public boolean checkByCodeAndMobile(final String code,
-        final String mobile) {
+                                        final String mobile) {
         String areaCode = StrUtil.prependIfMissing(code, "+");
         UserEntity userEntity = baseMapper.selectByMobile(mobile);
         if (userEntity == null) {
@@ -242,7 +248,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserEntity>
 
     @Override
     public UserEntity getByCodeAndMobilePhone(final String code,
-        final String mobilePhone) {
+                                              final String mobilePhone) {
         String areaCode = StrUtil.prependIfMissing(code, "+");
         UserEntity userEntity = baseMapper.selectByMobile(mobilePhone);
         if (userEntity == null) {
@@ -398,6 +404,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserEntity>
             .mobilePhone(mobile)
             .nickName(name)
             .avatar(nullToDefaultAvatar(avatar))
+            .locale(languageManager.getDefaultLanguageTag())
             .color(color)
             .email(email)
             .lastLoginTime(LocalDateTime.now())
@@ -456,6 +463,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserEntity>
             .code(areaCode)
             .mobilePhone(mobile)
             .nickName(nullToDefaultNickName(nickName, mobile))
+            .locale(languageManager.getDefaultLanguageTag())
             .avatar(nullToDefaultAvatar(avatar))
             .color(color)
             .lastLoginTime(LocalDateTime.now())
@@ -482,6 +490,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserEntity>
             .uuid(IdUtil.fastSimpleUUID())
             .email(email)
             .nickName(StringUtils.substringBefore(email, "@"))
+            .locale(languageManager.getDefaultLanguageTag())
             .color(RandomUtil.randomInt(0, USER_AVATAR_COLOR_MAX_VALUE))
             .lastLoginTime(LocalDateTime.now())
             .build();
@@ -520,7 +529,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserEntity>
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void bindMemberByEmail(final Long userId, final String spaceId,
-        final String email) {
+                                  final String email) {
         log.info("Bind member email");
         // Determine whether the email is unbound and invited
         MemberEntity member =
@@ -578,7 +587,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserEntity>
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void updateMobileByUserId(final Long userId, final String code,
-        final String mobile) {
+                                     final String mobile) {
         UserEntity updateUser = new UserEntity();
         updateUser.setId(userId);
         updateUser.setCode(code);
@@ -728,7 +737,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserEntity>
 
     @Override
     public UserInfoVo getCurrentUserInfo(final Long userId,
-        final String spaceId, final Boolean filter) {
+                                         final String spaceId, final Boolean filter) {
         log.info("Get user information and space content");
         // Query the user's basic information
         // Whether the invitation code has been used for rewards
@@ -871,7 +880,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserEntity>
         userActiveSpaceCacheService.delete(user.getId());
         // Logical deletion of space invite link
         List<MemberEntity> members = iMemberService.getByUserId(user.getId());
-        if (members.size() == 0) {
+        if (members.isEmpty()) {
             return;
         }
         List<Long> memberIds = members.stream()
@@ -885,41 +894,26 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserEntity>
         List<String> spaceIds = members.stream()
             .map(MemberEntity::getSpaceId).collect(Collectors.toList());
         List<SpaceEntity> spaces = iSpaceService.getBySpaceIds(spaceIds);
-        if (spaces.size() == 0) {
+        if (spaces.isEmpty()) {
             return;
         }
-        List<NotificationCreateRo> notificationCreateRos =
-            genNotificationCreateRos(user, spaces);
-        notificationService.batchCreateNotify(notificationCreateRos);
+        TaskManager.me().execute(() -> this.sendClosingAccountNotify(user, spaces, members));
     }
 
-    /**
-     * Encapsulate Notification to notify the master administrator that the member has applied for
-     * logoff.
-     *
-     * @param user   User
-     * @param spaces Space List
-     * @return NotificationCreateRo List
-     */
-    private List<NotificationCreateRo> genNotificationCreateRos(
-        final UserEntity user, final List<SpaceEntity> spaces) {
-        List<NotificationCreateRo> ros = Lists.newArrayList();
-        spaces.forEach(spaceEntity -> {
-            NotificationCreateRo notifyRo = new NotificationCreateRo();
-            notifyRo.setSpaceId(spaceEntity.getSpaceId());
-            String memberId = String.valueOf(spaceEntity.getOwner());
-            notifyRo.setToMemberId(Lists.newArrayList(memberId));
-            notifyRo.setFromUserId(String.valueOf(user.getId()));
-            Dict extras = Dict.create().set("nickName", user.getNickName());
-            JSONObject data = JSONUtil.createObj()
-                .putOnce(NotificationConstants.BODY_EXTRAS, extras)
-                .set("nickName", user.getNickName());
-            notifyRo.setBody(data);
-            notifyRo.setTemplateId(NotificationTemplateId
-                .MEMBER_APPLIED_TO_CLOSE_ACCOUNT.getValue());
-            ros.add(notifyRo);
-        });
-        return ros;
+    private void sendClosingAccountNotify(UserEntity user,
+                                          List<SpaceEntity> spaces, List<MemberEntity> members) {
+        Map<String, String> spaceIdToMemberNameMap = members.stream()
+            .collect(Collectors.toMap(MemberEntity::getSpaceId, MemberEntity::getMemberName));
+        for (SpaceEntity space : spaces) {
+            NotificationManager.me().playerNotify(
+                NotificationTemplateId.MEMBER_APPLIED_TO_CLOSE_ACCOUNT,
+                Lists.newArrayList(space.getOwner()),
+                user.getId(),
+                space.getSpaceId(),
+                Dict.create().set("nickName", user.getNickName())
+                    .set("MEMBER_NAME", spaceIdToMemberNameMap.get(space.getSpaceId()))
+            );
+        }
     }
 
     private void updateIsPaused(final Long userId, final boolean isPaused) {
@@ -940,7 +934,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserEntity>
         List<Long> unexpectedMemberIds = unexpectedMembers.stream()
             .map(MemberEntity::getId).collect(Collectors.toList());
         // Logical deletion of abnormal member information
-        if (unexpectedMemberIds.size() > 0) {
+        if (!unexpectedMemberIds.isEmpty()) {
             memberMapper.deleteBatchByIds(unexpectedMemberIds);
         }
         // Restore member information
@@ -963,6 +957,16 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserEntity>
         // Clear the user's nickname, area code,
         // mobile phone and email information
         userMapper.resetUserById(user.getId());
+        // cancel subscription if exists
+        List<String> spaceIds = iMemberService.getSpaceIdByUserIdIgnoreDeleted(user.getId());
+        spaceIds.forEach(spaceId -> {
+            long count = iMemberService.getTotalActiveMemberCountBySpaceId(spaceId);
+            if (count == 0) {
+                log.info("Cancel subscription for space [{}]", spaceId);
+                // only one member left, cancel subscription
+                entitlementServiceFacade.cancelSubscription(spaceId);
+            }
+        });
         // Clear the user's information in the member table
         memberMapper.clearMemberInfoByUserId(user.getId());
         // Physically delete
@@ -987,7 +991,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserEntity>
     }
 
     private boolean inactiveMemberProcess(final Long userId,
-        final List<MemberDTO> inactiveMembers) {
+                                          final List<MemberDTO> inactiveMembers) {
         if (CollUtil.isEmpty(inactiveMembers)) {
             return false;
         }
@@ -1032,7 +1036,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserEntity>
 
     @Override
     public List<UserLangDTO> getLangByEmails(final String expectedLang,
-        final List<String> emails) {
+                                             final List<String> emails) {
         // Maybe have performance problems, the segmented query is used.
         List<UserLangDTO> userLangs = new ArrayList<>(emails.size());
         int page =
@@ -1145,6 +1149,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserEntity>
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void closePausedUser(int limitDays) {
         LocalDateTime endAt =
             ClockManager.me().getLocalDateTimeNow().minusDays(limitDays);
@@ -1167,5 +1172,31 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserEntity>
                 log.error("CloseUserError:{}", userId, e);
             }
         });
+    }
+
+    @Override
+    public List<UserSensitiveDTO> getUserSensitiveInfoByIds(List<Long> userIds) {
+        return baseMapper.selectEmailAndMobilePhoneByIds(userIds);
+    }
+
+    @Override
+    public Map<Long, UserSimpleVO> getUserSimpleInfoMap(String spaceId, List<Long> userIds) {
+        if (userIds.isEmpty()) {
+            return new HashMap<>();
+        }
+        UserMapper userMapper = SpringContextHolder.getBean(UserMapper.class);
+        Map<Long, String> members =
+            memberMapper.selectMemberNameByUserIdsAndSpaceIds(spaceId, userIds).stream().collect(
+                Collectors.toMap(MemberUserDTO::getUserId, MemberUserDTO::getMemberName));
+        return userMapper.selectByIds(userIds).stream().collect(
+            Collectors.toMap(UserEntity::getId, i -> {
+                String memberName = StrUtil.isBlank(members.get(i.getId())) ? i.getNickName() :
+                    members.get(i.getId());
+                UserSimpleVO vo = new UserSimpleVO();
+                vo.setUuid(i.getUuid());
+                vo.setNickName(memberName);
+                vo.setAvatar(i.getAvatar());
+                return vo;
+            }));
     }
 }
