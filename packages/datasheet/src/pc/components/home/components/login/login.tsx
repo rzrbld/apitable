@@ -28,8 +28,20 @@ import { execNoTraceVerification, initNoTraceVerification } from 'pc/utils';
 import { clearStorage } from 'pc/utils/storage';
 import { ActionType } from '../../pc_home';
 import styles from './style.module.less';
+import { getEnvVariables } from 'pc/utils/env';
 
 import {useAppSelector} from "pc/store/react-redux";
+
+const env = getEnvVariables();
+
+const oidcIsEnabled = env.OIDC_IMPLICIT_IS_ENABLED;
+const oidcUrl = env.OIDC_IMPLICIT_URL
+const oidcRedirectUrl = env.OIDC_IMPLICIT_REDIRECT_URL;
+const oidcClientId = env.OIDC_IMPLICIT_CLIENT_ID
+const oidcResponseType = env.OIDC_IMPLICIT_RESPONSE_TYPE
+const oidcScope = env.OIDC_IMPLICIT_SCOPE
+const oidcFinalUrl = oidcUrl+"?client_id="+oidcClientId+"&response_type="+oidcResponseType+"&scope="+oidcScope+"&response_mode=form_post&redirect_uri="+oidcRedirectUrl
+
 
 interface ILoginErrorMsg {
   username?: string;
@@ -124,8 +136,8 @@ export const Login: React.FC<React.PropsWithChildren<ILoginProps>> = (props) => 
       username: username!,
       credential: password!,
       data,
-      type: ConfigConstant.LoginTypes.PASSWORD,
-      mode: ConfigConstant.LoginMode.PASSWORD,
+      type: ConfigConstant.LoginTypes.SSO_AUTH,
+      mode: ConfigConstant.LoginMode.OTHER,
     };
     const result = await loginReq(loginData);
     if (!result) {
@@ -155,8 +167,25 @@ export const Login: React.FC<React.PropsWithChildren<ILoginProps>> = (props) => 
     if (event.key === ' ') {
       event.preventDefault();
     }
-    event.key === 'Enter' && handleSubmit();
+    // event.key === 'Enter' && handleSubmit();
+
   }
+
+  const handleOIDCClick = () => {
+    window.location.href = oidcFinalUrl;
+  };
+
+  if(oidcIsEnabled){
+    return (
+      <div className={styles.loginWrap}>
+        <Button className={styles.loginBtn} color="primary" size="large" block loading={loading} onClick={handleOIDCClick}>
+        {t(Strings.apitable_sign_in)}
+        </Button>
+      </div>
+    )
+
+  }else{
+
   return (
     <div className={styles.loginWrap}>
       <Form onFinish={handleSubmit}>
@@ -224,4 +253,5 @@ export const Login: React.FC<React.PropsWithChildren<ILoginProps>> = (props) => 
       </div>
     </div>
   );
+  }
 };
