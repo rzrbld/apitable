@@ -21,6 +21,8 @@ package com.apitable.interfaces.auth.facade;
 import com.apitable.interfaces.auth.model.AuthParam;
 import com.apitable.interfaces.auth.model.UserAuth;
 import com.apitable.interfaces.auth.model.UserLogout;
+//KE dependency
+import java.io.IOException;
 
 /**
  * Auth Service Facade.
@@ -33,7 +35,7 @@ public interface AuthServiceFacade {
      * @param param login param
      * @return {@link UserAuth}
      */
-    UserAuth ssoLogin(AuthParam param);
+    UserAuth ssoLogin(AuthParam param) throws IOException;
 
     /**
      * user logs out.

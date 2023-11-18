@@ -57,6 +57,24 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
+//KE dependency
+import com.apitable.user.service.IUserService;
+import java.io.IOException;
+import java.net.MalformedURLException;
+import java.util.Base64;
+import java.util.Objects;
+import com.apitable.auth.service.impl.AuthServiceImpl;
+import com.apitable.user.service.IUserService;
+import com.auth0.jwk.JwkException;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.servlet.ModelAndView;
+import org.springframework.web.servlet.View;
+
 /**
  * Authorization interface.
  */
@@ -90,6 +108,18 @@ public class AuthController {
     @Value("${SKIP_REGISTER_VALIDATE:false}")
     private Boolean skipRegisterValidate;
 
+    @Value("${OIDC_IMPLICIT_SUCCESS_REDIRECT:../../workbench}")
+    private String oidcImplicitSuccessRedirect;
+
+    @Value("${OIDC_IMPLICIT_JWKS_URI:NONE}")
+    private String oidcImplicitJwksUri;
+
+    @Value("${OIDC_IMPLICIT_IS_ENABLED:false}")
+    private Boolean oidcImplicitIsEnabled;
+
+    @Resource
+    private IUserService iUserService;
+
     /**
      * Register.
      *
@@ -106,6 +136,78 @@ public class AuthController {
         Long userId = iAuthService.register(data.getUsername(), data.getCredential());
         SessionContext.setUserId(userId);
         return ResponseData.success();
+    }
+
+
+    /**
+     * callback router.
+     *
+     * @return {@link ResponseData}
+     */
+
+    @PostResource(path = "/oidccallback", requiredPermission = false, method =
+            RequestMethod.POST, requiredLogin = false)
+    @Operation(summary = "oidc implicit auth")
+
+    public ModelAndView callback(final HttpServletRequest request) {
+        String oidcCode = request.getParameter("access_token");
+        ClientOriginInfo origin = InformationUtil.getClientOriginInfo(request,
+                false, true);
+
+        String[] chunks = oidcCode.split("\\.");
+        Base64.Decoder decoder = Base64.getUrlDecoder();
+//        String header = new String(decoder.decode(chunks[0]));
+        String payload = new String(decoder.decode(chunks[1]));
+
+        String userEmail;
+        Long tokenExp;
+        boolean IsUserAuthSuccess = false;
+        Long finalUserId;
+        long unixTime = System.currentTimeMillis() / 1000L;
+
+
+        try {
+            System.out.println("Validation URL ::" + oidcImplicitJwksUri);
+            if (!Objects.equals(oidcImplicitJwksUri, "NONE")) {
+                System.out.println("Validation called");
+                AuthServiceImpl.ValidateJWTSignature(oidcCode, oidcImplicitJwksUri);
+            }
+
+            ObjectMapper objectMapper = new ObjectMapper();
+            JsonNode jwtJsonNode = objectMapper.readTree(payload);
+
+            userEmail = jwtJsonNode.get("email").asText();
+            tokenExp = jwtJsonNode.get("exp").asLong();
+
+            if (!Objects.equals(userEmail, "") && tokenExp > unixTime) {
+                IsUserAuthSuccess = true;
+            }
+
+        } catch (JsonProcessingException | JwkException | MalformedURLException e) {
+            throw new RuntimeException(e);
+        }
+
+        Long existedUserId = iUserService.getUserIdByEmail(userEmail);
+
+        if (IsUserAuthSuccess) {
+            if (existedUserId != null) {
+                finalUserId = existedUserId;
+            } else {
+                String pwd = AuthServiceImpl.gimmieSomeRandomStringForPassword();
+                finalUserId = iAuthService.register(userEmail, pwd);
+            }
+        } else {
+            return null;
+        }
+
+        eventBusFacade.onEvent(new UserLoginEvent(finalUserId, LoginType.SSO_TOKEN, false, origin));
+        // Banned account verification
+        blackListServiceFacade.checkUser(finalUserId);
+        // save session
+        SessionContext.setUserId(finalUserId);
+        request.setAttribute(
+                View.RESPONSE_STATUS_ATTRIBUTE, HttpStatus.TEMPORARY_REDIRECT);
+        return new ModelAndView("redirect:" + oidcImplicitSuccessRedirect);
     }
 
     /**
@@ -126,6 +228,9 @@ public class AuthController {
             new HashMap<>();
         // password login
         loginActionFunc.put(LoginType.PASSWORD, loginRo -> {
+            if (oidcImplicitIsEnabled){
+                return null;
+            }
             // Password login requires human-machine authentication
             humanVerificationServiceFacade.verifyNonRobot(
                 new NonRobotMetadata(loginRo.getData()));
@@ -139,6 +244,9 @@ public class AuthController {
         });
         // SMS verification code login
         loginActionFunc.put(LoginType.SMS_CODE, loginRo -> {
+            if (oidcImplicitIsEnabled){
+                return null;
+            }
             UserLoginDTO result = iAuthService.loginUsingSmsCode(loginRo);
             // sensors point - Login or Register
             if (Boolean.TRUE.equals(result.getIsSignUp())) {
@@ -157,6 +265,9 @@ public class AuthController {
         });
         // Email verification code login
         loginActionFunc.put(LoginType.EMAIL_CODE, loginRo -> {
+            if (oidcImplicitIsEnabled){
+                return null;
+            }
             UserLoginDTO result = iAuthService.loginUsingEmailCode(loginRo);
             // sensors point - Login or Register
             if (Boolean.TRUE.equals(result.getIsSignUp())) {
@@ -175,9 +286,18 @@ public class AuthController {
         });
         // SSO login (private user use)
         loginActionFunc.put(LoginType.SSO_AUTH, loginRo -> {
-            UserAuth userAuth = authServiceFacade.ssoLogin(
-                new AuthParam(data.getUsername(), data.getCredential()));
+            if (oidcImplicitIsEnabled){
+                return null;
+            }
+            UserAuth userAuth;
+            try {
+                userAuth = authServiceFacade.ssoLogin(
+                        new AuthParam(data.getUsername(), data.getCredential()));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
             Long userId = userAuth != null ? userAuth.getUserId() : null;
+            eventBusFacade.onEvent(new UserLoginEvent(userId, LoginType.SSO_AUTH, false, origin));
             return LoginResultVO.builder().userId(userId).build();
         });
         // Handling login logic

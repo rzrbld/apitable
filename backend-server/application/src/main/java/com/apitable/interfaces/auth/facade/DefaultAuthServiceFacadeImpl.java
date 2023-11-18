@@ -22,21 +22,67 @@ import com.apitable.interfaces.auth.model.AuthParam;
 import com.apitable.interfaces.auth.model.UserAuth;
 import com.apitable.interfaces.auth.model.UserLogout;
 
+//KE dependency
+import okhttp3.*;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
+import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestTemplate;
+import com.apitable.auth.service.IAuthService;
+import com.apitable.user.service.IUserService;
+import javax.annotation.Resource;
+import java.io.IOException;
+import java.util.Random;
+import com.apitable.auth.service.impl.AuthServiceImpl;
+
 /**
  * default auth service implement.
  */
 public class DefaultAuthServiceFacadeImpl implements AuthServiceFacade {
 
-    /**
-     * user login.
-     *
-     * @param param login param
-     * @return {@link UserAuth}
-     */
-    @Override
-    public UserAuth ssoLogin(final AuthParam param) {
-        return null;
+    @Value("${OIDC_URI_GRANT_TYPE_PASSWORD:empty_string}")
+    private String oidcUriGrantTypePassword;
+
+    public Boolean isThisUserAbleToAuth(AuthParam param) throws IOException {
+        String UserName = param.getUsername();
+        String UserPwd = param.getPassword();
+        OkHttpClient client = new OkHttpClient().newBuilder()
+                .build();
+        MediaType mediaType = MediaType.parse("application/x-www-form-urlencoded");
+        RequestBody body = RequestBody.create(mediaType, "client_id=login-app&username="+UserName+"&password="+UserPwd+"&grant_type=password");
+        Request request = new Request.Builder()
+                .url(oidcUriGrantTypePassword)
+                .method("POST", body)
+                .addHeader("Content-Type", "application/x-www-form-urlencoded")
+                .build();
+        Response response = client.newCall(request).execute();
+        System.out.println(response.body().string());
+//        put your custom validation code here
+        return response.code() == 200;
     }
+    @Resource
+    private IAuthService iAuthService;
+    @Resource
+    private IUserService iUserService;
+    @Override
+    public UserAuth ssoLogin(AuthParam param) throws IOException {
+        Boolean IsUserAuthSuccess = isThisUserAbleToAuth(param);
+        Long existedUserId = iUserService.getUserIdByEmail(param.getUsername());
+
+
+        if (IsUserAuthSuccess){
+            if (existedUserId!=null){
+                return new UserAuth(existedUserId);
+            } else {
+                String pwd = AuthServiceImpl.gimmieSomeRandomStringForPassword();
+                Long userId = iAuthService.register(param.getUsername(), pwd);
+                return new UserAuth(userId);
+            }
+        } else {
+            return null;
+        }
+    }
+
 
     /**
      * user logs out.

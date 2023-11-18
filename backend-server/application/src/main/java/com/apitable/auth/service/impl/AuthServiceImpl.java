@@ -63,6 +63,21 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+//KE dependency
+import java.util.Random;
+import javax.annotation.Resource;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.security.interfaces.RSAPublicKey;
+import okhttp3.internal.concurrent.Task;
+import com.auth0.jwk.Jwk;
+import com.auth0.jwk.JwkException;
+import com.auth0.jwk.JwkProvider;
+import com.auth0.jwk.UrlJwkProvider;
+import com.auth0.jwt.JWT;
+import com.auth0.jwt.algorithms.Algorithm;
+import com.auth0.jwt.interfaces.DecodedJWT;
+
 /**
  * Authorization-related service interface implementation.
  */
@@ -272,5 +287,29 @@ public class AuthServiceImpl implements IAuthService {
     private void removeInviteTokenFromCache(String token) {
         redisTemplate.delete(StrUtil.format(USER_AUTH_INFO_TOKEN, token));
     }
+
+    public static String gimmieSomeRandomStringForPassword() {
+        int leftLimit = 48; // numeral '0'
+        int rightLimit = 122; // letter 'z'
+        int targetStringLength = 25;
+        Random random = new Random();
+
+        String generatedString = random.ints(leftLimit, rightLimit + 1)
+                .filter(i -> (i <= 57 || i >= 65) && (i <= 90 || i >= 97))
+                .limit(targetStringLength)
+                .collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append)
+                .toString();
+
+        return generatedString;
+    }
+
+    public static void ValidateJWTSignature(String encryptedToken, String jwksURI) throws JwkException, MalformedURLException {
+        DecodedJWT jwt = JWT.decode(encryptedToken);
+        JwkProvider provider = new UrlJwkProvider(new URL(jwksURI));
+        Jwk jwk = provider.get(jwt.getKeyId());
+        Algorithm algorithm = Algorithm.RSA256((RSAPublicKey) jwk.getPublicKey(), null);
+        algorithm.verify(jwt);
+    }
+
 
 }
